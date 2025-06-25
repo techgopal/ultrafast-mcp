@@ -1,0 +1,69 @@
+[package]
+name = "ultrafast-mcp-monitoring"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+authors.workspace = true
+keywords.workspace = true
+categories.workspace = true
+description = "Monitoring and observability for ULTRAFAST MCP with OpenTelemetry support"
+
+[dependencies]
+# Core dependencies
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+futures = { workspace = true }
+async-trait = { workspace = true }
+
+# OpenTelemetry core
+opentelemetry = { workspace = true }
+opentelemetry_sdk = { workspace = true }
+
+# OpenTelemetry exporters
+opentelemetry-jaeger = { workspace = true, optional = true }
+opentelemetry-prometheus = { workspace = true, optional = true }
+opentelemetry-otlp = { workspace = true, optional = true }
+
+# Tracing integration
+tracing = { workspace = true }
+tracing-opentelemetry = { workspace = true, optional = true }
+tracing-subscriber = { workspace = true }
+
+# Metrics
+metrics = { workspace = true, optional = true }
+metrics-exporter-prometheus = { workspace = true, optional = true }
+
+# System monitoring
+sysinfo = { workspace = true }
+sys-info = { workspace = true, optional = true }
+
+# HTTP support for metrics endpoints
+axum = { workspace = true, optional = true }
+tower = { workspace = true, optional = true }
+
+# Time utilities
+chrono = { workspace = true }
+
+# Configuration formats
+toml = { workspace = true, optional = true }
+serde_yaml = { workspace = true, optional = true }
+
+[features]
+default = ["prometheus", "jaeger", "console"]
+prometheus = ["dep:axum", "dep:tower", "dep:opentelemetry-prometheus", "dep:metrics", "dep:metrics-exporter-prometheus"]
+jaeger = ["dep:opentelemetry-jaeger", "dep:tracing-opentelemetry"]
+otlp = ["dep:opentelemetry-otlp", "dep:tracing-opentelemetry"]
+system-metrics = ["dep:sys-info"]
+console = ["dep:tracing-opentelemetry"]
+config-files = ["dep:toml", "dep:serde_yaml"]
+all = ["prometheus", "jaeger", "otlp", "system-metrics", "console", "config-files"]
+
+[dev-dependencies]
+tokio-test = "0.4"
+tempfile = "3.0"

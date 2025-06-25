@@ -1,0 +1,26 @@
+[package]
+name = "ultrafast-mcp-macros"
+version = "0.1.0"
+edition = "2021"
+description = "Procedural macros for the ULTRAFAST MCP implementation"
+authors = ["ULTRAFAST MCP Team"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/ultrafast-mcp/ultrafast-mcp"
+keywords = ["mcp", "model-context-protocol", "macros", "procedural"]
+categories = ["development-tools::procedural-macro-helpers"]
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2 = "1.0"
+quote = "1.0"
+syn = { version = "2.0", features = ["full", "extra-traits"] }
+serde_json = "1.0"
+
+[dev-dependencies]
+trybuild = "1.0"
+ultrafast-mcp-core = { path = "../ultrafast-mcp-core" }
+ultrafast-mcp-server = { path = "../ultrafast-mcp-server" }
+ultrafast-mcp-client = { path = "../ultrafast-mcp-client" }
+serde = { version = "1.0", features = ["derive"] }

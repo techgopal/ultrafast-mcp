@@ -1,0 +1,24 @@
+[package]
+name = "basic-echo-example"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "server"
+path = "src/server.rs"
+
+[[bin]]
+name = "client"
+path = "src/client.rs"
+
+[dependencies]
+ultrafast-mcp = { path = "../../crates/ultrafast-mcp", features = ["http-transport"] }
+ultrafast-mcp-transport = { path = "../../crates/ultrafast-mcp-transport", features = ["http"] }
+tokio = { version = "1.0", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+anyhow = "1.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+async-trait = "0.1"
+chrono = { version = "0.4", features = ["serde"] } 

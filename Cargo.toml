@@ -1,0 +1,103 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/ultrafast-mcp",
+    "crates/ultrafast-mcp-core",
+    "crates/ultrafast-mcp-transport",
+    "crates/ultrafast-mcp-server",
+    "crates/ultrafast-mcp-client",
+    "crates/ultrafast-mcp-macros",
+    "crates/ultrafast-mcp-cli",
+    "crates/ultrafast-mcp-auth",
+    "crates/ultrafast-mcp-monitoring",
+    "examples/01-basic-echo",
+    "examples/02-file-operations",
+    "examples/03-http-server",
+    "examples/04-advanced-features",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/ultrafast-mcp/ultrafast-mcp"
+homepage = "https://ultrafast-mcp.com"
+documentation = "https://docs.rs/ultrafast-mcp"
+authors = ["ULTRAFAST_MCP Team <team@ultrafast-mcp.com>"]
+keywords = ["mcp", "protocol", "llm", "ai", "json-rpc"]
+categories = ["api-bindings", "asynchronous", "network-programming"]
+
+[workspace.dependencies]
+# Core runtime dependencies
+tokio = { version = "1.0", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+anyhow = "1.0"
+thiserror = "1.0"
+
+# Async utilities
+futures = "0.3"
+async-trait = "0.1"
+
+# HTTP transport
+axum = "0.8"
+reqwest = { version = "0.11", features = ["json"] }
+tower = { version = "0.5", features = ["util"] }
+tower-http = { version = "0.6", features = ["cors", "trace"] }
+
+# Authentication
+oauth2 = "4.0"
+jsonwebtoken = "9.0"
+base64 = "0.21"
+url = "2.0"
+rand = "0.8"
+sha2 = "0.10"
+
+# Performance optimizations
+bytes = "1.0"
+smallvec = "1.0"
+dashmap = "5.0"
+
+# Procedural macros
+proc-macro2 = "1.0"
+quote = "1.0"
+syn = { version = "2.0", features = ["full"] }
+
+# CLI dependencies
+clap = { version = "4.0", features = ["derive"] }
+console = "0.15"
+indicatif = "0.17"
+
+# UUID generation  
+uuid = { version = "1.0", features = ["v4", "serde"] }
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Testing dependencies
+criterion = { version = "0.5", features = ["html_reports"] }
+tokio-test = "0.4"
+tempfile = "3.0"
+wiremock = "0.5"
+proptest = "1.0"
+
+# JSON Schema
+schemars = { version = "0.8", features = ["uuid1"] }
+
+# Monitoring and observability
+opentelemetry = "0.23"
+opentelemetry_sdk = { version = "0.23", features = ["rt-tokio"] }
+opentelemetry-jaeger = { version = "0.22", features = ["rt-tokio"] }
+opentelemetry-prometheus = "0.16"
+opentelemetry-otlp = { version = "0.16", features = ["grpc-tonic", "tokio"] }
+tracing-opentelemetry = "0.24"
+metrics = "0.23"
+metrics-exporter-prometheus = "0.15"
+sysinfo = "0.30"
+sys-info = "0.9"
+chrono = { version = "0.4", features = ["serde"] }
+
+# Configuration formats
+toml = "0.8"
+serde_yaml = "0.9"

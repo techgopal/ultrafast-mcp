@@ -1,0 +1,65 @@
+[package]
+name = "ultrafast-mcp-cli"
+version = "0.1.0"
+edition = "2021"
+description = "Command-line interface for ULTRAFAST MCP"
+authors = ["ULTRAFAST MCP Team"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/ultrafast-mcp/ultrafast-mcp"
+keywords = ["mcp", "model-context-protocol", "cli"]
+categories = ["command-line-utilities"]
+
+[[bin]]
+name = "mcp"
+path = "src/main.rs"
+
+[dependencies]
+ultrafast-mcp = { path = "../ultrafast-mcp" }
+ultrafast-mcp-core = { path = "../ultrafast-mcp-core" }
+ultrafast-mcp-server = { path = "../ultrafast-mcp-server" }
+ultrafast-mcp-client = { path = "../ultrafast-mcp-client" }
+ultrafast-mcp-transport = { path = "../ultrafast-mcp-transport" }
+
+# CLI framework
+clap = { version = "4.4", features = ["derive", "color"] }
+clap_complete = "4.4"
+
+# Async runtime
+tokio = { version = "1.0", features = ["full"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+toml = "0.8"
+base64 = "0.21"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+
+# File system
+walkdir = "2.4"
+ignore = "0.4"
+
+# Terminal UI
+console = "0.15"
+indicatif = "0.17"
+colored = "2.0"
+
+# Error handling
+anyhow = "1.0"
+thiserror = "1.0"
+
+# HTTP client for testing
+reqwest = { version = "0.11", features = ["json"] }
+
+# Date/time handling
+chrono = { version = "0.4", features = ["serde"] }
+
+# System utilities
+dirs = "5.0"
+
+[dev-dependencies]
+tempfile = "3.8"
+assert_cmd = "2.0"
+predicates = "3.0"

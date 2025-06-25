@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "ultrafast-echo": {
+      "command": "/Users/odc695/Desktop/code/rllm/mcp/target/debug/server",
+      "args": [],
+      "env": {}
+    }
+  }
+} 
