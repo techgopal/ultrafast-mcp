@@ -371,9 +371,7 @@ use ultrafast_mcp_core::types::{
     prompts::{GetPromptRequest, GetPromptResponse, Prompt},
     resources::{ReadResourceRequest, ReadResourceResponse, Resource},
     roots::{ListRootsRequest, ListRootsResponse},
-    sampling::{
-        CreateMessageRequest, CreateMessageResponse, SamplingRequest, SamplingResponse,
-    },
+    sampling::{CreateMessageRequest, CreateMessageResponse, SamplingRequest, SamplingResponse},
     tools::{Tool, ToolCall, ToolResult},
 };
 use ultrafast_mcp_core::utils::{CancellationManager, PingManager};

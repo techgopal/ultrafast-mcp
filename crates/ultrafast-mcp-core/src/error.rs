@@ -381,10 +381,9 @@ impl From<MCPError> for crate::protocol::JsonRpcError {
                 error_codes::INVALID_REQUEST,
                 format!("Invalid request ID: {}", id),
             ),
-            MCPError::Protocol(ProtocolError::ConnectionClosed) => JsonRpcError::new(
-                error_codes::INTERNAL_ERROR,
-                "Connection closed".to_string(),
-            ),
+            MCPError::Protocol(ProtocolError::ConnectionClosed) => {
+                JsonRpcError::new(error_codes::INTERNAL_ERROR, "Connection closed".to_string())
+            }
             MCPError::Protocol(ProtocolError::TransportError(msg)) => JsonRpcError::new(
                 error_codes::INTERNAL_ERROR,
                 format!("Transport error: {}", msg),
@@ -421,10 +420,9 @@ impl From<MCPError> for crate::protocol::JsonRpcError {
                 error_codes::INVALID_REQUEST,
                 format!("Invalid response: {}", msg),
             ),
-            MCPError::Protocol(ProtocolError::RequestTimeout) => JsonRpcError::new(
-                error_codes::INTERNAL_ERROR,
-                "Request timeout".to_string(),
-            ),
+            MCPError::Protocol(ProtocolError::RequestTimeout) => {
+                JsonRpcError::new(error_codes::INTERNAL_ERROR, "Request timeout".to_string())
+            }
             MCPError::Protocol(ProtocolError::InternalError(msg)) => JsonRpcError::new(
                 error_codes::INTERNAL_ERROR,
                 format!("Internal error: {}", msg),
@@ -463,21 +461,22 @@ impl From<MCPError> for crate::protocol::JsonRpcError {
             MCPError::Resource(ResourceError::ContentTypeMismatch { expected, actual }) => {
                 JsonRpcError::new(
                     error_codes::INVALID_REQUEST,
-                    format!("Content type mismatch: expected {}, got {}", expected, actual),
+                    format!(
+                        "Content type mismatch: expected {}, got {}",
+                        expected, actual
+                    ),
                 )
             }
             MCPError::Transport(TransportError::ConnectionFailed(msg)) => JsonRpcError::new(
                 error_codes::INTERNAL_ERROR,
                 format!("Connection failed: {}", msg),
             ),
-            MCPError::Transport(TransportError::ConnectionClosed) => JsonRpcError::new(
-                error_codes::INTERNAL_ERROR,
-                "Connection closed".to_string(),
-            ),
-            MCPError::Transport(TransportError::SendFailed(msg)) => JsonRpcError::new(
-                error_codes::INTERNAL_ERROR,
-                format!("Send failed: {}", msg),
-            ),
+            MCPError::Transport(TransportError::ConnectionClosed) => {
+                JsonRpcError::new(error_codes::INTERNAL_ERROR, "Connection closed".to_string())
+            }
+            MCPError::Transport(TransportError::SendFailed(msg)) => {
+                JsonRpcError::new(error_codes::INTERNAL_ERROR, format!("Send failed: {}", msg))
+            }
             MCPError::Transport(TransportError::ReceiveFailed(msg)) => JsonRpcError::new(
                 error_codes::INTERNAL_ERROR,
                 format!("Receive failed: {}", msg),
@@ -486,14 +485,12 @@ impl From<MCPError> for crate::protocol::JsonRpcError {
                 error_codes::PARSE_ERROR,
                 format!("Serialization error: {}", e),
             ),
-            MCPError::Io(e) => JsonRpcError::new(
-                error_codes::INTERNAL_ERROR,
-                format!("IO error: {}", e),
-            ),
-            MCPError::Other(e) => JsonRpcError::new(
-                error_codes::INTERNAL_ERROR,
-                format!("Other error: {}", e),
-            ),
+            MCPError::Io(e) => {
+                JsonRpcError::new(error_codes::INTERNAL_ERROR, format!("IO error: {}", e))
+            }
+            MCPError::Other(e) => {
+                JsonRpcError::new(error_codes::INTERNAL_ERROR, format!("Other error: {}", e))
+            }
         }
     }
 }

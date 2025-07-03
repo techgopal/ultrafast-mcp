@@ -9,9 +9,7 @@ use ultrafast_mcp_core::{
     types::{
         completion::{CompleteRequest, CompleteResponse},
         elicitation::{ElicitationRequest, ElicitationResponse},
-        prompts::{
-            GetPromptRequest, GetPromptResponse, ListPromptsRequest, ListPromptsResponse,
-        },
+        prompts::{GetPromptRequest, GetPromptResponse, ListPromptsRequest, ListPromptsResponse},
         resources::{
             ListResourceTemplatesRequest, ListResourceTemplatesResponse, ListResourcesRequest,
             ListResourcesResponse, ReadResourceRequest, ReadResourceResponse,
@@ -119,7 +117,9 @@ mod tests {
     impl ToolHandler for MockToolHandler {
         async fn handle_tool_call(&self, _call: ToolCall) -> MCPResult<ToolResult> {
             Ok(ToolResult {
-                content: vec![ultrafast_mcp_core::types::tools::ToolContent::text("mock result".to_string())],
+                content: vec![ultrafast_mcp_core::types::tools::ToolContent::text(
+                    "mock result".to_string(),
+                )],
                 is_error: None,
             })
         }
@@ -136,9 +136,14 @@ mod tests {
 
     #[async_trait]
     impl ResourceHandler for MockResourceHandler {
-        async fn read_resource(&self, _request: ReadResourceRequest) -> MCPResult<ReadResourceResponse> {
+        async fn read_resource(
+            &self,
+            _request: ReadResourceRequest,
+        ) -> MCPResult<ReadResourceResponse> {
             Ok(ReadResourceResponse {
-                contents: vec![ultrafast_mcp_core::types::resources::ResourceContent::text("mock resource".to_string())],
+                contents: vec![ultrafast_mcp_core::types::resources::ResourceContent::text(
+                    "mock resource".to_string(),
+                )],
             })
         }
 

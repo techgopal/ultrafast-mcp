@@ -3,7 +3,7 @@
 //! Core protocol implementation for the Model Context Protocol (MCP).
 //!
 //! This crate provides the foundational types, protocol implementations, and utilities
-//! for building high-performance MCP-compliant servers and clients. It implements the 
+//! for building high-performance MCP-compliant servers and clients. It implements the
 //! MCP 2025-06-18 specification with full type safety, comprehensive error handling,
 //! and optimized performance characteristics.
 //!

@@ -204,10 +204,7 @@ impl ToolHandler for FileOperationsHandler {
 }
 
 impl FileOperationsHandler {
-    async fn handle_read_file(
-        &self,
-        request: ReadFileRequest,
-    ) -> MCPResult<ToolResult> {
+    async fn handle_read_file(&self, request: ReadFileRequest) -> MCPResult<ToolResult> {
         let path = Path::new(&request.path);
 
         if !path.exists() {
@@ -251,10 +248,7 @@ impl FileOperationsHandler {
         })
     }
 
-    async fn handle_write_file(
-        &self,
-        request: WriteFileRequest,
-    ) -> MCPResult<ToolResult> {
+    async fn handle_write_file(&self, request: WriteFileRequest) -> MCPResult<ToolResult> {
         let path = Path::new(&request.path);
 
         // Create parent directory if it doesn't exist
@@ -303,10 +297,7 @@ impl FileOperationsHandler {
         })
     }
 
-    async fn handle_list_files(
-        &self,
-        request: ListFilesRequest,
-    ) -> MCPResult<ToolResult> {
+    async fn handle_list_files(&self, request: ListFilesRequest) -> MCPResult<ToolResult> {
         let path = Path::new(&request.path);
 
         if !path.exists() {
@@ -375,10 +366,7 @@ impl FileOperationsHandler {
         })
     }
 
-    async fn handle_delete_file(
-        &self,
-        request: DeleteFileRequest,
-    ) -> MCPResult<ToolResult> {
+    async fn handle_delete_file(&self, request: DeleteFileRequest) -> MCPResult<ToolResult> {
         let path = Path::new(&request.path);
 
         if !path.exists() {

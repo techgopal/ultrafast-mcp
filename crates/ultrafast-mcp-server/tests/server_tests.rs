@@ -1,11 +1,13 @@
 use std::sync::Arc;
+use ultrafast_mcp_core::error::MCPResult;
 use ultrafast_mcp_core::protocol::capabilities::ServerCapabilities;
 use ultrafast_mcp_core::types::{
     server::ServerInfo,
     tools::{ToolCall, ToolContent, ToolResult},
 };
-use ultrafast_mcp_server::{UltraFastServer, ToolHandler, ServerState, ListToolsRequest, ListToolsResponse};
-use ultrafast_mcp_core::error::MCPResult;
+use ultrafast_mcp_server::{
+    ListToolsRequest, ListToolsResponse, ServerState, ToolHandler, UltraFastServer,
+};
 
 #[cfg(test)]
 mod server_tests {

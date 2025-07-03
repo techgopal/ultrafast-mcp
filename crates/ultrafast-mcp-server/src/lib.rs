@@ -340,13 +340,13 @@
 //! - HTTP operations server
 //! - Advanced features server
 
+pub mod context;
 pub mod handlers;
 pub mod server;
-pub mod context;
 
 // Re-export main types
-pub use server::{ServerState, UltraFastServer};
 pub use context::Context;
+pub use server::{ServerState, UltraFastServer};
 
 // Re-export handler traits
 pub use handlers::{

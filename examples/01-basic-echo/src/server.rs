@@ -31,7 +31,10 @@ impl ToolHandler for EchoToolHandler {
 
         // Validate tool name
         if call.name != "echo" {
-            return Err(MCPError::method_not_found(format!("Unknown tool: {}", call.name)));
+            return Err(MCPError::method_not_found(format!(
+                "Unknown tool: {}",
+                call.name
+            )));
         }
 
         // Parse and validate request
@@ -43,11 +46,15 @@ impl ToolHandler for EchoToolHandler {
 
         // Validate input
         if request.message.is_empty() {
-            return Err(MCPError::invalid_params("Message cannot be empty".to_string()));
+            return Err(MCPError::invalid_params(
+                "Message cannot be empty".to_string(),
+            ));
         }
 
         if request.message.len() > 1000 {
-            return Err(MCPError::invalid_params("Message too long (max 1000 characters)".to_string()));
+            return Err(MCPError::invalid_params(
+                "Message too long (max 1000 characters)".to_string(),
+            ));
         }
 
         // Process the request
@@ -56,11 +63,10 @@ impl ToolHandler for EchoToolHandler {
             timestamp: chrono::Utc::now().to_rfc3339(),
         };
 
-        let response_text = serde_json::to_string_pretty(&response)
-            .map_err(|e| {
-                error!("Failed to serialize echo response: {}", e);
-                MCPError::serialization_error(e.to_string())
-            })?;
+        let response_text = serde_json::to_string_pretty(&response).map_err(|e| {
+            error!("Failed to serialize echo response: {}", e);
+            MCPError::serialization_error(e.to_string())
+        })?;
 
         info!("Echo tool completed successfully");
         Ok(ToolResult {
@@ -131,8 +137,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         name: "basic-echo-server".to_string(),
         version: "1.0.0".to_string(),
         description: Some(
-            "A simple echo server demonstrating UltraFastServer with Streamable HTTP"
-                .to_string(),
+            "A simple echo server demonstrating UltraFastServer with Streamable HTTP".to_string(),
         ),
         authors: Some(vec!["ULTRAFAST_MCP Team".to_string()]),
         homepage: Some("https://github.com/ultrafast-mcp/ultrafast-mcp".to_string()),

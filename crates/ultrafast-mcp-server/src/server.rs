@@ -160,10 +160,10 @@ impl UltraFastServer {
     /// Run the server with a custom transport
     pub async fn run_with_transport(&self, mut transport: Box<dyn Transport>) -> MCPResult<()> {
         info!("Starting UltraFastServer with transport");
-        
+
         // Initialize the server
         *self.state.write().await = ServerState::Initializing;
-        
+
         // Start message handling loop
         loop {
             match transport.receive_message().await {
@@ -178,21 +178,24 @@ impl UltraFastServer {
                 }
             }
         }
-        
+
         Ok(())
     }
 
     /// Run the server with Streamable HTTP transport
     #[cfg(feature = "http")]
     pub async fn run_streamable_http(&self, host: &str, port: u16) -> MCPResult<()> {
-        info!("Starting UltraFastServer with Streamable HTTP on {}:{}", host, port);
-        
+        info!(
+            "Starting UltraFastServer with Streamable HTTP on {}:{}",
+            host, port
+        );
+
         let config = HttpTransportConfig {
             host: host.to_string(),
             port,
             ..Default::default()
         };
-        
+
         self.run_http(config).await
     }
 
@@ -200,7 +203,9 @@ impl UltraFastServer {
     #[cfg(feature = "http")]
     pub async fn run_http(&self, config: HttpTransportConfig) -> MCPResult<()> {
         let server = HttpTransportServer::new(config);
-        server.run().await
+        server
+            .run()
+            .await
             .map_err(|e| MCPError::internal_error(format!("HTTP server failed: {}", e)))?;
         Ok(())
     }
@@ -229,9 +234,12 @@ impl UltraFastServer {
         match message {
             JsonRpcMessage::Request(request) => {
                 let response = self.handle_request(request).await;
-                transport.send_message(JsonRpcMessage::Response(response))
+                transport
+                    .send_message(JsonRpcMessage::Response(response))
                     .await
-                    .map_err(|e| MCPError::internal_error(format!("Failed to send message: {}", e)))?;
+                    .map_err(|e| {
+                        MCPError::internal_error(format!("Failed to send message: {}", e))
+                    })?;
             }
             JsonRpcMessage::Notification(notification) => {
                 self.handle_notification(notification).await?;
@@ -257,4 +265,4 @@ impl UltraFastServer {
         // Implementation will be moved to handlers module
         Ok(())
     }
-} 
+}

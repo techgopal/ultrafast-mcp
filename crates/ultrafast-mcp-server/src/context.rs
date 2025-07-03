@@ -87,7 +87,7 @@ impl Context {
 
         // TODO: Send actual progress notification to client
         // This would require access to the server's notification system
-        
+
         Ok(())
     }
 
@@ -96,10 +96,14 @@ impl Context {
         &self,
         message: &str,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        info!("[{}] {}", self.request_id.as_deref().unwrap_or("unknown"), message);
-        
+        info!(
+            "[{}] {}",
+            self.request_id.as_deref().unwrap_or("unknown"),
+            message
+        );
+
         // TODO: Send log notification to client
-        
+
         Ok(())
     }
 
@@ -108,10 +112,14 @@ impl Context {
         &self,
         message: &str,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        warn!("[{}] {}", self.request_id.as_deref().unwrap_or("unknown"), message);
-        
+        warn!(
+            "[{}] {}",
+            self.request_id.as_deref().unwrap_or("unknown"),
+            message
+        );
+
         // TODO: Send log notification to client
-        
+
         Ok(())
     }
 
@@ -120,10 +128,14 @@ impl Context {
         &self,
         message: &str,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        error!("[{}] {}", self.request_id.as_deref().unwrap_or("unknown"), message);
-        
+        error!(
+            "[{}] {}",
+            self.request_id.as_deref().unwrap_or("unknown"),
+            message
+        );
+
         // TODO: Send log notification to client
-        
+
         Ok(())
     }
 
@@ -159,7 +171,7 @@ mod tests {
     #[tokio::test]
     async fn test_context_logging() {
         let ctx = Context::new().with_request_id("test-request".to_string());
-        
+
         // These should not panic
         ctx.log_info("Test info message").await.unwrap();
         ctx.log_warn("Test warning message").await.unwrap();
@@ -169,13 +181,17 @@ mod tests {
     #[tokio::test]
     async fn test_context_progress() {
         let ctx = Context::new();
-        
+
         // Test progress tracking
-        ctx.progress("Starting operation", 0.0, Some(1.0)).await.unwrap();
+        ctx.progress("Starting operation", 0.0, Some(1.0))
+            .await
+            .unwrap();
         ctx.progress("Halfway done", 0.5, Some(1.0)).await.unwrap();
         ctx.progress("Completed", 1.0, Some(1.0)).await.unwrap();
-        
+
         // Test without total
-        ctx.progress("Indeterminate progress", 0.3, None).await.unwrap();
+        ctx.progress("Indeterminate progress", 0.3, None)
+            .await
+            .unwrap();
     }
-} 
+}

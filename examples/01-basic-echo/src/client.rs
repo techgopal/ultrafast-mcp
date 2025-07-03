@@ -61,7 +61,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Connect to server with retry logic
     let mut retry_count = 0;
     let connection_result = loop {
-        match client.connect_streamable_http("http://127.0.0.1:8080").await {
+        match client
+            .connect_streamable_http("http://127.0.0.1:8080")
+            .await
+        {
             Ok(_) => {
                 info!("✅ Connected successfully!");
                 break Ok(());
@@ -72,7 +75,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     error!("Failed to connect after {} retries: {}", MAX_RETRIES, e);
                     break Err(e);
                 }
-                warn!("Connection attempt {} failed: {}. Retrying in {:?}...", retry_count, e, RETRY_DELAY);
+                warn!(
+                    "Connection attempt {} failed: {}. Retrying in {:?}...",
+                    retry_count, e, RETRY_DELAY
+                );
                 tokio::time::sleep(RETRY_DELAY).await;
             }
         }
