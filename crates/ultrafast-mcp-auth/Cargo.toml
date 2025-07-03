@@ -11,6 +11,12 @@ keywords.workspace = true
 categories.workspace = true
 description = "Authentication and authorization for ULTRAFAST MCP"
 
+# docs.rs configuration
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+targets = ["x86_64-unknown-linux-gnu"]
+
 [dependencies]
 ultrafast-mcp-core = { path = "../ultrafast-mcp-core" }
 tokio = { workspace = true }

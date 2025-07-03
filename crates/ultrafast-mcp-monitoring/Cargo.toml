@@ -11,6 +11,12 @@ keywords.workspace = true
 categories.workspace = true
 description = "Monitoring and observability for ULTRAFAST MCP with OpenTelemetry support"
 
+# docs.rs configuration
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+targets = ["x86_64-unknown-linux-gnu"]
+
 [dependencies]
 # Core dependencies
 tokio = { workspace = true }
