@@ -13,27 +13,25 @@ use tokio::sync::{oneshot, RwLock};
 use tracing::{debug, error, info, warn};
 use uuid::Uuid;
 
-use ultrafast_mcp_core::{
-    error::{MCPError, McpError, McpResult},
-    protocol::{
-        capabilities::{ClientCapabilities, ServerCapabilities},
-        jsonrpc::{JsonRpcError, JsonRpcMessage, JsonRpcRequest, JsonRpcResponse, RequestId},
-        lifecycle::{InitializeRequest, InitializeResponse},
-    },
-    types::{
-        client::ClientInfo,
-        elicitation::{ElicitationRequest, ElicitationResponse},
-        notifications::{CancelledNotification, PingRequest, PingResponse},
-        prompts::{GetPromptRequest, GetPromptResponse, Prompt},
-        resources::{ReadResourceRequest, ReadResourceResponse, Resource},
-        roots::{ListRootsRequest, ListRootsResponse},
-        sampling::{
-            CreateMessageRequest, CreateMessageResponse, SamplingRequest, SamplingResponse,
-        },
-        tools::{Tool, ToolCall, ToolResult},
-    },
-    utils::{CancellationManager, PingManager},
+use ultrafast_mcp_core::error::{MCPError, MCPResult};
+use ultrafast_mcp_core::protocol::{
+    capabilities::{ClientCapabilities, ServerCapabilities},
+    jsonrpc::{JsonRpcError, JsonRpcMessage, JsonRpcRequest, JsonRpcResponse, RequestId},
+    lifecycle::{InitializeRequest, InitializeResponse},
 };
+use ultrafast_mcp_core::types::{
+    client::ClientInfo,
+    elicitation::{ElicitationRequest, ElicitationResponse},
+    notifications::{CancelledNotification, PingRequest, PingResponse},
+    prompts::{GetPromptRequest, GetPromptResponse, Prompt},
+    resources::{ReadResourceRequest, ReadResourceResponse, Resource},
+    roots::{ListRootsRequest, ListRootsResponse},
+    sampling::{
+        CreateMessageRequest, CreateMessageResponse, SamplingRequest, SamplingResponse,
+    },
+    tools::{Tool, ToolCall, ToolResult},
+};
+use ultrafast_mcp_core::utils::{CancellationManager, PingManager};
 use ultrafast_mcp_transport::{create_transport, Transport, TransportConfig};
 
 // Phase 3: Advanced client types and configurations
@@ -72,7 +70,7 @@ pub type SamplingHandlerFn = Arc<
     dyn Fn(
             SamplingRequest,
         ) -> std::pin::Pin<
-            Box<dyn std::future::Future<Output = McpResult<SamplingResponse>> + Send>,
+            Box<dyn std::future::Future<Output = MCPResult<SamplingResponse>> + Send>,
         > + Send
         + Sync,
 >;
@@ -82,7 +80,7 @@ pub type ElicitationHandlerFn = Arc<
     dyn Fn(
             ElicitationRequest,
         ) -> std::pin::Pin<
-            Box<dyn std::future::Future<Output = McpResult<ElicitationResponse>> + Send>,
+            Box<dyn std::future::Future<Output = MCPResult<ElicitationResponse>> + Send>,
         > + Send
         + Sync,
 >;
@@ -92,7 +90,7 @@ pub type ElicitationHandlerFn = Arc<
 /// Handler for server-initiated sampling requests (LLM integration)
 #[async_trait::async_trait]
 pub trait SamplingHandler: Send + Sync {
-    async fn handle_sampling(&self, request: SamplingRequest) -> McpResult<SamplingResponse>;
+    async fn handle_sampling(&self, request: SamplingRequest) -> MCPResult<SamplingResponse>;
 }
 
 /// Handler for resource change notifications
@@ -107,18 +105,18 @@ pub trait ElicitationHandler: Send + Sync {
     async fn handle_elicitation(
         &self,
         request: ElicitationRequest,
-    ) -> McpResult<ElicitationResponse>;
+    ) -> MCPResult<ElicitationResponse>;
 }
 
 /// Handler for server-initiated roots requests
 #[async_trait::async_trait]
 pub trait RootsHandler: Send + Sync {
-    async fn handle_roots(&self, request: ListRootsRequest) -> McpResult<ListRootsResponse>;
+    async fn handle_roots(&self, request: ListRootsRequest) -> MCPResult<ListRootsResponse>;
 }
 
 /// Pending request information
 struct PendingRequest {
-    sender: oneshot::Sender<McpResult<serde_json::Value>>,
+    sender: oneshot::Sender<MCPResult<serde_json::Value>>,
     // timeout field removed as it was unused - timeout is handled via tokio::time::timeout
 }
 
@@ -196,7 +194,7 @@ impl UltraFastClient {
     }
 
     /// Connect to server using STDIO transport
-    pub async fn connect_stdio(&self) -> McpResult<()> {
+    pub async fn connect_stdio(&self) -> MCPResult<()> {
         let transport = create_transport(TransportConfig::Stdio)
             .await
             .map_err(|e| MCPError::internal_error(format!("Transport creation failed: {}", e)))?;
@@ -207,7 +205,7 @@ impl UltraFastClient {
     ///
     /// This is the preferred method for high-performance HTTP communication.
     /// Streamable HTTP provides 10x better performance than HTTP+SSE under load.
-    pub async fn connect_streamable_http(&self, url: &str) -> McpResult<()> {
+    pub async fn connect_streamable_http(&self, url: &str) -> MCPResult<()> {
         let transport_config = TransportConfig::Streamable {
             base_url: url.to_string(),
             auth_token: None,
@@ -230,7 +228,7 @@ impl UltraFastClient {
         since = "0.1.0",
         note = "Use connect_streamable_http() instead. SSE transport is deprecated per MCP 2025-03-26 specification."
     )]
-    pub async fn connect_http_sse(&self, url: &str) -> McpResult<()> {
+    pub async fn connect_http_sse(&self, url: &str) -> MCPResult<()> {
         let transport_config = TransportConfig::HttpSse {
             base_url: url.to_string(),
             auth_token: None,
@@ -247,7 +245,7 @@ impl UltraFastClient {
     ///
     /// This is a generic connect method that uses whatever transport has been configured.
     /// For most use cases, prefer the specific connect methods like `connect_streamable_http`.
-    pub async fn connect(&self) -> McpResult<()> {
+    pub async fn connect(&self) -> MCPResult<()> {
         // Check if transport is already configured
         let transport_guard = self.transport.read().await;
         if let Some(ref _transport) = *transport_guard {
@@ -273,7 +271,7 @@ impl UltraFastClient {
     }
 
     /// Connect to server using custom transport
-    pub async fn connect_with_transport(&self, transport: Box<dyn Transport>) -> McpResult<()> {
+    pub async fn connect_with_transport(&self, transport: Box<dyn Transport>) -> MCPResult<()> {
         info!("Connecting to MCP server");
 
         *self.state.write().await = ClientState::Connecting;
@@ -296,7 +294,7 @@ impl UltraFastClient {
     }
 
     /// Initialize the connection
-    async fn initialize(&self) -> McpResult<()> {
+    async fn initialize(&self) -> MCPResult<()> {
         debug!("Initializing connection");
 
         let request = InitializeRequest {
@@ -321,7 +319,7 @@ impl UltraFastClient {
     }
 
     /// Start the message handler task
-    async fn start_message_handler(&self) -> McpResult<()> {
+    async fn start_message_handler(&self) -> MCPResult<()> {
         let transport = self.transport.clone();
         let pending_requests = self.pending_requests.clone();
         let sampling_handler = self.sampling_handler.clone();
@@ -395,9 +393,9 @@ impl UltraFastClient {
     async fn handle_incoming_message(
         message: serde_json::Value,
         handler_params: MessageHandlerParams<'_>,
-    ) -> McpResult<()> {
+    ) -> MCPResult<()> {
         let json_message: JsonRpcMessage = serde_json::from_value(message)
-            .map_err(|e| McpError::serialization_error(e.to_string()))?;
+            .map_err(|e| MCPError::serialization_error(e.to_string()))?;
 
         match json_message {
             JsonRpcMessage::Response(response) => {
@@ -406,7 +404,7 @@ impl UltraFastClient {
                     let id_value = serde_json::to_value(id)?;
                     if let Some(pending_request) = pending.remove(&id_value) {
                         let result = if let Some(error) = response.error {
-                            Err(McpError::from(error))
+                            Err(MCPError::from(error))
                         } else {
                             Ok(response.result.unwrap_or(serde_json::Value::Null))
                         };
@@ -459,19 +457,19 @@ impl UltraFastClient {
                                         }
                                     } else {
                                         warn!("No sampling handler configured");
-                                        Some(Err(McpError::internal_error(
+                                        Some(Err(MCPError::internal_error(
                                             "No sampling handler configured".to_string(),
                                         )))
                                     }
                                 }
                                 Err(e) => {
                                     error!("Failed to deserialize sampling request: {}", e);
-                                    Some(Err(McpError::serialization_error(e.to_string())))
+                                    Some(Err(MCPError::serialization_error(e.to_string())))
                                 }
                             }
                         } else {
                             error!("Sampling request missing parameters");
-                            Some(Err(McpError::invalid_request(
+                            Some(Err(MCPError::invalid_request(
                                 "Missing parameters".to_string(),
                             )))
                         }
@@ -498,19 +496,19 @@ impl UltraFastClient {
                                         }
                                     } else {
                                         warn!("No elicitation handler configured");
-                                        Some(Err(McpError::internal_error(
+                                        Some(Err(MCPError::internal_error(
                                             "No elicitation handler configured".to_string(),
                                         )))
                                     }
                                 }
                                 Err(e) => {
                                     error!("Failed to deserialize elicitation request: {}", e);
-                                    Some(Err(McpError::serialization_error(e.to_string())))
+                                    Some(Err(MCPError::serialization_error(e.to_string())))
                                 }
                             }
                         } else {
                             error!("Elicitation request missing parameters");
-                            Some(Err(McpError::invalid_request(
+                            Some(Err(MCPError::invalid_request(
                                 "Missing parameters".to_string(),
                             )))
                         }
@@ -533,19 +531,19 @@ impl UltraFastClient {
                                         }
                                     } else {
                                         warn!("No roots handler configured");
-                                        Some(Err(McpError::internal_error(
+                                        Some(Err(MCPError::internal_error(
                                             "No roots handler configured".to_string(),
                                         )))
                                     }
                                 }
                                 Err(e) => {
                                     error!("Failed to deserialize roots request: {}", e);
-                                    Some(Err(McpError::serialization_error(e.to_string())))
+                                    Some(Err(MCPError::serialization_error(e.to_string())))
                                 }
                             }
                         } else {
                             error!("Roots request missing parameters");
-                            Some(Err(McpError::invalid_request(
+                            Some(Err(MCPError::invalid_request(
                                 "Missing parameters".to_string(),
                             )))
                         }
@@ -647,7 +645,7 @@ impl UltraFastClient {
                                     if let Some(pending_request) =
                                         pending.remove(&cancel_notification.request_id)
                                     {
-                                        let cancel_error = McpError::internal_error(
+                                        let cancel_error = MCPError::internal_error(
                                             cancel_notification
                                                 .reason
                                                 .unwrap_or_else(|| "Request cancelled".to_string()),
@@ -678,7 +676,7 @@ impl UltraFastClient {
     }
 
     /// Send a JSON-RPC request and wait for response
-    async fn send_request<T>(&self, method: &str, params: Option<serde_json::Value>) -> McpResult<T>
+    async fn send_request<T>(&self, method: &str, params: Option<serde_json::Value>) -> MCPResult<T>
     where
         T: serde::de::DeserializeOwned,
     {
@@ -711,17 +709,17 @@ impl UltraFastClient {
                     .await
                     .map_err(|e| MCPError::internal_error(format!("Send failed: {}", e)))?;
             } else {
-                return Err(McpError::transport_error("Not connected".to_string()));
+                return Err(MCPError::transport_error("Not connected".to_string()));
             }
         }
 
         // Wait for response
         let result = tokio::time::timeout(self.request_timeout, receiver)
             .await
-            .map_err(|_| McpError::request_timeout())?
-            .map_err(|_| McpError::internal_error("Request cancelled".to_string()))??;
+            .map_err(|_| MCPError::request_timeout())?
+            .map_err(|_| MCPError::internal_error("Request cancelled".to_string()))??;
 
-        serde_json::from_value(result).map_err(|e| McpError::serialization_error(e.to_string()))
+        serde_json::from_value(result).map_err(|e| MCPError::serialization_error(e.to_string()))
     }
 
     /// Send a JSON-RPC notification
@@ -729,7 +727,7 @@ impl UltraFastClient {
         &self,
         method: &str,
         params: Option<serde_json::Value>,
-    ) -> McpResult<()> {
+    ) -> MCPResult<()> {
         let notification = JsonRpcRequest {
             jsonrpc: "2.0".to_string(),
             method: method.to_string(),
@@ -746,71 +744,71 @@ impl UltraFastClient {
                 .await
                 .map_err(|e| MCPError::internal_error(format!("Send failed: {}", e)))?;
         } else {
-            return Err(McpError::transport_error("Not connected".to_string()));
+            return Err(MCPError::transport_error("Not connected".to_string()));
         }
 
         Ok(())
     }
 
     /// List available tools
-    pub async fn list_tools(&self) -> McpResult<Vec<Tool>> {
+    pub async fn list_tools(&self) -> MCPResult<Vec<Tool>> {
         let response: serde_json::Value = self.send_request("tools/list", None).await?;
         let tools = response["tools"]
             .as_array()
-            .ok_or_else(|| McpError::invalid_response("Missing tools array".to_string()))?;
+            .ok_or_else(|| MCPError::invalid_response("Missing tools array".to_string()))?;
 
         tools
             .iter()
             .map(|t| serde_json::from_value(t.clone()))
             .collect::<Result<Vec<Tool>, _>>()
-            .map_err(|e| McpError::serialization_error(e.to_string()))
+            .map_err(|e| MCPError::serialization_error(e.to_string()))
     }
 
     /// Call a tool
-    pub async fn call_tool(&self, call: ToolCall) -> McpResult<ToolResult> {
+    pub async fn call_tool(&self, call: ToolCall) -> MCPResult<ToolResult> {
         let params = serde_json::to_value(call)?;
         self.send_request("tools/call", Some(params)).await
     }
 
     /// List available resources
-    pub async fn list_resources(&self) -> McpResult<Vec<Resource>> {
+    pub async fn list_resources(&self) -> MCPResult<Vec<Resource>> {
         let response: serde_json::Value = self.send_request("resources/list", None).await?;
         let resources = response["resources"]
             .as_array()
-            .ok_or_else(|| McpError::invalid_response("Missing resources array".to_string()))?;
+            .ok_or_else(|| MCPError::invalid_response("Missing resources array".to_string()))?;
 
         resources
             .iter()
             .map(|r| serde_json::from_value(r.clone()))
             .collect::<Result<Vec<Resource>, _>>()
-            .map_err(|e| McpError::serialization_error(e.to_string()))
+            .map_err(|e| MCPError::serialization_error(e.to_string()))
     }
 
     /// Read a resource
     pub async fn read_resource(
         &self,
         request: ReadResourceRequest,
-    ) -> McpResult<ReadResourceResponse> {
+    ) -> MCPResult<ReadResourceResponse> {
         let params = serde_json::to_value(request)?;
         self.send_request("resources/read", Some(params)).await
     }
 
     /// List available prompts
-    pub async fn list_prompts(&self) -> McpResult<Vec<Prompt>> {
+    pub async fn list_prompts(&self) -> MCPResult<Vec<Prompt>> {
         let response: serde_json::Value = self.send_request("prompts/list", None).await?;
         let prompts = response["prompts"]
             .as_array()
-            .ok_or_else(|| McpError::invalid_response("Missing prompts array".to_string()))?;
+            .ok_or_else(|| MCPError::invalid_response("Missing prompts array".to_string()))?;
 
         prompts
             .iter()
             .map(|p| serde_json::from_value(p.clone()))
             .collect::<Result<Vec<Prompt>, _>>()
-            .map_err(|e| McpError::serialization_error(e.to_string()))
+            .map_err(|e| MCPError::serialization_error(e.to_string()))
     }
 
     /// Get a prompt
-    pub async fn get_prompt(&self, request: GetPromptRequest) -> McpResult<GetPromptResponse> {
+    pub async fn get_prompt(&self, request: GetPromptRequest) -> MCPResult<GetPromptResponse> {
         let params = serde_json::to_value(request)?;
         self.send_request("prompts/get", Some(params)).await
     }
@@ -819,14 +817,14 @@ impl UltraFastClient {
     pub async fn create_message(
         &self,
         request: CreateMessageRequest,
-    ) -> McpResult<CreateMessageResponse> {
+    ) -> MCPResult<CreateMessageResponse> {
         let params = serde_json::to_value(request)?;
         self.send_request("sampling/createMessage", Some(params))
             .await
     }
 
     /// Disconnect from server
-    pub async fn disconnect(&self) -> McpResult<()> {
+    pub async fn disconnect(&self) -> MCPResult<()> {
         info!("Disconnecting from server");
 
         let mut transport_guard = self.transport.write().await;
@@ -846,26 +844,26 @@ impl UltraFastClient {
     // Phase 3: Advanced Client Features
 
     /// Set sampling handler for server-initiated LLM completions
-    pub async fn set_sampling_handler(&self, handler: Arc<dyn SamplingHandler>) -> McpResult<()> {
+    pub async fn set_sampling_handler(&self, handler: Arc<dyn SamplingHandler>) -> MCPResult<()> {
         *self.sampling_handler.write().await = Some(handler);
         Ok(())
     }
 
     /// Set roots handler for server-initiated roots requests
-    pub async fn set_roots_handler(&self, handler: Arc<dyn RootsHandler>) -> McpResult<()> {
+    pub async fn set_roots_handler(&self, handler: Arc<dyn RootsHandler>) -> MCPResult<()> {
         *self.roots_handler.write().await = Some(handler);
         Ok(())
     }
 
     /// List available filesystem roots
-    pub async fn list_roots(&self) -> McpResult<ListRootsResponse> {
+    pub async fn list_roots(&self) -> MCPResult<ListRootsResponse> {
         let request = ListRootsRequest {};
         let params = serde_json::to_value(request)?;
         self.send_request("roots/list", Some(params)).await
     }
 
     /// Subscribe to resource changes  
-    pub async fn subscribe_resource<F>(&self, uri: String, handler: F) -> McpResult<()>
+    pub async fn subscribe_resource<F>(&self, uri: String, handler: F) -> MCPResult<()>
     where
         F: Fn(
                 String,
@@ -894,7 +892,7 @@ impl UltraFastClient {
     }
 
     /// Unsubscribe from resource changes
-    pub async fn unsubscribe_resource(&self, uri: String) -> McpResult<()> {
+    pub async fn unsubscribe_resource(&self, uri: String) -> MCPResult<()> {
         self.resource_subscriptions.write().await.remove(&uri);
 
         let params = serde_json::json!({ "uri": uri });
@@ -909,7 +907,7 @@ impl UltraFastClient {
     pub async fn set_elicitation_handler(
         &self,
         handler: Arc<dyn ElicitationHandler>,
-    ) -> McpResult<()> {
+    ) -> MCPResult<()> {
         *self.elicitation_handler.write().await = Some(handler);
         Ok(())
     }
@@ -925,7 +923,7 @@ impl UltraFastClient {
     }
 
     /// Send a ping request to the server
-    pub async fn ping(&self, data: Option<serde_json::Value>) -> McpResult<PingResponse> {
+    pub async fn ping(&self, data: Option<serde_json::Value>) -> MCPResult<PingResponse> {
         let mut request = PingRequest::new();
         if let Some(data) = data {
             request = request.with_data(data);
@@ -941,7 +939,7 @@ impl UltraFastClient {
         &self,
         request_id: serde_json::Value,
         reason: Option<String>,
-    ) -> McpResult<()> {
+    ) -> MCPResult<()> {
         let mut notification = CancelledNotification::new(request_id.clone());
         if let Some(reason) = reason.clone() {
             notification = notification.with_reason(reason);
@@ -981,7 +979,7 @@ impl UltraFastClient {
         &self,
         request_id: serde_json::Value,
         method: String,
-    ) -> McpResult<()> {
+    ) -> MCPResult<()> {
         self.cancellation_manager
             .register_request(request_id, method)
             .await

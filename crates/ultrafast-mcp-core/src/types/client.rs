@@ -1,33 +1,41 @@
 use serde::{Deserialize, Serialize};
 
-/// Information about the client
+/// Client information
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClientInfo {
     /// Client name
     pub name: String,
-
     /// Client version
     pub version: String,
-
     /// Optional additional information
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
-
     /// Optional homepage URL
     #[serde(skip_serializing_if = "Option::is_none")]
     pub homepage: Option<String>,
-
     /// Optional repository URL
     #[serde(skip_serializing_if = "Option::is_none")]
     pub repository: Option<String>,
-
     /// Optional author information
     #[serde(skip_serializing_if = "Option::is_none")]
     pub authors: Option<Vec<String>>,
-
     /// Optional license information
     #[serde(skip_serializing_if = "Option::is_none")]
     pub license: Option<String>,
+}
+
+impl Default for ClientInfo {
+    fn default() -> Self {
+        Self {
+            name: "default-client".to_string(),
+            version: "1.0.0".to_string(),
+            description: None,
+            homepage: None,
+            repository: None,
+            authors: None,
+            license: None,
+        }
+    }
 }
 
 impl ClientInfo {

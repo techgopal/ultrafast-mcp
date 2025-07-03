@@ -8,7 +8,7 @@ use std::sync::Arc;
 use tokio::fs;
 use tracing::info;
 use ultrafast_mcp::{
-    ListToolsRequest, ListToolsResponse, MCPError, McpResult, ResourcesCapability,
+    ListToolsRequest, ListToolsResponse, MCPError, MCPResult, ResourcesCapability,
     ServerCapabilities, ServerInfo, Tool, ToolCall, ToolContent, ToolHandler, ToolResult,
     ToolsCapability, UltraFastServer,
 };
@@ -79,7 +79,7 @@ struct FileOperationsHandler;
 
 #[async_trait::async_trait]
 impl ToolHandler for FileOperationsHandler {
-    async fn handle_tool_call(&self, call: ToolCall) -> McpResult<ToolResult> {
+    async fn handle_tool_call(&self, call: ToolCall) -> MCPResult<ToolResult> {
         info!("Received tool call: {}", call.name);
 
         match call.name.as_str() {
@@ -118,7 +118,7 @@ impl ToolHandler for FileOperationsHandler {
         }
     }
 
-    async fn list_tools(&self, _request: ListToolsRequest) -> McpResult<ListToolsResponse> {
+    async fn list_tools(&self, _request: ListToolsRequest) -> MCPResult<ListToolsResponse> {
         Ok(ListToolsResponse {
             tools: vec![
                 Tool {
@@ -207,7 +207,7 @@ impl FileOperationsHandler {
     async fn handle_read_file(
         &self,
         request: ReadFileRequest,
-    ) -> ultrafast_mcp::McpResult<ToolResult> {
+    ) -> MCPResult<ToolResult> {
         let path = Path::new(&request.path);
 
         if !path.exists() {
@@ -254,7 +254,7 @@ impl FileOperationsHandler {
     async fn handle_write_file(
         &self,
         request: WriteFileRequest,
-    ) -> ultrafast_mcp::McpResult<ToolResult> {
+    ) -> MCPResult<ToolResult> {
         let path = Path::new(&request.path);
 
         // Create parent directory if it doesn't exist
@@ -306,7 +306,7 @@ impl FileOperationsHandler {
     async fn handle_list_files(
         &self,
         request: ListFilesRequest,
-    ) -> ultrafast_mcp::McpResult<ToolResult> {
+    ) -> MCPResult<ToolResult> {
         let path = Path::new(&request.path);
 
         if !path.exists() {
@@ -378,7 +378,7 @@ impl FileOperationsHandler {
     async fn handle_delete_file(
         &self,
         request: DeleteFileRequest,
-    ) -> ultrafast_mcp::McpResult<ToolResult> {
+    ) -> MCPResult<ToolResult> {
         let path = Path::new(&request.path);
 
         if !path.exists() {

@@ -101,7 +101,7 @@
 
 // Re-export core types
 pub use ultrafast_mcp_core::{
-    error::{MCPError, McpResult},
+    error::{MCPError, MCPResult},
     protocol::capabilities::{
         ClientCapabilities, ElicitationCapability, LoggingCapability, PromptsCapability,
         ResourcesCapability, RootsCapability, SamplingCapability, ServerCapabilities,

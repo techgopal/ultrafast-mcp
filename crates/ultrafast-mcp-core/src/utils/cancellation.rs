@@ -4,8 +4,8 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::sync::RwLock;
 use tokio::time::{interval, timeout};
 
-use crate::error::{McpError, McpResult};
 use crate::types::notifications::{CancelledNotification, PingRequest, PingResponse};
+use crate::error::{MCPError, MCPResult};
 
 /// Request cancellation manager
 #[derive(Debug)]
@@ -51,7 +51,7 @@ pub struct PingManager {
 /// Trait for sending ping requests
 #[async_trait::async_trait]
 pub trait PingSender {
-    async fn send_ping(&self, request: PingRequest) -> McpResult<PingResponse>;
+    async fn send_ping(&self, request: PingRequest) -> MCPResult<PingResponse>;
 }
 
 impl CancellationManager {
@@ -63,7 +63,7 @@ impl CancellationManager {
     }
 
     /// Register a new request for cancellation tracking
-    pub async fn register_request(&self, id: serde_json::Value, method: String) -> McpResult<()> {
+    pub async fn register_request(&self, id: serde_json::Value, method: String) -> MCPResult<()> {
         let request = CancellableRequest {
             id: id.clone(),
             method,
@@ -82,7 +82,7 @@ impl CancellationManager {
         &self,
         id: &serde_json::Value,
         reason: Option<String>,
-    ) -> McpResult<bool> {
+    ) -> MCPResult<bool> {
         let mut active = self.active_requests.write().await;
 
         if let Some(request) = active.get_mut(id) {
@@ -104,7 +104,7 @@ impl CancellationManager {
     }
 
     /// Remove a completed request
-    pub async fn complete_request(&self, id: &serde_json::Value) -> McpResult<()> {
+    pub async fn complete_request(&self, id: &serde_json::Value) -> MCPResult<()> {
         let mut active = self.active_requests.write().await;
         active.remove(id);
         Ok(())
@@ -117,7 +117,7 @@ impl CancellationManager {
     }
 
     /// Clean up old requests (older than max_age)
-    pub async fn cleanup_old_requests(&self, max_age: Duration) -> McpResult<usize> {
+    pub async fn cleanup_old_requests(&self, max_age: Duration) -> MCPResult<usize> {
         let cutoff = current_timestamp() - max_age.as_secs();
         let mut active = self.active_requests.write().await;
 
@@ -132,7 +132,7 @@ impl CancellationManager {
     pub async fn handle_cancellation(
         &self,
         notification: CancelledNotification,
-    ) -> McpResult<bool> {
+    ) -> MCPResult<bool> {
         self.cancel_request(&notification.request_id, notification.reason)
             .await
     }
@@ -166,9 +166,9 @@ impl PingManager {
     }
 
     /// Start periodic ping monitoring
-    pub async fn start_monitoring(&self) -> McpResult<()> {
+    pub async fn start_monitoring(&self) -> MCPResult<()> {
         if !self.enabled || self.ping_sender.is_none() {
-            return Err(McpError::internal_error(
+            return Err(MCPError::internal_error(
                 "Ping monitoring not properly configured".to_string(),
             ));
         }
@@ -213,7 +213,7 @@ impl PingManager {
     }
 
     /// Handle a ping request and return a pong response
-    pub async fn handle_ping(&self, request: PingRequest) -> McpResult<PingResponse> {
+    pub async fn handle_ping(&self, request: PingRequest) -> MCPResult<PingResponse> {
         // Simply echo back the data (if any)
         Ok(PingResponse::new().with_data(request.data.unwrap_or(serde_json::json!({}))))
     }

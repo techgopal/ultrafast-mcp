@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tracing::info;
 use ultrafast_mcp::{
-    ListToolsRequest, ListToolsResponse, MCPError, McpResult, ServerCapabilities, ServerInfo, Tool,
+    ListToolsRequest, ListToolsResponse, MCPError, MCPResult, ServerCapabilities, ServerInfo, Tool,
     ToolCall, ToolContent, ToolHandler, ToolResult, ToolsCapability, UltraFastServer,
 };
 
@@ -89,7 +89,7 @@ impl AdvancedFeaturesHandler {
 
 #[async_trait::async_trait]
 impl ToolHandler for AdvancedFeaturesHandler {
-    async fn handle_tool_call(&self, call: ToolCall) -> McpResult<ToolResult> {
+    async fn handle_tool_call(&self, call: ToolCall) -> MCPResult<ToolResult> {
         info!("Received tool call: {}", call.name);
 
         match call.name.as_str() {
@@ -122,7 +122,7 @@ impl ToolHandler for AdvancedFeaturesHandler {
         }
     }
 
-    async fn list_tools(&self, _request: ListToolsRequest) -> McpResult<ListToolsResponse> {
+    async fn list_tools(&self, _request: ListToolsRequest) -> MCPResult<ListToolsResponse> {
         Ok(ListToolsResponse {
             tools: vec![
                 Tool {
@@ -207,7 +207,7 @@ impl ToolHandler for AdvancedFeaturesHandler {
 }
 
 impl AdvancedFeaturesHandler {
-    async fn handle_calculator(&self, request: CalculatorRequest) -> McpResult<ToolResult> {
+    async fn handle_calculator(&self, request: CalculatorRequest) -> MCPResult<ToolResult> {
         let valid_operations = vec!["add", "subtract", "multiply", "divide", "average"];
 
         if !valid_operations.contains(&request.operation.as_str()) {
@@ -256,7 +256,7 @@ impl AdvancedFeaturesHandler {
         })
     }
 
-    async fn handle_data_processor(&self, request: DataProcessorRequest) -> McpResult<ToolResult> {
+    async fn handle_data_processor(&self, request: DataProcessorRequest) -> MCPResult<ToolResult> {
         let valid_operations = vec!["uppercase", "lowercase", "reverse", "sort", "unique"];
 
         let invalid_ops: Vec<&String> = request
@@ -319,7 +319,7 @@ impl AdvancedFeaturesHandler {
         })
     }
 
-    async fn handle_record_metric(&self, request: MetricsRequest) -> McpResult<ToolResult> {
+    async fn handle_record_metric(&self, request: MetricsRequest) -> MCPResult<ToolResult> {
         let tags = request.tags.unwrap_or_default();
 
         let data_point = MetricDataPoint {
@@ -351,7 +351,7 @@ impl AdvancedFeaturesHandler {
         })
     }
 
-    async fn handle_get_metrics_report(&self) -> McpResult<ToolResult> {
+    async fn handle_get_metrics_report(&self) -> MCPResult<ToolResult> {
         let data_points = {
             let metrics = self.metrics.read().await;
             metrics.clone()

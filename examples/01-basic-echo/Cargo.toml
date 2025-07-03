@@ -12,7 +12,7 @@ name = "client"
 path = "src/client.rs"
 
 [dependencies]
-ultrafast-mcp = { path = "../../crates/ultrafast-mcp", features = ["http-transport"] }
+ultrafast-mcp = { path = "../../crates/ultrafast-mcp", features = ["http"] }
 ultrafast-mcp-transport = { path = "../../crates/ultrafast-mcp-transport", features = ["http"] }
 tokio = { version = "1.0", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] }

@@ -1,344 +1,568 @@
-#!/usr/bin/env rust-script
+//! Comprehensive tests for the ULTRAFAST_MCP ergonomic API
+//!
+//! These tests verify that the high-level API works correctly and provides
+//! the expected developer experience.
 
-//! Comprehensive test to verify ergonomic API compiles and works correctly
-
-use ultrafast_mcp::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::time::Duration;
+use std::sync::Arc;
+use tokio::time::{timeout, Duration};
+use ultrafast_mcp::prelude::*;
 
-#[derive(Serialize)]
-struct GreetRequest {
-    name: String,
-    title: Option<String>,
+#[derive(Debug, Serialize, Deserialize)]
+struct TestRequest {
+    message: String,
+    count: u32,
 }
 
-#[derive(Deserialize)]
-struct GreetResponse {
-    message: String,
+#[derive(Debug, Serialize, Deserialize)]
+struct TestResponse {
+    echo: String,
+    doubled: u32,
     timestamp: String,
 }
 
-#[derive(Deserialize)]
-struct ConfigData {
-    app_name: String,
-    version: String,
-    features: Vec<String>,
-}
+/// Test tool handler implementation
+struct TestToolHandler;
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("🚀 Testing UltraFastClient Ergonomic API");
-    
-    // Test 1: Builder Pattern with All Capabilities
-    println!("\n1. Testing builder pattern...");
-    test_builder_pattern().await?;
-    
-    // Test 2: Connection Methods
-    println!("\n2. Testing connection methods...");
-    test_connection_methods().await?;
-    
-    // Test 3: Tool Operations
-    println!("\n3. Testing tool operations...");
-    test_tool_operations().await?;
-    
-    // Test 4: Resource Operations
-    println!("\n4. Testing resource operations...");
-    test_resource_operations().await?;
-    
-    // Test 5: Capability Management
-    println!("\n5. Testing capability management...");
-    test_capability_management().await?;
-    
-    // Test 6: Error Handling
-    println!("\n6. Testing error handling...");
-    test_error_handling().await?;
-    
-    println!("\n✅ All UltraFastClient API tests passed!");
-    println!("🎉 Ergonomic API is ready for production use!");
-    
-    Ok(())
-}
+#[async_trait::async_trait]
+impl ToolHandler for TestToolHandler {
+    async fn handle_tool_call(&self, call: ToolCall) -> McpResult<ToolResult> {
+        match call.name.as_str() {
+            "echo" => {
+                let request: TestRequest = serde_json::from_value(
+                    call.arguments.unwrap_or_default(),
+                )
+                .map_err(|e| MCPError::serialization_error(e.to_string()))?;
 
-async fn test_builder_pattern() -> Result<(), Box<dyn std::error::Error>> {
-    println!("  • Testing ergonomic client builder...");
-    
-    // This would create a properly configured client with all capabilities
-    let _client_builder = UltraFastClient::builder()
-        .with_name("test-client")
-        .with_version("1.0.0")
-        .with_roots()
-        .with_sampling(|request| async move {
-            println!("    📝 Handling sampling request for model: {:?}", request.model_preferences);
-            Ok(SamplingResponse {
-                model: "gpt-4".to_string(),
-                stop_reason: Some("completed".to_string()),
-                role: ultrafast_mcp_core::types::sampling::SamplingRole::Assistant,
-                content: ultrafast_mcp_core::types::sampling::SamplingContent::Text {
-                    text: "AI-generated response".to_string(),
-                },
-            })
+                let response = TestResponse {
+                    echo: request.message,
+                    doubled: request.count * 2,
+                    timestamp: chrono::Utc::now().to_rfc3339(),
+                };
+
+                let response_text = serde_json::to_string_pretty(&response)
+                    .map_err(|e| MCPError::serialization_error(e.to_string()))?;
+
+                Ok(ToolResult {
+                    content: vec![ToolContent::text(response_text)],
+                    is_error: None,
+                })
+            }
+            _ => Err(MCPError::method_not_found(format!("Unknown tool: {}", call.name))),
+        }
+    }
+
+    async fn list_tools(&self, _request: ListToolsRequest) -> McpResult<ListToolsResponse> {
+        Ok(ListToolsResponse {
+            tools: vec![Tool {
+                name: "echo".to_string(),
+                description: "Echo back a message with doubled count".to_string(),
+                input_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "message": {
+                            "type": "string",
+                            "description": "Message to echo back"
+                        },
+                        "count": {
+                            "type": "integer",
+                            "description": "Number to double"
+                        }
+                    },
+                    "required": ["message", "count"]
+                }),
+                output_schema: None,
+            }],
+            next_cursor: None,
         })
-        .with_elicitation(|request| async move {
-            println!("    💬 Handling elicitation request: {}", request.prompt);
-            Ok(ElicitationResponse {
-                input: "User provided input".to_string(),
-            })
+    }
+}
+
+/// Test resource handler implementation
+struct TestResourceHandler;
+
+#[async_trait::async_trait]
+impl ResourceHandler for TestResourceHandler {
+    async fn read_resource(&self, request: ReadResourceRequest) -> McpResult<ReadResourceResponse> {
+        match request.uri.as_str() {
+            "test://status" => {
+                let content = serde_json::json!({
+                    "name": "Test Server",
+                    "status": "running",
+                    "timestamp": chrono::Utc::now().to_rfc3339()
+                });
+
+                Ok(ReadResourceResponse {
+                    contents: vec![ResourceContent::text(
+                        serde_json::to_string_pretty(&content).unwrap(),
+                    )],
+                    mime_type: "application/json".to_string(),
+                })
+            }
+            _ => Err(MCPError::not_found(format!("Resource not found: {}", request.uri))),
+        }
+    }
+
+    async fn list_resources(
+        &self,
+        _request: ListResourcesRequest,
+    ) -> McpResult<ListResourcesResponse> {
+        Ok(ListResourcesResponse {
+            resources: vec![Resource {
+                uri: "test://status".to_string(),
+                name: "Server Status".to_string(),
+                description: Some("Current server status".to_string()),
+                mime_type: "application/json".to_string(),
+            }],
+            next_cursor: None,
+        })
+    }
+
+    async fn list_resource_templates(
+        &self,
+        _request: ListResourceTemplatesRequest,
+    ) -> McpResult<ListResourceTemplatesResponse> {
+        Ok(ListResourceTemplatesResponse {
+            resource_templates: vec![ResourceTemplate {
+                uri: "test://user/{user_id}".to_string(),
+                name: "User Profile".to_string(),
+                description: Some("User profile template".to_string()),
+            }],
+            next_cursor: None,
+        })
+    }
+}
+
+#[tokio::test]
+async fn test_server_creation() {
+    let server_info = ServerInfo {
+        name: "test-server".to_string(),
+        version: "1.0.0".to_string(),
+        description: Some("Test server for API validation".to_string()),
+        authors: None,
+        homepage: None,
+        license: None,
+        repository: None,
+    };
+
+    let capabilities = ServerCapabilities {
+        tools: Some(ToolsCapability {
+            list_changed: Some(true),
+        }),
+        resources: Some(ResourcesCapability {
+            subscribe: Some(true),
+            list_changed: Some(true),
+        }),
+        ..Default::default()
+    };
+
+    let server = UltraFastServer::new(server_info, capabilities)
+        .with_tool_handler(Arc::new(TestToolHandler))
+        .with_resource_handler(Arc::new(TestResourceHandler));
+
+    assert_eq!(server.info().name, "test-server");
+    assert_eq!(server.info().version, "1.0.0");
+}
+
+#[tokio::test]
+async fn test_client_creation() {
+    let client_info = ClientInfo {
+        name: "test-client".to_string(),
+        version: "1.0.0".to_string(),
+        description: Some("Test client for API validation".to_string()),
+        authors: None,
+        homepage: None,
+        license: None,
+        repository: None,
+    };
+
+    let client_capabilities = ClientCapabilities {
+        tools: Some(ToolsCapability {
+            list_changed: Some(true),
+        }),
+        resources: Some(ResourcesCapability {
+            subscribe: Some(true),
+            list_changed: Some(true),
+        }),
+        ..Default::default()
+    };
+
+    let client = UltraFastClient::new(client_info, client_capabilities);
+
+    assert_eq!(client.info().name, "test-client");
+    assert_eq!(client.info().version, "1.0.0");
+}
+
+#[tokio::test]
+async fn test_context_functionality() {
+    let ctx = Context::new()
+        .with_session_id("test-session".to_string())
+        .with_request_id("test-request".to_string())
+        .with_metadata("test_key".to_string(), serde_json::json!("test_value"));
+
+    assert_eq!(ctx.session_id(), Some("test-session"));
+    assert_eq!(ctx.request_id(), Some("test-request"));
+    assert_eq!(
+        ctx.get_metadata("test_key"),
+        Some(&serde_json::json!("test_value"))
+    );
+
+    // Test logging methods (should not panic)
+    ctx.log_info("Test info message").await.unwrap();
+    ctx.log_warn("Test warning message").await.unwrap();
+    ctx.log_error("Test error message").await.unwrap();
+
+    // Test progress tracking
+    ctx.progress("Starting test", 0.0, Some(1.0)).await.unwrap();
+    ctx.progress("Halfway done", 0.5, Some(1.0)).await.unwrap();
+    ctx.progress("Completed", 1.0, Some(1.0)).await.unwrap();
+}
+
+#[tokio::test]
+async fn test_error_handling() {
+    // Test MCPError creation
+    let error = MCPError::method_not_found("test_method".to_string());
+    assert!(error.to_string().contains("test_method"));
+
+    let error = MCPError::invalid_params("test_params".to_string());
+    assert!(error.to_string().contains("test_params"));
+
+    let error = MCPError::not_found("test_resource".to_string());
+    assert!(error.to_string().contains("test_resource"));
+
+    let error = MCPError::internal_error("test_internal".to_string());
+    assert!(error.to_string().contains("test_internal"));
+}
+
+#[tokio::test]
+async fn test_tool_handler() {
+    let handler = TestToolHandler;
+
+    // Test tool listing
+    let list_request = ListToolsRequest { cursor: None };
+    let list_response = handler.list_tools(list_request).await.unwrap();
+    assert_eq!(list_response.tools.len(), 1);
+    assert_eq!(list_response.tools[0].name, "echo");
+
+    // Test tool execution
+    let tool_call = ToolCall {
+        name: "echo".to_string(),
+        arguments: Some(serde_json::json!({
+            "message": "Hello, World!",
+            "count": 42
+        })),
+    };
+
+    let result = handler.handle_tool_call(tool_call).await.unwrap();
+    assert_eq!(result.content.len(), 1);
+    assert!(!result.is_error.unwrap_or(false));
+
+    // Test unknown tool
+    let unknown_call = ToolCall {
+        name: "unknown".to_string(),
+        arguments: None,
+    };
+
+    let error = handler.handle_tool_call(unknown_call).await.unwrap_err();
+    assert!(error.to_string().contains("Unknown tool"));
+}
+
+#[tokio::test]
+async fn test_resource_handler() {
+    let handler = TestResourceHandler;
+
+    // Test resource listing
+    let list_request = ListResourcesRequest { cursor: None };
+    let list_response = handler.list_resources(list_request).await.unwrap();
+    assert_eq!(list_response.resources.len(), 1);
+    assert_eq!(list_response.resources[0].uri, "test://status");
+
+    // Test resource reading
+    let read_request = ReadResourceRequest {
+        uri: "test://status".to_string(),
+    };
+    let read_response = handler.read_resource(read_request).await.unwrap();
+    assert_eq!(read_response.contents.len(), 1);
+    assert_eq!(read_response.mime_type, "application/json");
+
+    // Test unknown resource
+    let unknown_request = ReadResourceRequest {
+        uri: "test://unknown".to_string(),
+    };
+    let error = handler.read_resource(unknown_request).await.unwrap_err();
+    assert!(error.to_string().contains("Resource not found"));
+}
+
+#[tokio::test]
+async fn test_serialization() {
+    let request = TestRequest {
+        message: "Hello, World!".to_string(),
+        count: 42,
+    };
+
+    let serialized = serde_json::to_string(&request).unwrap();
+    let deserialized: TestRequest = serde_json::from_str(&serialized).unwrap();
+
+    assert_eq!(deserialized.message, "Hello, World!");
+    assert_eq!(deserialized.count, 42);
+}
+
+#[tokio::test]
+async fn test_timeout_handling() {
+    // Test that operations can be timed out
+    let result = timeout(
+        Duration::from_millis(100),
+        async {
+            // Simulate a long-running operation
+            tokio::time::sleep(Duration::from_secs(1)).await;
+            "completed"
+        },
+    )
+    .await;
+
+    assert!(result.is_err()); // Should timeout
+}
+
+#[tokio::test]
+async fn test_concurrent_operations() {
+    let handler = Arc::new(TestToolHandler);
+
+    // Create multiple concurrent tool calls
+    let mut handles = Vec::new();
+    for i in 0..10 {
+        let handler = handler.clone();
+        let handle = tokio::spawn(async move {
+            let tool_call = ToolCall {
+                name: "echo".to_string(),
+                arguments: Some(serde_json::json!({
+                    "message": format!("Message {}", i),
+                    "count": i
+                })),
+            };
+            handler.handle_tool_call(tool_call).await
         });
-    
-    println!("    ✓ Builder pattern created successfully");
-    Ok(())
+        handles.push(handle);
+    }
+
+    // Wait for all operations to complete
+    let mut results = Vec::new();
+    for handle in handles {
+        results.push(handle.await.unwrap().unwrap());
+    }
+
+    assert_eq!(results.len(), 10);
+    for result in results {
+        assert_eq!(result.content.len(), 1);
+        assert!(!result.is_error.unwrap_or(false));
+    }
 }
 
-async fn test_connection_methods() -> Result<(), Box<dyn std::error::Error>> {
-    println!("  • Testing connection method signatures...");
-    
-    // These would work if servers were running
-    println!("    ✓ UltraFastClient::connect_stdio() - available");
-    println!("    ✓ UltraFastClient::connect_streamable_http(url) - available");
-    println!("    ✓ UltraFastClient::connect_http_sse(url) - available");
-    println!("    ✓ UltraFastClient::connect_streamable_http_with_auth(url, auth) - available");
-    println!("    ✓ UltraFastClient::connect_http_sse_with_auth(url, auth) - available");
-    
-    // Test transport configurations
-    let _stdio_config = TransportConfig::Stdio;
-    
-    let _streamable_config = TransportConfig::Streamable {
-        url: "http://localhost:3000/mcp".to_string(),
-        auth: Some(AuthConfig::Bearer {
-            token: "test-token".to_string(),
+#[tokio::test]
+async fn test_error_propagation() {
+    let handler = TestToolHandler;
+
+    // Test that errors are properly propagated
+    let invalid_call = ToolCall {
+        name: "echo".to_string(),
+        arguments: Some(serde_json::json!({
+            "invalid": "data"
+        })),
+    };
+
+    let error = handler.handle_tool_call(invalid_call).await.unwrap_err();
+    assert!(error.to_string().contains("serialization error"));
+}
+
+#[tokio::test]
+async fn test_capability_negotiation() {
+    let server_capabilities = ServerCapabilities {
+        tools: Some(ToolsCapability {
+            list_changed: Some(true),
         }),
-    };
-    
-    let _http_sse_config = TransportConfig::HttpSse {
-        url: "http://localhost:3000/mcp".to_string(),
-        auth: Some(AuthConfig::OAuth {
-            client_id: "test-client".to_string(),
-            scopes: vec!["read".to_string(), "write".to_string()],
+        resources: Some(ResourcesCapability {
+            subscribe: Some(true),
+            list_changed: Some(true),
         }),
+        prompts: Some(PromptsCapability {
+            list_changed: Some(true),
+        }),
+        logging: Some(LoggingCapability {}),
+        ..Default::default()
     };
-    
-    println!("    ✓ All transport configurations available");
-    Ok(())
-}
 
-async fn test_tool_operations() -> Result<(), Box<dyn std::error::Error>> {
-    println!("  • Testing tool operation APIs...");
-    
-    // These APIs are available and type-safe
-    
-    // Simulated client for API testing (would be real client in practice)
-    struct MockClient;
-    
-    impl MockClient {
-        fn call_tool(&self, name: &str) -> MockToolCallBuilder {
-            MockToolCallBuilder { tool_name: name.to_string() }
-        }
-    }
-    
-    struct MockToolCallBuilder {
-        tool_name: String,
-    }
-    
-    impl MockToolCallBuilder {
-        fn arg<T: Serialize>(self, _name: &str, _value: T) -> Self { self }
-        fn with_progress<F>(self, _handler: F) -> Self { self }
-        fn with_timeout(self, _timeout: Duration) -> Self { self }
-        async fn execute<T: for<'de> Deserialize<'de>>(self) -> Result<T, Box<dyn std::error::Error>> {
-            Err("Mock implementation".into())
-        }
-    }
-    
-    let mock_client = MockClient;
-    
-    // Test tool call patterns that would work with real client
-    let _simple_call = mock_client.call_tool("get_time");
-    
-    let _parameterized_call = mock_client
-        .call_tool("greet")
-        .arg("name", "Alice")
-        .arg("title", "Dr.");
-    
-    let _complex_call = mock_client
-        .call_tool("process_data")
-        .arg("data", vec![1, 2, 3, 4, 5])
-        .arg("options", serde_json::json!({
-            "format": "json",
-            "compress": true
-        }))
-        .with_progress(|progress, total, message| async move {
-            println!("      Progress: {:.1}%", progress);
-            if let Some(msg) = message {
-                println!("      Status: {}", msg);
-            }
-        })
-        .with_timeout(Duration::from_secs(30));
-    
-    // Test type-safe structures
-    let _greet_request = GreetRequest {
-        name: "Bob".to_string(),
-        title: Some("Prof.".to_string()),
+    let client_capabilities = ClientCapabilities {
+        tools: Some(ToolsCapability {
+            list_changed: Some(true),
+        }),
+        resources: Some(ResourcesCapability {
+            subscribe: Some(true),
+            list_changed: Some(true),
+        }),
+        ..Default::default()
     };
-    
-    println!("    ✓ Tool call builder pattern works");
-    println!("    ✓ Type-safe argument handling");
-    println!("    ✓ Progress tracking support");
-    println!("    ✓ Timeout configuration");
-    Ok(())
+
+    // Test that capabilities are properly structured
+    assert!(server_capabilities.tools.is_some());
+    assert!(server_capabilities.resources.is_some());
+    assert!(client_capabilities.tools.is_some());
+    assert!(client_capabilities.resources.is_some());
 }
 
-async fn test_resource_operations() -> Result<(), Box<dyn std::error::Error>> {
-    println!("  • Testing resource operation APIs...");
-    
-    // Resource operations API signatures
-    struct MockClient;
-    
-    impl MockClient {
-        async fn list_resources(&self) -> Result<Vec<Resource>, Box<dyn std::error::Error>> {
-            Ok(vec![])
-        }
-        
-        async fn read_resource<T: for<'de> Deserialize<'de>>(&self, _uri: &str) -> Result<T, Box<dyn std::error::Error>> {
-            Err("Mock implementation".into())
-        }
-        
-        fn read_resource_template(&self, pattern: &str) -> MockResourceTemplateBuilder {
-            MockResourceTemplateBuilder { pattern: pattern.to_string() }
-        }
-        
-        async fn subscribe_resource<F, Fut>(&self, _uri: &str, _handler: F) -> Result<(), Box<dyn std::error::Error>>
-        where
-            F: Fn(String, serde_json::Value) -> Fut + Send + Sync + 'static,
-            Fut: std::future::Future<Output = ()> + Send + 'static,
-        {
-            Ok(())
-        }
+#[tokio::test]
+async fn test_transport_config() {
+    // Test stdio transport config
+    let stdio_config = TransportConfig::Stdio;
+    assert!(matches!(stdio_config, TransportConfig::Stdio));
+
+    // Test streamable HTTP config
+    #[cfg(feature = "http")]
+    {
+        let http_config = TransportConfig::Streamable {
+            base_url: "http://localhost:8080/mcp".to_string(),
+            auth_token: Some("test-token".to_string()),
+            session_id: Some("test-session".to_string()),
+        };
+        assert!(matches!(http_config, TransportConfig::Streamable { .. }));
     }
-    
-    struct MockResourceTemplateBuilder {
-        pattern: String,
-    }
-    
-    impl MockResourceTemplateBuilder {
-        fn param<T: Serialize>(self, _name: &str, _value: T) -> Self { self }
-        async fn execute<T: for<'de> Deserialize<'de>>(self) -> Result<T, Box<dyn std::error::Error>> {
-            Err("Mock implementation".into())
-        }
-    }
-    
-    let mock_client = MockClient;
-    
-    // Test resource operation patterns
-    let _resources = mock_client.list_resources().await;
-    
-    // Type-safe resource reading
-    let _config_read: Result<ConfigData, _> = mock_client.read_resource("config://app.json").await;
-    
-    // Resource templates with parameters
-    let _template_call = mock_client
-        .read_resource_template("users://{user_id}/profile")
-        .param("user_id", 12345)
-        .execute::<serde_json::Value>();
-    
-    // Resource change subscriptions
-    let _subscription = mock_client.subscribe_resource("config://app.json", |uri, content| async move {
-        println!("      Resource {} changed: {}", uri, content);
-    }).await;
-    
-    println!("    ✓ Resource listing API");
-    println!("    ✓ Type-safe resource reading");
-    println!("    ✓ Resource template with parameters");
-    println!("    ✓ Resource change subscriptions");
-    Ok(())
 }
 
-async fn test_capability_management() -> Result<(), Box<dyn std::error::Error>> {
-    println!("  • Testing capability management...");
-    
-    // Capability types are available
-    use ultrafast_mcp_core::protocol::capabilities::*;
-    
-    let mut capabilities = ClientCapabilities::default();
-    
-    // Roots capability
-    capabilities.roots = Some(RootsCapability {
-        list_changed: Some(true),
-    });
-    
-    // Sampling capability
-    capabilities.sampling = Some(SamplingCapability {});
-    
-    // Elicitation capability
-    capabilities.elicitation = Some(ElicitationCapability {});
-    
-    println!("    ✓ Roots capability configuration");
-    println!("    ✓ Sampling capability configuration");
-    println!("    ✓ Elicitation capability configuration");
-    
-    // Handler types
-    type TestSamplingHandler = Box<dyn Fn(SamplingRequest) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<SamplingResponse, Box<dyn std::error::Error + Send + Sync>>> + Send>> + Send + Sync>;
-    type TestElicitationHandler = Box<dyn Fn(ElicitationRequest) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<ElicitationResponse, Box<dyn std::error::Error + Send + Sync>>> + Send>> + Send + Sync>;
-    
-    let _sampling_handler: TestSamplingHandler = Box::new(|_request| {
-        Box::pin(async move {
-            Ok(SamplingResponse {
-                model: "test".to_string(),
-                stop_reason: None,
-                role: ultrafast_mcp_core::types::sampling::SamplingRole::Assistant,
-                content: ultrafast_mcp_core::types::sampling::SamplingContent::Text {
-                    text: "test".to_string(),
-                },
-            })
-        })
-    });
-    
-    let _elicitation_handler: TestElicitationHandler = Box::new(|_request| {
-        Box::pin(async move {
-            Ok(ElicitationResponse {
-                input: "test input".to_string(),
-            })
-        })
-    });
-    
-    println!("    ✓ Handler type definitions");
-    Ok(())
+#[tokio::test]
+async fn test_cancellation_manager() {
+    let manager = CancellationManager::new();
+
+    // Test request registration
+    let request_id = serde_json::json!("test-request");
+    manager
+        .register_request(request_id.clone(), "test_method".to_string())
+        .await
+        .unwrap();
+
+    // Test cancellation check
+    assert!(!manager.is_cancelled(&request_id).await);
+
+    // Test request completion
+    manager.complete_request(&request_id).await.unwrap();
 }
 
-async fn test_error_handling() -> Result<(), Box<dyn std::error::Error>> {
-    println!("  • Testing error handling patterns...");
+#[tokio::test]
+async fn test_ping_manager() {
+    let manager = PingManager::default();
+
+    // Test ping request
+    let ping_request = PingRequest::new();
+    let ping_response = manager.handle_ping(ping_request).await.unwrap();
+
+    assert_eq!(ping_response.jsonrpc, "2.0");
+    assert!(ping_response.result.is_some());
+}
+
+// Integration test that simulates a full server-client interaction
+#[tokio::test]
+async fn test_integration_workflow() {
+    // This test would require actual transport implementation
+    // For now, we'll test the components individually
     
-    // Error types are available
-    use ultrafast_mcp_core::error::{McpError, McpResult};
-    
-    // Simulate error scenarios
-    let _tool_not_found = McpError::method_not_found("nonexistent_tool".to_string());
-    let _invalid_params = McpError::invalid_params("Invalid parameter format".to_string());
-    let _internal_error = McpError::internal_error("Server error".to_string());
-    
-    // Error handling patterns
-    fn handle_mcp_error(result: McpResult<serde_json::Value>) {
-        match result {
-            Ok(_value) => println!("      ✓ Success case handled"),
-            Err(McpError::MethodNotFound { method }) => {
-                println!("      ✓ Method not found handled: {}", method);
-            }
-            Err(McpError::InvalidParams { message }) => {
-                println!("      ✓ Invalid params handled: {}", message);
-            }
-            Err(McpError::InternalError { message }) => {
-                println!("      ✓ Internal error handled: {}", message);
-            }
-            Err(e) => {
-                println!("      ✓ Other error handled: {}", e);
-            }
-        }
+    let server_info = ServerInfo {
+        name: "integration-test-server".to_string(),
+        version: "1.0.0".to_string(),
+        description: Some("Integration test server".to_string()),
+        authors: None,
+        homepage: None,
+        license: None,
+        repository: None,
+    };
+
+    let server_capabilities = ServerCapabilities {
+        tools: Some(ToolsCapability {
+            list_changed: Some(true),
+        }),
+        resources: Some(ResourcesCapability {
+            subscribe: Some(true),
+            list_changed: Some(true),
+        }),
+        ..Default::default()
+    };
+
+    let server = UltraFastServer::new(server_info, server_capabilities)
+        .with_tool_handler(Arc::new(TestToolHandler))
+        .with_resource_handler(Arc::new(TestResourceHandler));
+
+    let client_info = ClientInfo {
+        name: "integration-test-client".to_string(),
+        version: "1.0.0".to_string(),
+        description: Some("Integration test client".to_string()),
+        authors: None,
+        homepage: None,
+        license: None,
+        repository: None,
+    };
+
+    let client_capabilities = ClientCapabilities {
+        tools: Some(ToolsCapability {
+            list_changed: Some(true),
+        }),
+        resources: Some(ResourcesCapability {
+            subscribe: Some(true),
+            list_changed: Some(true),
+        }),
+        ..Default::default()
+    };
+
+    let client = UltraFastClient::new(client_info, client_capabilities);
+
+    // Verify that both server and client are properly configured
+    assert_eq!(server.info().name, "integration-test-server");
+    assert_eq!(client.info().name, "integration-test-client");
+}
+
+// Performance test
+#[tokio::test]
+async fn test_performance() {
+    use std::time::Instant;
+
+    let handler = TestToolHandler;
+
+    // Test tool call performance
+    let start = Instant::now();
+    for _ in 0..100 {
+        let tool_call = ToolCall {
+            name: "echo".to_string(),
+            arguments: Some(serde_json::json!({
+                "message": "Performance test",
+                "count": 1
+            })),
+        };
+        let _result = handler.handle_tool_call(tool_call).await.unwrap();
     }
-    
-    // Test error scenarios
-    handle_mcp_error(Err(McpError::method_not_found("test".to_string())));
-    handle_mcp_error(Err(McpError::invalid_params("test".to_string())));
-    handle_mcp_error(Err(McpError::internal_error("test".to_string())));
-    
-    println!("    ✓ Error type definitions");
-    println!("    ✓ Error handling patterns");
-    Ok(())
+    let duration = start.elapsed();
+
+    // Should complete 100 tool calls in under 1 second
+    assert!(duration < Duration::from_secs(1));
+    println!("100 tool calls completed in {:?}", duration);
+}
+
+// Memory usage test
+#[tokio::test]
+async fn test_memory_usage() {
+    let handler = TestToolHandler;
+
+    // Create many tool calls to test memory usage
+    let mut results = Vec::new();
+    for i in 0..1000 {
+        let tool_call = ToolCall {
+            name: "echo".to_string(),
+            arguments: Some(serde_json::json!({
+                "message": format!("Memory test {}", i),
+                "count": i
+            })),
+        };
+        let result = handler.handle_tool_call(tool_call).await.unwrap();
+        results.push(result);
+    }
+
+    assert_eq!(results.len(), 1000);
+    for result in results {
+        assert_eq!(result.content.len(), 1);
+        assert!(!result.is_error.unwrap_or(false));
+    }
 }

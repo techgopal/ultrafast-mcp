@@ -1,9 +1,9 @@
 use thiserror::Error;
 
+/// MCPError is the canonical error type for all MCP operations.
+///
+/// This is the preferred error type to use in all public APIs and user code.
 pub type MCPResult<T> = Result<T, MCPError>;
-
-pub type McpError = MCPError;
-pub type McpResult<T> = MCPResult<T>;
 
 #[derive(Debug, Error)]
 pub enum MCPError {
@@ -190,6 +190,26 @@ impl From<MCPError> for crate::protocol::JsonRpcError {
         use crate::protocol::JsonRpcError;
 
         match err {
+            MCPError::Protocol(ProtocolError::InvalidVersion(version)) => JsonRpcError::new(
+                error_codes::INVALID_REQUEST,
+                format!("Invalid JSON-RPC version: {}", version),
+            ),
+            MCPError::Protocol(ProtocolError::InvalidRequestId(id)) => JsonRpcError::new(
+                error_codes::INVALID_REQUEST,
+                format!("Invalid request ID: {}", id),
+            ),
+            MCPError::Protocol(ProtocolError::ConnectionClosed) => JsonRpcError::new(
+                error_codes::INTERNAL_ERROR,
+                "Connection closed".to_string(),
+            ),
+            MCPError::Protocol(ProtocolError::TransportError(msg)) => JsonRpcError::new(
+                error_codes::INTERNAL_ERROR,
+                format!("Transport error: {}", msg),
+            ),
+            MCPError::Protocol(ProtocolError::SerializationError(msg)) => JsonRpcError::new(
+                error_codes::PARSE_ERROR,
+                format!("Serialization error: {}", msg),
+            ),
             MCPError::Protocol(ProtocolError::MethodNotFound(method)) => JsonRpcError::new(
                 error_codes::METHOD_NOT_FOUND,
                 format!("Method not found: {}", method),
@@ -206,6 +226,30 @@ impl From<MCPError> for crate::protocol::JsonRpcError {
                 error_codes::CAPABILITY_NOT_SUPPORTED,
                 format!("Capability not supported: {}", cap),
             ),
+            MCPError::Protocol(ProtocolError::NotFound(msg)) => JsonRpcError::new(
+                error_codes::RESOURCE_NOT_FOUND,
+                format!("Not found: {}", msg),
+            ),
+            MCPError::Protocol(ProtocolError::InvalidRequest(msg)) => JsonRpcError::new(
+                error_codes::INVALID_REQUEST,
+                format!("Invalid request: {}", msg),
+            ),
+            MCPError::Protocol(ProtocolError::InvalidResponse(msg)) => JsonRpcError::new(
+                error_codes::INVALID_REQUEST,
+                format!("Invalid response: {}", msg),
+            ),
+            MCPError::Protocol(ProtocolError::RequestTimeout) => JsonRpcError::new(
+                error_codes::INTERNAL_ERROR,
+                "Request timeout".to_string(),
+            ),
+            MCPError::Protocol(ProtocolError::InternalError(msg)) => JsonRpcError::new(
+                error_codes::INTERNAL_ERROR,
+                format!("Internal error: {}", msg),
+            ),
+            MCPError::Protocol(ProtocolError::AuthenticationError(msg)) => JsonRpcError::new(
+                error_codes::ACCESS_DENIED,
+                format!("Authentication error: {}", msg),
+            ),
             MCPError::ToolExecution(ToolError::NotFound(tool)) => JsonRpcError::new(
                 error_codes::METHOD_NOT_FOUND,
                 format!("Tool not found: {}", tool),
@@ -213,6 +257,14 @@ impl From<MCPError> for crate::protocol::JsonRpcError {
             MCPError::ToolExecution(ToolError::ExecutionFailed(msg)) => JsonRpcError::new(
                 error_codes::TOOL_EXECUTION_ERROR,
                 format!("Tool execution failed: {}", msg),
+            ),
+            MCPError::ToolExecution(ToolError::InvalidInput(msg)) => JsonRpcError::new(
+                error_codes::INVALID_PARAMS,
+                format!("Invalid tool input: {}", msg),
+            ),
+            MCPError::ToolExecution(ToolError::SchemaValidation(msg)) => JsonRpcError::new(
+                error_codes::INVALID_PARAMS,
+                format!("Schema validation failed: {}", msg),
             ),
             MCPError::Resource(ResourceError::NotFound(uri)) => JsonRpcError::new(
                 error_codes::RESOURCE_NOT_FOUND,
@@ -225,14 +277,60 @@ impl From<MCPError> for crate::protocol::JsonRpcError {
             MCPError::Resource(ResourceError::InvalidUri(uri)) => {
                 JsonRpcError::new(error_codes::INVALID_URI, format!("Invalid URI: {}", uri))
             }
+            MCPError::Resource(ResourceError::ContentTypeMismatch { expected, actual }) => {
+                JsonRpcError::new(
+                    error_codes::INVALID_REQUEST,
+                    format!("Content type mismatch: expected {}, got {}", expected, actual),
+                )
+            }
+            MCPError::Transport(TransportError::ConnectionFailed(msg)) => JsonRpcError::new(
+                error_codes::INTERNAL_ERROR,
+                format!("Connection failed: {}", msg),
+            ),
+            MCPError::Transport(TransportError::ConnectionClosed) => JsonRpcError::new(
+                error_codes::INTERNAL_ERROR,
+                "Connection closed".to_string(),
+            ),
+            MCPError::Transport(TransportError::SendFailed(msg)) => JsonRpcError::new(
+                error_codes::INTERNAL_ERROR,
+                format!("Send failed: {}", msg),
+            ),
+            MCPError::Transport(TransportError::ReceiveFailed(msg)) => JsonRpcError::new(
+                error_codes::INTERNAL_ERROR,
+                format!("Receive failed: {}", msg),
+            ),
             MCPError::Serialization(e) => JsonRpcError::new(
                 error_codes::PARSE_ERROR,
                 format!("Serialization error: {}", e),
             ),
-            _ => JsonRpcError::new(
+            MCPError::Io(e) => JsonRpcError::new(
                 error_codes::INTERNAL_ERROR,
-                format!("Internal error: {}", err),
+                format!("IO error: {}", e),
             ),
+            MCPError::Other(e) => JsonRpcError::new(
+                error_codes::INTERNAL_ERROR,
+                format!("Other error: {}", e),
+            ),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::protocol::JsonRpcError;
+
+    #[test]
+    fn test_error_variant_conversion() {
+        let errors = vec![
+            MCPError::method_not_found("test_method".to_string()),
+            MCPError::invalid_params("bad params".to_string()),
+            MCPError::not_found("missing resource".to_string()),
+            MCPError::internal_error("internal".to_string()),
+        ];
+        for err in errors {
+            let rpc: JsonRpcError = err.into();
+            assert!(!rpc.message.is_empty());
         }
     }
 }

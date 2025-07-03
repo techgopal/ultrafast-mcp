@@ -6,10 +6,9 @@ use reqwest::Client as HttpClient;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tracing::info;
-use ultrafast_mcp::UltraFastServer;
 use ultrafast_mcp::{
-    ListToolsRequest, ListToolsResponse, MCPError, McpResult, ServerCapabilities, ServerInfo, Tool,
-    ToolCall, ToolContent, ToolHandler, ToolResult, ToolsCapability,
+    ListToolsRequest, ListToolsResponse, MCPError, MCPResult, ServerCapabilities, ServerInfo, Tool,
+    ToolCall, ToolContent, ToolHandler, ToolResult, ToolsCapability, UltraFastServer,
 };
 
 #[derive(Debug, Deserialize)]
@@ -69,7 +68,7 @@ struct HttpOperationsHandler;
 
 #[async_trait::async_trait]
 impl ToolHandler for HttpOperationsHandler {
-    async fn handle_tool_call(&self, call: ToolCall) -> McpResult<ToolResult> {
+    async fn handle_tool_call(&self, call: ToolCall) -> MCPResult<ToolResult> {
         info!("Received tool call: {}", call.name);
 
         match call.name.as_str() {
@@ -108,7 +107,7 @@ impl ToolHandler for HttpOperationsHandler {
         }
     }
 
-    async fn list_tools(&self, _request: ListToolsRequest) -> McpResult<ListToolsResponse> {
+    async fn list_tools(&self, _request: ListToolsRequest) -> MCPResult<ListToolsResponse> {
         Ok(ListToolsResponse {
             tools: vec![
                 Tool {
@@ -186,7 +185,7 @@ impl ToolHandler for HttpOperationsHandler {
 }
 
 impl HttpOperationsHandler {
-    async fn handle_http_get(&self, request: HttpGetRequest) -> McpResult<ToolResult> {
+    async fn handle_http_get(&self, request: HttpGetRequest) -> MCPResult<ToolResult> {
         let client = HttpClient::new();
         let response = client
             .get(&request.url)
@@ -221,7 +220,7 @@ impl HttpOperationsHandler {
         })
     }
 
-    async fn handle_http_post(&self, request: HttpPostRequest) -> McpResult<ToolResult> {
+    async fn handle_http_post(&self, request: HttpPostRequest) -> MCPResult<ToolResult> {
         let client = HttpClient::new();
         let mut req_builder = client.post(&request.url);
 
@@ -267,7 +266,7 @@ impl HttpOperationsHandler {
         })
     }
 
-    async fn handle_http_status(&self, request: HttpStatusRequest) -> McpResult<ToolResult> {
+    async fn handle_http_status(&self, request: HttpStatusRequest) -> MCPResult<ToolResult> {
         let client = HttpClient::new();
         let response = client.head(&request.url).send().await;
 
@@ -291,7 +290,7 @@ impl HttpOperationsHandler {
         })
     }
 
-    async fn handle_http_info(&self, request: HttpInfoRequest) -> McpResult<ToolResult> {
+    async fn handle_http_info(&self, request: HttpInfoRequest) -> MCPResult<ToolResult> {
         let client = HttpClient::new();
         let response = client.head(&request.url).send().await;
 

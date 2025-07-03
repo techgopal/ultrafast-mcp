@@ -66,53 +66,10 @@ sysinfo = { workspace = true, optional = true }
 chrono = { workspace = true, optional = true }
 
 [features]
-# Default features for basic MCP functionality
-default = ["stdio-transport"]
-
-# Transport implementations
-stdio-transport = []
-http-transport = [
-    "dep:axum",
-    "dep:reqwest", 
-    "dep:tower",
-    "dep:tower-http"
-]
-
-# Authentication and security
-oauth = [
-    "dep:oauth2",
-    "dep:jsonwebtoken",
-    "dep:base64",
-    "dep:url",
-    "dep:rand",
-    "dep:sha2"
-]
-
-# Performance optimizations
-performance = [
-    "dep:bytes",
-    "dep:smallvec",
-    "dep:dashmap"
-]
-
-# Monitoring and observability
-monitoring = [
-    "dep:ultrafast-mcp-monitoring",
-    "dep:opentelemetry",
-    "dep:opentelemetry_sdk",
-    "dep:tracing-opentelemetry",
-    "dep:metrics",
-    "dep:sysinfo",
-    "dep:chrono"
-]
-
-# Schema generation
-schema = ["dep:schemars"]
-
-# Convenience feature combinations
-web = ["http-transport", "oauth"]
-enterprise = ["web", "performance", "monitoring", "schema"]
-all = ["stdio-transport", "http-transport", "oauth", "performance", "monitoring", "schema"]
-
-# Experimental features (unstable)
-experimental = [] 
+default = []
+# Enables monitoring and metrics collection
+monitoring = ["ultrafast-mcp-monitoring"]
+# Enables HTTP transport support
+http = ["ultrafast-mcp-transport/http"]
+# Enables OAuth authentication support
+oauth = ["ultrafast-mcp-auth/oauth"] 
