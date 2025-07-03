@@ -314,7 +314,7 @@
 //!
 //! ```rust
 //! use ultrafast_mcp_monitoring::config::TracingConfig;
-//! 
+//!
 //! let mut config = TracingConfig::default();
 //! config.jaeger = Some(ultrafast_mcp_monitoring::config::JaegerConfig {
 //!     agent_endpoint: "http://localhost:14268/api/traces".to_string(),
@@ -537,7 +537,9 @@ impl MonitoringSystem {
     /// Start the HTTP monitoring server (stub when http feature is disabled)
     #[cfg(not(feature = "http"))]
     pub async fn start_http_server(&self, _addr: std::net::SocketAddr) -> Result<()> {
-        Err(anyhow::anyhow!("HTTP server requires 'http' feature to be enabled"))
+        Err(anyhow::anyhow!(
+            "HTTP server requires 'http' feature to be enabled"
+        ))
     }
 
     /// Shutdown the monitoring system
