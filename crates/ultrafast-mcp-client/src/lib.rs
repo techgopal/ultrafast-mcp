@@ -550,6 +550,7 @@ impl UltraFastClient {
     ///
     /// This is the preferred method for high-performance HTTP communication.
     /// Streamable HTTP provides 10x better performance than HTTP+SSE under load.
+    #[cfg(feature = "http")]
     pub async fn connect_streamable_http(&self, url: &str) -> MCPResult<()> {
         let transport_config = TransportConfig::Streamable {
             base_url: url.to_string(),
@@ -573,6 +574,7 @@ impl UltraFastClient {
         since = "0.1.0",
         note = "Use connect_streamable_http() instead. SSE transport is deprecated per MCP 2025-03-26 specification."
     )]
+    #[cfg(feature = "http")]
     pub async fn connect_http_sse(&self, url: &str) -> MCPResult<()> {
         let transport_config = TransportConfig::HttpSse {
             base_url: url.to_string(),

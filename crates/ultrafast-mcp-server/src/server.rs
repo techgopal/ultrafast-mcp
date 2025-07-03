@@ -20,6 +20,7 @@ use ultrafast_mcp_core::{
     },
     utils::{CancellationManager, PingManager},
 };
+#[cfg(feature = "http")]
 use ultrafast_mcp_transport::http::server::{HttpTransportConfig, HttpTransportServer};
 use ultrafast_mcp_transport::{create_transport, Transport, TransportConfig};
 
@@ -182,6 +183,7 @@ impl UltraFastServer {
     }
 
     /// Run the server with Streamable HTTP transport
+    #[cfg(feature = "http")]
     pub async fn run_streamable_http(&self, host: &str, port: u16) -> MCPResult<()> {
         info!("Starting UltraFastServer with Streamable HTTP on {}:{}", host, port);
         
@@ -195,6 +197,7 @@ impl UltraFastServer {
     }
 
     /// Run the server with HTTP transport
+    #[cfg(feature = "http")]
     pub async fn run_http(&self, config: HttpTransportConfig) -> MCPResult<()> {
         let server = HttpTransportServer::new(config);
         server.run().await

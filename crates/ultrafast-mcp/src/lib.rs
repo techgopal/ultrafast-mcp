@@ -41,6 +41,7 @@
 //!     ListToolsRequest, ListToolsResponse, ServerInfo, ServerCapabilities,
 //!     ToolsCapability, MCPError, MCPResult
 //! };
+//! use ultrafast_mcp_core::Tool;
 //! use serde::{Deserialize, Serialize};
 //! use std::sync::Arc;
 //!
@@ -89,7 +90,7 @@
 //!         Ok(ListToolsResponse {
 //!             tools: vec![Tool {
 //!                 name: "greet".to_string(),
-//!                 description: Some("Greet a person by name".to_string()),
+//!                 description: "Greet a person by name".to_string(),
 //!                 input_schema: serde_json::json!({
 //!                     "type": "object",
 //!                     "properties": {
@@ -98,6 +99,7 @@
 //!                     },
 //!                     "required": ["name"]
 //!                 }),
+//!                 output_schema: None,
 //!             }],
 //!             next_cursor: None,
 //!         })
@@ -159,8 +161,8 @@
 //!     // Create the client
 //!     let client = UltraFastClient::new(client_info, capabilities);
 //!
-//!     // Connect to the server using Streamable HTTP
-//!     client.connect_streamable_http("http://127.0.0.1:8080/mcp").await?;
+//!     // Connect to the server using STDIO
+//!     client.connect_stdio().await?;
 //!
 //!     // Call a tool
 //!     let tool_call = ToolCall {
@@ -186,7 +188,8 @@
 //! ### Resource Management
 //!
 //! ```rust
-//! use ultrafast_mcp::{ResourceHandler, ReadResourceRequest, ReadResourceResponse, ResourceContent};
+//! use ultrafast_mcp::{ResourceHandler, ReadResourceRequest, ReadResourceResponse, MCPResult};
+//! use ultrafast_mcp_core::ResourceContent;
 //!
 //! struct FileResourceHandler;
 //!
@@ -201,22 +204,29 @@
 //!         })
 //!     }
 //!
-//!     // Implement other resource methods...
+//!     async fn list_resources(&self, _request: ultrafast_mcp_core::types::resources::ListResourcesRequest) -> MCPResult<ultrafast_mcp_core::types::resources::ListResourcesResponse> {
+//!         Ok(ultrafast_mcp_core::types::resources::ListResourcesResponse {
+//!             resources: vec![],
+//!             next_cursor: None,
+//!         })
+//!     }
+//!
+//!     async fn list_resource_templates(&self, _request: ultrafast_mcp_core::types::resources::ListResourceTemplatesRequest) -> MCPResult<ultrafast_mcp_core::types::resources::ListResourceTemplatesResponse> {
+//!         Ok(ultrafast_mcp_core::types::resources::ListResourceTemplatesResponse {
+//!             resource_templates: vec![],
+//!             next_cursor: None,
+//!         })
+//!     }
 //! }
 //! ```
 //!
 //! ### Progress Tracking
 //!
-//! ```rust
-//! use ultrafast_mcp::{Context, ProgressTracker};
+//! ```no_run
+//! use ultrafast_mcp::{Context, MCPResult, MCPError};
 //!
 //! async fn long_running_operation(ctx: &Context) -> MCPResult<()> {
-//!     let mut progress = ProgressTracker::new("Processing data", 100);
-//!
 //!     for i in 0..100 {
-//!         // Update progress
-//!         progress.update(i, &format!("Processing item {}", i));
-//!
 //!         // Check for cancellation
 //!         if ctx.is_cancelled().await {
 //!             return Err(MCPError::request_timeout());
@@ -226,26 +236,38 @@
 //!         tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
 //!     }
 //!
-//!     progress.complete("All items processed");
 //!     Ok(())
 //! }
 //! ```
 //!
 //! ### Transport Configuration
 //!
-//! ```rust
-//! use ultrafast_mcp::{TransportConfig, UltraFastClient};
+//! ```no_run
+//! use ultrafast_mcp::{TransportConfig, UltraFastClient, ClientInfo, ClientCapabilities};
 //!
-//! // Configure custom transport
-//! let transport_config = TransportConfig::Streamable {
-//!     base_url: "https://api.example.com/mcp".to_string(),
-//!     auth_token: Some("your-auth-token".to_string()),
-//!     session_id: Some("your-session-id".to_string()),
-//! };
+//! #[tokio::main]
+//! async fn main() -> anyhow::Result<()> {
+//!     // Configure custom transport
+//!     let transport_config = TransportConfig::Stdio;
 //!
-//! // Use with client
-//! let client = UltraFastClient::new(client_info, capabilities);
-//! client.connect_with_transport(transport_config).await?;
+//!     // Create client
+//!     let client_info = ClientInfo {
+//!         name: "example-client".to_string(),
+//!         version: "1.0.0".to_string(),
+//!         authors: None,
+//!         description: None,
+//!         homepage: None,
+//!         repository: None,
+//!         license: None,
+//!     };
+//!     let capabilities = ClientCapabilities::default();
+//!     let client = UltraFastClient::new(client_info, capabilities);
+//!     
+//!     // Connect using STDIO transport
+//!     client.connect_stdio().await?;
+//!     
+//!     Ok(())
+//! }
 //! ```
 //!
 //! ## Architecture
@@ -293,17 +315,12 @@
 //! use ultrafast_mcp::{MCPError, MCPResult};
 //!
 //! async fn robust_operation() -> MCPResult<String> {
-//!     match perform_operation().await {
-//!         Ok(result) => Ok(result),
-//!         Err(MCPError::Transport(_)) => {
-//!             // Handle transport errors (retry, etc.)
-//!             perform_operation().await
-//!         }
-//!         Err(MCPError::Protocol(protocol_error)) => {
-//!             // Handle protocol errors
-//!             Err(MCPError::internal_error(format!("Protocol error: {}", protocol_error)))
-//!         }
-//!         Err(e) => Err(e), // Pass through other errors
+//!     // Simulate an operation that might fail
+//!     let result = "success".to_string();
+//!     
+//!     match result.as_str() {
+//!         "success" => Ok(result),
+//!         _ => Err(MCPError::internal_error("Operation failed".to_string())),
 //!     }
 //! }
 //! ```

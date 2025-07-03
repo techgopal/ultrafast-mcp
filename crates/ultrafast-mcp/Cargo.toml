@@ -72,7 +72,7 @@ default = []
 # Enables monitoring and metrics collection
 monitoring = ["ultrafast-mcp-monitoring"]
 # Enables HTTP transport support
-http = ["ultrafast-mcp-transport/http", "axum", "reqwest", "tower", "tower-http"]
+http = ["ultrafast-mcp-transport/http", "ultrafast-mcp-client/http", "ultrafast-mcp-server/http", "axum", "reqwest", "tower", "tower-http"]
 # Enables OAuth authentication support
 oauth = ["ultrafast-mcp-auth/oauth", "oauth2", "jsonwebtoken", "base64", "url", "rand", "sha2"]
 # Enables JSON Schema support
