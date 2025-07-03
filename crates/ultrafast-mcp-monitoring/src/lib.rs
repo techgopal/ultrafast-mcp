@@ -69,20 +69,10 @@
 //! #[tokio::main]
 //! async fn main() -> anyhow::Result<()> {
 //!     // Create monitoring configuration
-//!     let config = MonitoringConfig::default()
-//!         .with_metrics(true)
-//!         .with_health_checks(true)
-//!         .with_tracing(true)
-//!         .with_prometheus_export(true);
+//!     let config = MonitoringConfig::default();
 //!
 //!     // Initialize monitoring system
 //!     let monitoring = MonitoringSystem::init(config).await?;
-//!
-//!     // Start HTTP monitoring server
-//!     let addr = "127.0.0.1:9090".parse()?;
-//!     tokio::spawn(async move {
-//!         monitoring.start_http_server(addr).await.unwrap();
-//!     });
 //!
 //!     // Use monitoring in your application
 //!     let metrics = monitoring.metrics();
@@ -93,6 +83,13 @@
 //!     // Record the request completion
 //!     timer.finish(true).await;
 //!
+//!     // Start HTTP monitoring server (requires http feature)
+//!     #[cfg(feature = "http")]
+//!     {
+//!         let addr = "127.0.0.1:9090".parse()?;
+//!         monitoring.start_http_server(addr).await?;
+//!     }
+//!
 //!     Ok(())
 //! }
 //! ```
@@ -101,28 +98,33 @@
 //!
 //! ```rust
 //! use ultrafast_mcp_monitoring::{
-//!     MonitoringSystem, HealthChecker, HealthStatus, HealthCheck
+//!     MonitoringSystem, HealthChecker, HealthStatus
 //! };
-//! use std::time::Duration;
+//! use ultrafast_mcp_monitoring::health::{HealthCheck, HealthCheckResult};
+//! use std::time::{Duration, SystemTime};
 //!
 //! struct DatabaseHealthCheck;
 //!
 //! #[async_trait::async_trait]
 //! impl HealthCheck for DatabaseHealthCheck {
-//!     async fn check(&self) -> HealthStatus {
+//!     async fn check(&self) -> HealthCheckResult {
+//!         let start = std::time::Instant::now();
+//!         
 //!         // Implement your database health check
-//!         match check_database_connection().await {
+//!         let status = match check_database_connection().await {
 //!             Ok(_) => HealthStatus::Healthy,
 //!             Err(e) => HealthStatus::Unhealthy(format!("Database error: {}", e)),
+//!         };
+//!
+//!         HealthCheckResult {
+//!             status,
+//!             duration: start.elapsed(),
+//!             timestamp: SystemTime::now(),
 //!         }
 //!     }
 //!
 //!     fn name(&self) -> &str {
 //!         "database"
-//!     }
-//!
-//!     fn timeout(&self) -> Duration {
-//!         Duration::from_secs(5)
 //!     }
 //! }
 //!
@@ -180,19 +182,15 @@
 //! ### Distributed Tracing
 //!
 //! ```rust
-//! use ultrafast_mcp_monitoring::tracing::{TracingConfig, TracingSystem};
+//! use ultrafast_mcp_monitoring::config::TracingConfig;
 //! use tracing::{info, error};
 //!
 //! #[tokio::main]
 //! async fn main() -> anyhow::Result<()> {
-//!     // Initialize tracing
-//!     let tracing_config = TracingConfig::default()
-//!         .with_service_name("my-mcp-server")
-//!         .with_service_version("1.0.0")
-//!         .with_jaeger_endpoint("http://localhost:14268/api/traces");
-//!
-//!     let tracing_system = TracingSystem::new(tracing_config);
-//!     tracing_system.init().await?;
+//!     // Initialize tracing configuration
+//!     let mut tracing_config = TracingConfig::default();
+//!     tracing_config.service_name = "my-mcp-server".to_string();
+//!     tracing_config.service_version = "1.0.0".to_string();
 //!
 //!     // Use tracing in your application
 //!     info!("Starting MCP server");
@@ -211,14 +209,15 @@
 //!
 //! ### HTTP Middleware Integration
 //!
-//! ```rust
-//! use ultrafast_mcp_monitoring::middleware::MonitoringMiddleware;
+//! ```rust,no_run
+//! use ultrafast_mcp_monitoring::MonitoringSystem;
+//! #[cfg(feature = "http")]
 //! use axum::{Router, routing::post};
 //!
+//! #[cfg(feature = "http")]
 //! async fn create_app(monitoring: MonitoringSystem) -> Router {
 //!     Router::new()
 //!         .route("/mcp", post(handle_mcp_request))
-//!         .layer(MonitoringMiddleware::new(monitoring))
 //! }
 //!
 //! async fn handle_mcp_request() -> &'static str {
@@ -232,33 +231,22 @@
 //! ```rust
 //! use ultrafast_mcp_monitoring::MonitoringConfig;
 //!
-//! let config = MonitoringConfig::default()
-//!     .with_metrics(true)
-//!     .with_health_checks(true)
-//!     .with_tracing(true)
-//!     .with_prometheus_export(true)
-//!     .with_http_server("127.0.0.1:9090")
-//!     .with_metrics_interval(std::time::Duration::from_secs(30));
+//! let config = MonitoringConfig::default();
 //! ```
 //!
 //! ### Advanced Configuration
 //! ```rust
 //! use ultrafast_mcp_monitoring::MonitoringConfig;
+//! use std::time::Duration;
 //!
-//! let config = MonitoringConfig::default()
-//!     .with_metrics(true)
-//!     .with_health_checks(true)
-//!     .with_tracing(true)
-//!     .with_prometheus_export(true)
-//!     .with_jaeger_endpoint("http://localhost:14268/api/traces")
-//!     .with_metrics_retention(std::time::Duration::from_hours(24))
-//!     .with_health_check_interval(std::time::Duration::from_secs(30))
-//!     .with_alerting(true)
-//!     .with_alert_rules(vec![
-//!         "response_time > 1s",
-//!         "error_rate > 0.05",
-//!         "memory_usage > 80%"
-//!     ]);
+//! let mut config = MonitoringConfig::default();
+//! config.metrics.enabled = true;
+//! config.health.enabled = true;
+//! config.tracing.enabled = true;
+//! config.http.enabled = true;
+//! config.http.address = "127.0.0.1".to_string();
+//! config.http.port = 9090;
+//! config.metrics.collection_interval = Duration::from_secs(30);
 //! ```
 //!
 //! ## Metrics Types
@@ -325,8 +313,14 @@
 //! Exports traces to Jaeger for distributed tracing visualization.
 //!
 //! ```rust
-//! let config = TracingConfig::default()
-//!     .with_jaeger_endpoint("http://localhost:14268/api/traces");
+//! use ultrafast_mcp_monitoring::config::TracingConfig;
+//! 
+//! let mut config = TracingConfig::default();
+//! config.jaeger = Some(ultrafast_mcp_monitoring::config::JaegerConfig {
+//!     agent_endpoint: "http://localhost:14268/api/traces".to_string(),
+//!     collector_endpoint: None,
+//!     headers: std::collections::HashMap::new(),
+//! });
 //! ```
 //!
 //! ## Performance Considerations
@@ -391,6 +385,7 @@ use std::time::{Duration, Instant};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "http")]
 use axum::{routing::get, Router};
 
 pub mod config;
@@ -497,6 +492,7 @@ impl MonitoringSystem {
     }
 
     /// Start the HTTP monitoring server
+    #[cfg(feature = "http")]
     pub async fn start_http_server(&self, addr: std::net::SocketAddr) -> Result<()> {
         let app = Router::new()
             .route(
@@ -536,6 +532,12 @@ impl MonitoringSystem {
         let listener = tokio::net::TcpListener::bind(addr).await?;
         axum::serve(listener, app).await?;
         Ok(())
+    }
+
+    /// Start the HTTP monitoring server (stub when http feature is disabled)
+    #[cfg(not(feature = "http"))]
+    pub async fn start_http_server(&self, _addr: std::net::SocketAddr) -> Result<()> {
+        Err(anyhow::anyhow!("HTTP server requires 'http' feature to be enabled"))
     }
 
     /// Shutdown the monitoring system

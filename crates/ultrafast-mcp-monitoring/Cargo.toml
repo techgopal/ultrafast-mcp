@@ -61,13 +61,13 @@ toml = { workspace = true, optional = true }
 serde_yaml = { workspace = true, optional = true }
 
 [features]
-default = ["prometheus", "jaeger", "console"]
-prometheus = ["dep:axum", "dep:tower", "dep:opentelemetry-prometheus", "dep:metrics", "dep:metrics-exporter-prometheus"]
+default = ["http", "jaeger", "console"]
+http = ["dep:axum", "dep:tower", "dep:opentelemetry-prometheus", "dep:metrics", "dep:metrics-exporter-prometheus"]
 jaeger = ["dep:opentelemetry-jaeger", "dep:tracing-opentelemetry"]
 otlp = ["dep:opentelemetry-otlp", "dep:tracing-opentelemetry"]
 console = ["dep:tracing-opentelemetry"]
 config-files = ["dep:toml", "dep:serde_yaml"]
-all = ["prometheus", "jaeger", "otlp", "console", "config-files"]
+all = ["http", "jaeger", "otlp", "console", "config-files"]
 
 [dev-dependencies]
 tokio-test = { workspace = true }
