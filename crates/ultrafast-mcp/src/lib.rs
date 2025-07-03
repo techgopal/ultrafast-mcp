@@ -409,6 +409,7 @@ pub use ultrafast_mcp_client::{
 pub use ultrafast_mcp_transport::{Transport, TransportConfig};
 
 // Re-export auth types
+#[cfg(feature = "oauth")]
 pub use ultrafast_mcp_auth::OAuthConfig;
 
 #[cfg(feature = "monitoring")]

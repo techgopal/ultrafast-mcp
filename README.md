@@ -330,15 +330,6 @@ let server = UltraFastServer::new("My Server")
 
 ## 🚀 Performance
 
-### Benchmark Results
-
-| Metric | FastMCP (Python) | ULTRAFAST_MCP (Rust) | Improvement |
-|--------|------------------|---------------------|-------------|
-| **Response Time** | 1.5ms | 0.15ms | **10x faster** |
-| **Concurrent Requests** | 100 | 10,000 | **100x increase** |
-| **Memory Usage** | 100MB | 50MB | **50% reduction** |
-| **Startup Time** | 2.0s | 0.4s | **5x faster** |
-
 ### Performance Optimizations
 - **Zero-copy serialization** with `serde` and `bytes`
 - **SIMD-optimized JSON parsing**
@@ -432,8 +423,8 @@ at your option.
 ## 📞 Support
 
 - **Documentation**: [https://docs.rs/ultrafast-mcp](https://docs.rs/ultrafast-mcp)
-- **Issues**: [GitHub Issues](https://github.com/ultrafast-mcp/ultrafast-mcp/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/ultrafast-mcp/ultrafast-mcp/discussions)
+- **Issues**: [GitHub Issues](https://github.com/techgopal/ultrafast-mcp/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/techgopal/ultrafast-mcp/discussions)
 - **Email**: team@ultrafast-mcp.com
 
 ---

@@ -15,12 +15,12 @@ doc = false
 
 [dependencies]
 ultrafast-mcp = { path = "../../crates/ultrafast-mcp" }
-tokio = { version = "1.0", features = ["full"] }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-anyhow = "1.0"
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-async-trait = "0.1"
-chrono = { version = "0.4", features = ["serde"] }
-reqwest = { version = "0.11", features = ["json"] } 
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+async-trait = { workspace = true }
+chrono = { workspace = true }
+reqwest = { workspace = true } 

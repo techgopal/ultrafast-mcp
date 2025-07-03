@@ -9,6 +9,7 @@ documentation.workspace = true
 authors.workspace = true
 keywords.workspace = true
 categories.workspace = true
+readme.workspace = true
 description = "Client implementation for UltraFast MCP"
 
 # docs.rs configuration
@@ -18,15 +19,24 @@ rustdoc-args = ["--cfg", "docsrs"]
 targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
+# Internal dependencies
 ultrafast-mcp-core = { path = "../ultrafast-mcp-core" }
-ultrafast-mcp-transport = { path = "../ultrafast-mcp-transport", features = ["http"] }
-tokio = { version = "1.0", features = ["full"] }
-futures = "0.3"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-tracing = "0.1"
-async-trait = "0.1"
-uuid = { version = "1.0", features = ["v4"] }
+ultrafast-mcp-transport = { path = "../ultrafast-mcp-transport" }
+
+# Core runtime dependencies
+tokio = { workspace = true }
+futures = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+async-trait = { workspace = true }
+uuid = { workspace = true }
 
 [features]
 default = []
+http = ["ultrafast-mcp-transport/http"]
+
+[dev-dependencies]
+tokio-test = { workspace = true }
+tempfile = { workspace = true }
+proptest = { workspace = true }

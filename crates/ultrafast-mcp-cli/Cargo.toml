@@ -9,6 +9,7 @@ documentation.workspace = true
 authors.workspace = true
 keywords.workspace = true
 categories.workspace = true
+readme.workspace = true
 description = "Command-line interface for ULTRAFAST MCP"
 
 # docs.rs configuration
@@ -22,6 +23,7 @@ name = "mcp"
 path = "src/main.rs"
 
 [dependencies]
+# Internal dependencies
 ultrafast-mcp = { path = "../ultrafast-mcp" }
 ultrafast-mcp-core = { path = "../ultrafast-mcp-core" }
 ultrafast-mcp-server = { path = "../ultrafast-mcp-server" }
@@ -31,43 +33,43 @@ ultrafast-mcp-auth = { path = "../ultrafast-mcp-auth", optional = true }
 ultrafast-mcp-monitoring = { path = "../ultrafast-mcp-monitoring", optional = true }
 
 # CLI framework
-clap = { version = "4.4", features = ["derive", "color"] }
-clap_complete = "4.4"
+clap = { workspace = true }
+clap_complete = { workspace = true }
 
 # Async runtime
-tokio = { version = "1.0", features = ["full"] }
+tokio = { workspace = true }
 
 # Serialization
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-toml = "0.8"
-base64 = "0.21"
+serde = { workspace = true }
+serde_json = { workspace = true }
+toml = { workspace = true }
+base64 = { workspace = true }
 
 # Logging
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
 
 # File system
-walkdir = "2.4"
-ignore = "0.4"
+walkdir = { workspace = true }
+ignore = { workspace = true }
 
 # Terminal UI
-console = "0.15"
-indicatif = "0.17"
-colored = "2.0"
+console = { workspace = true }
+indicatif = { workspace = true }
+colored = { workspace = true }
 
 # Error handling
-anyhow = "1.0"
-thiserror = "1.0"
+anyhow = { workspace = true }
+thiserror = { workspace = true }
 
 # HTTP client for testing
-reqwest = { version = "0.11", features = ["json"] }
+reqwest = { workspace = true }
 
 # Date/time handling
-chrono = { version = "0.4", features = ["serde"] }
+chrono = { workspace = true }
 
 # System utilities
-dirs = "5.0"
+dirs = { workspace = true }
 
 [features]
 default = []
@@ -75,6 +77,6 @@ auth = ["ultrafast-mcp-auth"]
 monitoring = ["ultrafast-mcp-monitoring"]
 
 [dev-dependencies]
-tempfile = "3.8"
-assert_cmd = "2.0"
-predicates = "3.0"
+tempfile = { workspace = true }
+assert_cmd = { workspace = true }
+predicates = { workspace = true }

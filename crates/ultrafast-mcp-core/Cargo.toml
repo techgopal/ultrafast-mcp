@@ -9,6 +9,7 @@ documentation.workspace = true
 authors.workspace = true
 keywords.workspace = true
 categories.workspace = true
+readme.workspace = true
 description = "Core MCP protocol implementation for ULTRAFAST_MCP"
 
 # docs.rs configuration
@@ -18,6 +19,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
+# Core dependencies
 serde = { workspace = true }
 serde_json = { workspace = true }
 anyhow = { workspace = true }
@@ -32,3 +34,4 @@ schemars = { workspace = true }
 [dev-dependencies]
 tokio-test = { workspace = true }
 proptest = { workspace = true }
+tempfile = { workspace = true }
