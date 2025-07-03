@@ -1,10 +1,388 @@
-//! Procedural macros for the ULTRAFAST MCP implementation
+//! # UltraFast MCP Macros
 //!
-//! This crate provides convenience macros for:
-//! - Automatic schema generation
-//! - Tool registration
-//! - Server setup
+//! Procedural macros for the UltraFast Model Context Protocol (MCP) implementation.
+//!
+//! This crate provides convenient procedural macros that simplify MCP development
+//! by automatically generating boilerplate code, schemas, and configurations.
+//! It reduces the amount of repetitive code needed to implement MCP servers and clients.
+//!
+//! ## Overview
+//!
+//! The UltraFast MCP Macros crate provides:
+//!
+//! - **Schema Generation**: Automatic JSON Schema generation from Rust types
+//! - **Tool Registration**: Simplified tool definition and registration
+//! - **Server Setup**: Streamlined server configuration and setup
+//! - **Client Configuration**: Easy client configuration and setup
+//! - **Request/Response**: Automatic request and response type generation
+//! - **Error Handling**: Simplified error type generation
+//!
+//! ## Key Features
+//!
+//! ### Automatic Schema Generation
+//! - **Type Inference**: Automatically infer JSON schemas from Rust types
+//! - **Custom Attributes**: Fine-tune schema generation with attributes
+//! - **Validation**: Generate validation rules from type constraints
+//! - **Documentation**: Preserve Rust documentation in generated schemas
+//! - **Nested Types**: Handle complex nested structures and enums
+//!
+//! ### Tool Registration
+//! - **Function Attributes**: Convert Rust functions into MCP tools
+//! - **Automatic Registration**: Generate tool registration code
+//! - **Schema Generation**: Create input/output schemas automatically
+//! - **Error Handling**: Integrate with MCP error types
+//! - **Async Support**: Full support for async functions
+//!
+//! ### Server and Client Setup
+//! - **Server Configuration**: Simplify server setup and configuration
+//! - **Client Configuration**: Easy client configuration management
+//! - **Capability Management**: Automatic capability configuration
+//! - **Info Generation**: Generate server/client information
+//! - **Type Safety**: Compile-time type checking and validation
+//!
+//! ## Macros
+//!
+//! ### `#[derive(McpSchema)]` - Schema Generation
+//! Automatically generates JSON schemas from Rust structs and enums.
+//!
+//! ```rust
+//! use ultrafast_mcp_macros::McpSchema;
+//! use serde::{Serialize, Deserialize};
+//!
+//! #[derive(McpSchema, Serialize, Deserialize)]
+//! struct UserInput {
+//!     name: String,
+//!     age: u32,
+//!     email: Option<String>,
+//!     #[mcp(description = "User preferences")]
+//!     preferences: Vec<String>,
+//! }
+//!
+//! // The macro generates:
+//! // - JSON schema for the struct
+//! // - Schema validation methods
+//! // - Type conversion utilities
+//! ```
+//!
+//! ### `#[mcp_tool]` - Tool Definition
+//! Converts Rust functions into MCP tools with automatic schema generation.
+//!
+//! ```rust
+//! use ultrafast_mcp_macros::mcp_tool;
+//! use serde_json::Value;
+//!
+//! #[mcp_tool(
+//!     name = "greet_user",
+//!     description = "Greet a user with a personalized message"
+//! )]
+//! async fn greet_user(input: Value) -> Result<String, Box<dyn std::error::Error>> {
+//!     let name = input["name"].as_str().unwrap_or("World");
+//!     let greeting = input["greeting"].as_str().unwrap_or("Hello");
+//!     Ok(format!("{}, {}!", greeting, name))
+//! }
+//!
+//! // The macro generates:
+//! // - Tool registration function
+//! // - Input/output schemas
+//! // - Error handling integration
+//! ```
+//!
+//! ### `#[mcp_server]` - Server Setup
+//! Simplifies MCP server setup and configuration.
+//!
+//! ```rust
+//! use ultrafast_mcp_macros::mcp_server;
+//!
+//! #[mcp_server(
+//!     name = "MyGreetingServer",
+//!     version = "1.0.0",
+//!     description = "A server that provides greeting tools"
+//! )]
+//! struct MyServer;
+//!
+//! // The macro generates:
+//! // - Server information
+//! // - Server capabilities
+//! // - Server setup methods
+//! ```
+//!
+//! ### `#[mcp_client]` - Client Configuration
+//! Simplifies MCP client configuration and setup.
+//!
+//! ```rust
+//! use ultrafast_mcp_macros::mcp_client;
+//!
+//! #[mcp_client(
+//!     name = "MyClient",
+//!     version = "1.0.0",
+//!     description = "A client for the greeting server"
+//! )]
+//! struct MyClient;
+//!
+//! // The macro generates:
+//! // - Client information
+//! // - Client capabilities
+//! // - Client setup methods
+//! ```
+//!
+//! ### `#[mcp_request]` - Request Type Generation
+//! Generates MCP request types with automatic validation.
+//!
+//! ```rust
+//! use ultrafast_mcp_macros::mcp_request;
+//!
+//! #[mcp_request]
+//! struct GreetRequest {
+//!     name: String,
+//!     greeting: Option<String>,
+//! }
+//!
+//! // The macro generates:
+//! // - Request validation
+//! // - Serialization/deserialization
+//! // - Error handling
+//! ```
+//!
+//! ### `#[mcp_response]` - Response Type Generation
+//! Generates MCP response types with automatic serialization.
+//!
+//! ```rust
+//! use ultrafast_mcp_macros::mcp_response;
+//!
+//! #[mcp_response]
+//! struct GreetResponse {
+//!     message: String,
+//!     timestamp: String,
+//! }
+//!
+//! // The macro generates:
+//! // - Response serialization
+//! // - Type conversion methods
+//! // - Validation utilities
+//! ```
+//!
+//! ## Usage Examples
+//!
+//! ### Complete Tool Implementation
+//!
+//! ```rust
+//! use ultrafast_mcp_macros::{mcp_tool, McpSchema};
+//! use serde::{Serialize, Deserialize};
+//! use serde_json::Value;
+//!
+//! // Define input/output types with schemas
+//! #[derive(McpSchema, Serialize, Deserialize)]
+//! struct CalculatorInput {
+//!     operation: String,
+//!     a: f64,
+//!     b: f64,
+//! }
+//!
+//! #[derive(McpSchema, Serialize, Deserialize)]
+//! struct CalculatorOutput {
+//!     result: f64,
+//!     operation: String,
+//! }
+//!
+//! // Define the tool
+//! #[mcp_tool(
+//!     name = "calculate",
+//!     description = "Perform basic mathematical operations"
+//! )]
+//! async fn calculate(input: CalculatorInput) -> Result<CalculatorOutput, Box<dyn std::error::Error>> {
+//!     let result = match input.operation.as_str() {
+//!         "add" => input.a + input.b,
+//!         "subtract" => input.a - input.b,
+//!         "multiply" => input.a * input.b,
+//!         "divide" => {
+//!             if input.b == 0.0 {
+//!                 return Err("Division by zero".into());
+//!             }
+//!             input.a / input.b
+//!         }
+//!         _ => return Err("Unknown operation".into()),
+//!     };
+//!
+//!     Ok(CalculatorOutput {
+//!         result,
+//!         operation: input.operation,
+//!     })
+//! }
+//! ```
+//!
+//! ### Server with Multiple Tools
+//!
+//! ```rust
+//! use ultrafast_mcp_macros::{mcp_server, mcp_tool};
+//! use ultrafast_mcp_server::UltraFastServer;
+//!
+//! #[mcp_server(
+//!     name = "MathServer",
+//!     version = "1.0.0",
+//!     description = "A server providing mathematical tools"
+//! )]
+//! struct MathServer;
+//!
+//! #[mcp_tool(name = "add", description = "Add two numbers")]
+//! async fn add(a: f64, b: f64) -> Result<f64, Box<dyn std::error::Error>> {
+//!     Ok(a + b)
+//! }
+//!
+//! #[mcp_tool(name = "multiply", description = "Multiply two numbers")]
+//! async fn multiply(a: f64, b: f64) -> Result<f64, Box<dyn std::error::Error>> {
+//!     Ok(a * b)
+//! }
+//!
+//! #[tokio::main]
+//! async fn main() -> anyhow::Result<()> {
+//!     let server_info = MathServer::server_info();
+//!     let server = UltraFastServer::new(server_info, Default::default());
+//!     
+//!     // Register tools
+//!     server.with_tool_handler(Box::new(MathToolHandler));
+//!     
+//!     server.run_stdio().await?;
+//!     Ok(())
+//! }
+//! ```
+//!
+//! ### Client with Configuration
+//!
+//! ```rust
+//! use ultrafast_mcp_macros::{mcp_client, mcp_request, mcp_response};
+//! use serde::{Serialize, Deserialize};
+//!
+//! #[mcp_client(
+//!     name = "MathClient",
+//!     version = "1.0.0",
+//!     description = "A client for mathematical operations"
+//! )]
+//! struct MathClient;
+//!
+//! #[derive(Serialize, Deserialize)]
+//! #[mcp_request]
+//! struct AddRequest {
+//!     a: f64,
+//!     b: f64,
+//! }
+//!
+//! #[derive(Serialize, Deserialize)]
+//! #[mcp_response]
+//! struct AddResponse {
+//!     result: f64,
+//! }
+//!
+//! #[tokio::main]
+//! async fn main() -> anyhow::Result<()> {
+//!     let client_info = MathClient::client_info();
+//!     let client = ultrafast_mcp_client::UltraFastClient::new(client_info, Default::default());
+//!     
+//!     client.connect_streamable_http("http://localhost:8080/mcp").await?;
+//!     
+//!     let request = AddRequest { a: 5.0, b: 3.0 };
+//!     let response = client.call_tool("add", serde_json::to_value(request)?).await?;
+//!     
+//!     println!("Result: {:?}", response);
+//!     Ok(())
+//! }
+//! ```
+//!
+//! ## Schema Attributes
+//!
+//! The `McpSchema` derive macro supports various attributes for customizing schema generation:
+//!
+//! ```rust
+//! use ultrafast_mcp_macros::McpSchema;
+//! use serde::{Serialize, Deserialize};
+//!
+//! #[derive(McpSchema, Serialize, Deserialize)]
+//! struct User {
+//!     #[mcp(description = "User's full name")]
+//!     name: String,
+//!     
+//!     #[mcp(minimum = 0, maximum = 150)]
+//!     age: u32,
+//!     
+//!     #[mcp(format = "email")]
+//!     email: String,
+//!     
+//!     #[mcp(min_length = 8)]
+//!     password: String,
+//!     
+//!     #[mcp(required = false)]
+//!     bio: Option<String>,
+//! }
+//! ```
+//!
+//! ## Error Handling
+//!
+//! The macros integrate seamlessly with MCP error handling:
+//!
+//! ```rust
+//! use ultrafast_mcp_macros::mcp_tool;
+//! use ultrafast_mcp_core::MCPError;
+//!
+//! #[mcp_tool(name = "risky_operation")]
+//! async fn risky_operation(input: String) -> Result<String, MCPError> {
+//!     if input.is_empty() {
+//!         return Err(MCPError::invalid_params("Input cannot be empty".to_string()));
+//!     }
+//!     
+//!     if input.len() > 1000 {
+//!         return Err(MCPError::invalid_params("Input too long".to_string()));
+//!     }
+//!     
+//!     Ok(format!("Processed: {}", input))
+//! }
+//! ```
+//!
+//! ## Performance Considerations
+//!
+//! - **Compile-time Generation**: All code is generated at compile time
+//! - **Zero Runtime Overhead**: No runtime reflection or dynamic code generation
+//! - **Optimized Schemas**: Efficient schema generation and validation
+//! - **Minimal Allocations**: Optimized for minimal memory usage
+//! - **Fast Serialization**: Efficient serialization/deserialization
+//!
+//! ## Best Practices
+//!
+//! ### Schema Design
+//! - Use descriptive field names and types
+//! - Add meaningful descriptions with attributes
+//! - Use appropriate validation constraints
+//! - Keep schemas simple and focused
+//! - Document complex schemas thoroughly
+//!
+//! ### Tool Implementation
+//! - Use strongly-typed input/output types
+//! - Implement proper error handling
+//! - Add meaningful descriptions
+//! - Keep tools focused and single-purpose
+//! - Test tools thoroughly
+//!
+//! ### Server/Client Setup
+//! - Use descriptive names and versions
+//! - Provide meaningful descriptions
+//! - Configure appropriate capabilities
+//! - Implement proper error handling
+//! - Follow naming conventions
+//!
+//! ## Thread Safety
+//!
+//! All generated code is designed to be thread-safe:
+//! - Generated types implement `Send + Sync` where appropriate
+//! - No mutable global state is used
+//! - Concurrent access is supported
+//! - Safe for use in async contexts
+//!
+//! ## Examples
+//!
+//! See the `examples/` directory for complete working examples:
+//! - Basic tool implementation
+//! - Server with multiple tools
 //! - Client configuration
+//! - Schema customization
+//! - Error handling patterns
 
 use proc_macro::TokenStream;
 use quote::quote;

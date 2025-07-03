@@ -26,6 +26,8 @@ documentation = "https://docs.rs/ultrafast-mcp"
 authors = ["ULTRAFAST_MCP Team <team@ultrafast-mcp.com>"]
 keywords = ["mcp", "protocol", "llm", "ai", "json-rpc"]
 categories = ["api-bindings", "asynchronous", "network-programming"]
+readme = "README.md"
+description = "UltraFast MCP - High-performance Model Context Protocol implementation in Rust"
 
 [workspace.dependencies]
 # Core runtime dependencies

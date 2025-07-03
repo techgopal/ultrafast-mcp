@@ -4,12 +4,14 @@ version = "0.1.0"
 edition = "2021"
 
 [[bin]]
-name = "server"
+name = "http-server"
 path = "src/server.rs"
+doc = false
 
 [[bin]]
-name = "client"
+name = "http-client"
 path = "src/client.rs"
+doc = false
 
 [dependencies]
 ultrafast-mcp = { path = "../../crates/ultrafast-mcp" }

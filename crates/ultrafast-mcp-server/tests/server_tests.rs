@@ -1,13 +1,14 @@
 use std::sync::Arc;
-use ultrafast_mcp_core::{
-    error::McpResult,
-    protocol::capabilities::ServerCapabilities,
-    types::{
-        server::ServerInfo,
-        tools::{ListToolsRequest, ListToolsResponse, ToolCall, ToolContent, ToolResult},
-    },
+use ultrafast_mcp_core::protocol::capabilities::ServerCapabilities;
+use ultrafast_mcp_core::types::{
+    client::ClientInfo,
+    prompts::Prompt,
+    resources::{Resource, ResourceContent},
+    server::ServerInfo,
+    tools::{Tool, ToolCall, ToolContent, ToolResult},
 };
-use ultrafast_mcp_server::*;
+use ultrafast_mcp_server::{UltraFastServer, ToolHandler, ResourceHandler, ServerState, ListToolsRequest, ListToolsResponse};
+use ultrafast_mcp_core::error::MCPResult;
 
 #[cfg(test)]
 mod server_tests {
@@ -169,7 +170,7 @@ mod handler_tests {
         struct TestToolHandler;
         #[async_trait::async_trait]
         impl ToolHandler for TestToolHandler {
-            async fn handle_tool_call(&self, _call: ToolCall) -> McpResult<ToolResult> {
+            async fn handle_tool_call(&self, _call: ToolCall) -> MCPResult<ToolResult> {
                 Ok(ToolResult {
                     content: vec![ToolContent::Text {
                         text: "test result".to_string(),
@@ -177,7 +178,7 @@ mod handler_tests {
                     is_error: Some(false),
                 })
             }
-            async fn list_tools(&self, _request: ListToolsRequest) -> McpResult<ListToolsResponse> {
+            async fn list_tools(&self, _request: ListToolsRequest) -> MCPResult<ListToolsResponse> {
                 Ok(ListToolsResponse {
                     tools: vec![],
                     next_cursor: None,

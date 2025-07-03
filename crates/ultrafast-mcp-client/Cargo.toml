@@ -1,16 +1,25 @@
 [package]
 name = "ultrafast-mcp-client"
-version = "0.1.0"
-edition = "2021"
-description = "MCP client implementation for ULTRAFAST MCP"
-license = "MIT OR Apache-2.0"
-repository = "https://github.com/yourusername/ultrafast-mcp"
-keywords = ["mcp", "client", "async", "protocol"]
-categories = ["api-bindings", "web-programming", "asynchronous"]
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+authors.workspace = true
+keywords.workspace = true
+categories.workspace = true
+description = "Client implementation for UltraFast MCP"
+
+# docs.rs configuration
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
 ultrafast-mcp-core = { path = "../ultrafast-mcp-core" }
-ultrafast-mcp-transport = { path = "../ultrafast-mcp-transport" }
+ultrafast-mcp-transport = { path = "../ultrafast-mcp-transport", features = ["http"] }
 tokio = { version = "1.0", features = ["full"] }
 futures = "0.3"
 serde = { version = "1.0", features = ["derive"] }

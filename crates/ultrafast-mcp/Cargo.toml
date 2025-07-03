@@ -11,6 +11,12 @@ keywords.workspace = true
 categories.workspace = true
 description = "High-performance, ergonomic Model Context Protocol (MCP) implementation in Rust"
 
+# docs.rs configuration
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+targets = ["x86_64-unknown-linux-gnu"]
+
 [dependencies]
 # Core dependencies
 ultrafast-mcp-core = { path = "../ultrafast-mcp-core" }

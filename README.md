@@ -3,6 +3,7 @@
 **High-performance, ergonomic Model Context Protocol (MCP) implementation in Rust**
 
 [![Crates.io](https://img.shields.io/crates/v/ultrafast-mcp)](https://crates.io/crates/ultrafast-mcp)
+[![Documentation](https://img.shields.io/badge/docs-docs.rs-blue.svg)](https://docs.rs/ultrafast-mcp)
 [![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)](https://github.com/ultrafast-mcp/ultrafast-mcp/blob/main/LICENSE)
 [![Rust](https://img.shields.io/badge/rust-1.70+-blue.svg)](https://www.rust-lang.org)
 [![MCP](https://img.shields.io/badge/MCP-2025--06--18-green.svg)](https://modelcontextprotocol.io)
@@ -179,9 +180,29 @@ ultrafast-mcp/          # Main crate with unified APIs
 - **Bidirectional communication** with proper lifecycle
 - **stderr logging** support
 
-## 📚 Examples
+## 📚 Documentation
 
-### 1. Basic Echo Server
+### API Documentation
+- **[Main Documentation](https://docs.rs/ultrafast-mcp)** - Complete API reference
+- **[Core Types](https://docs.rs/ultrafast-mcp-core)** - Protocol definitions and types
+- **[Server API](https://docs.rs/ultrafast-mcp-server)** - Server implementation details
+- **[Client API](https://docs.rs/ultrafast-mcp-client)** - Client implementation details
+- **[Transport Layer](https://docs.rs/ultrafast-mcp-transport)** - Transport implementations
+- **[Authentication](https://docs.rs/ultrafast-mcp-auth)** - OAuth 2.1 implementation
+- **[CLI Tools](https://docs.rs/ultrafast-mcp-cli)** - Command-line interface
+- **[Monitoring](https://docs.rs/ultrafast-mcp-monitoring)** - Observability features
+
+### Local Documentation
+```bash
+# Generate and open local documentation
+cargo doc --open
+
+# Generate documentation for specific crates
+cargo doc --package ultrafast-mcp --open
+cargo doc --package ultrafast-mcp-server --open
+```
+
+## 📚 Examples
 ```bash
 cd examples/01-basic-echo
 cargo run --bin server  # Terminal 1

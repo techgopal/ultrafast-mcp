@@ -1,0 +1,13 @@
+[doc]
+# Enable all features when building documentation
+all-features = true
+
+# Additional rustdoc arguments
+rustdoc-args = ["--cfg", "docsrs"]
+
+# Set the documentation URL
+documentation-url = "https://docs.rs/ultrafast-mcp"
+
+[build]
+# Ensure we build with all features for documentation
+rustflags = ["--cfg", "docsrs"] 

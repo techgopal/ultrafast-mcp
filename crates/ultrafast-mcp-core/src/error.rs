@@ -1,8 +1,191 @@
+//! # Error Handling Module
+//!
+//! Comprehensive error handling system for the UltraFast MCP Core crate.
+//!
+//! This module provides a hierarchical error system that covers all aspects of MCP
+//! operations, from protocol-level errors to transport and application-specific issues.
+//! The error types are designed to provide detailed context for debugging and
+//! recovery while maintaining type safety and ergonomic usage.
+//!
+//! ## Overview
+//!
+//! The error system is built around the `MCPError` enum, which serves as the canonical
+//! error type for all MCP operations. It provides:
+//!
+//! - **Hierarchical Error Types**: Categorized errors for different failure modes
+//! - **Rich Context**: Detailed error messages with actionable information
+//! - **Automatic Conversion**: Seamless integration with standard library and third-party errors
+//! - **JSON-RPC Compliance**: Proper error codes and messages for protocol compliance
+//! - **Recovery Information**: Error types that help with error recovery and handling
+//!
+//! ## Error Categories
+//!
+//! ### Protocol Errors (`ProtocolError`)
+//! Errors related to the MCP protocol itself:
+//! - Invalid JSON-RPC version or format
+//! - Method not found or unsupported
+//! - Invalid parameters or request structure
+//! - Protocol initialization failures
+//! - Capability negotiation issues
+//!
+//! ### Transport Errors (`TransportError`)
+//! Errors related to communication and transport:
+//! - Connection failures and timeouts
+//! - Send/receive operation failures
+//! - Network-level issues
+//! - Transport protocol violations
+//!
+//! ### Tool Errors (`ToolError`)
+//! Errors specific to tool execution:
+//! - Tool not found or unavailable
+//! - Tool execution failures
+//! - Invalid tool input parameters
+//! - Schema validation failures
+//!
+//! ### Resource Errors (`ResourceError`)
+//! Errors related to resource operations:
+//! - Resource not found or inaccessible
+//! - Access permission issues
+//! - Invalid resource URIs
+//! - Content type mismatches
+//!
+//! ## Usage Examples
+//!
+//! ### Basic Error Handling
+//!
+//! ```rust
+//! use ultrafast_mcp_core::{MCPError, MCPResult};
+//!
+//! fn process_tool_call(tool_name: &str) -> MCPResult<String> {
+//!     match tool_name {
+//!         "valid_tool" => Ok("Success".to_string()),
+//!         _ => Err(MCPError::method_not_found(
+//!             format!("Tool '{}' not found", tool_name)
+//!         )),
+//!     }
+//! }
+//! ```
+//!
+//! ### Error Conversion
+//!
+//! ```rust
+//! use ultrafast_mcp_core::{MCPError, MCPResult};
+//! use std::io;
+//!
+//! fn read_file(path: &str) -> MCPResult<String> {
+//!     std::fs::read_to_string(path)
+//!         .map_err(|e| MCPError::from(e)) // Automatic conversion from io::Error
+//! }
+//!
+//! fn parse_json(data: &str) -> MCPResult<serde_json::Value> {
+//!     serde_json::from_str(data)
+//!         .map_err(|e| MCPError::from(e)) // Automatic conversion from serde_json::Error
+//! }
+//! ```
+//!
+//! ### Custom Error Context
+//!
+//! ```rust
+//! use ultrafast_mcp_core::{MCPError, MCPResult};
+//!
+//! fn validate_user_input(input: &str) -> MCPResult<()> {
+//!     if input.is_empty() {
+//!         return Err(MCPError::invalid_params(
+//!             "User input cannot be empty".to_string()
+//!         ));
+//!     }
+//!
+//!     if input.len() > 1000 {
+//!         return Err(MCPError::invalid_params(
+//!             "User input exceeds maximum length of 1000 characters".to_string()
+//!         ));
+//!     }
+//!
+//!     Ok(())
+//! }
+//! ```
+//!
+//! ### Error Recovery
+//!
+//! ```rust
+//! use ultrafast_mcp_core::{MCPError, MCPResult};
+//!
+//! fn robust_operation() -> MCPResult<String> {
+//!     match perform_operation() {
+//!         Ok(result) => Ok(result),
+//!         Err(MCPError::Transport(transport_err)) => {
+//!             // Retry on transport errors
+//!             tracing::warn!("Transport error, retrying: {}", transport_err);
+//!             perform_operation()
+//!         }
+//!         Err(MCPError::Protocol(ProtocolError::RequestTimeout)) => {
+//!             // Handle timeout specifically
+//!             Err(MCPError::internal_error("Operation timed out after retries".to_string()))
+//!         }
+//!         Err(e) => Err(e), // Pass through other errors
+//!     }
+//! }
+//! ```
+//!
+//! ## Error Codes
+//!
+//! The module defines standard JSON-RPC error codes and MCP-specific extensions:
+//!
+//! ### Standard JSON-RPC Codes
+//! - `-32700`: Parse error (invalid JSON)
+//! - `-32600`: Invalid request (malformed request)
+//! - `-32601`: Method not found
+//! - `-32602`: Invalid parameters
+//! - `-32603`: Internal error
+//!
+//! ### MCP-Specific Codes
+//! - `-32000`: Initialization failed
+//! - `-32001`: Capability not supported
+//! - `-32002`: Resource not found
+//! - `-32003`: Tool execution error
+//! - `-32004`: Invalid URI
+//! - `-32005`: Access denied
+//!
+//! ## Best Practices
+//!
+//! ### Error Creation
+//! - Use the convenience constructors for common error types
+//! - Provide descriptive error messages with context
+//! - Include relevant parameters in error messages
+//! - Use appropriate error categories for different failure modes
+//!
+//! ### Error Handling
+//! - Handle errors at the appropriate level
+//! - Provide fallback behavior where possible
+//! - Log errors with sufficient context for debugging
+//! - Convert errors to user-friendly messages when appropriate
+//!
+//! ### Error Propagation
+//! - Use `?` operator for automatic error propagation
+//! - Add context when converting between error types
+//! - Preserve original error information when possible
+//! - Consider error recovery strategies
+//!
+//! ## Thread Safety
+//!
+//! All error types in this module are designed to be thread-safe:
+//! - Error types implement `Send + Sync`
+//! - Error conversion operations are thread-safe
+//! - No mutable global state is used
+//!
+//! ## Performance Considerations
+//!
+//! - Error types use efficient string storage
+//! - Error conversion is optimized for common cases
+//! - Minimal allocations in error creation paths
+//! - Lazy error message formatting where appropriate
+
 use thiserror::Error;
 
-/// MCPError is the canonical error type for all MCP operations.
+/// MCPResult is the canonical result type for all MCP operations.
 ///
-/// This is the preferred error type to use in all public APIs and user code.
+/// This is the preferred result type to use in all public APIs and user code.
+/// It provides a consistent error handling experience across the entire MCP ecosystem.
 pub type MCPResult<T> = Result<T, MCPError>;
 
 #[derive(Debug, Error)]

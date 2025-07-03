@@ -1,7 +1,388 @@
-//! Ultrafast MCP Monitoring Library
+//! # UltraFast MCP Monitoring
 //!
-//! This crate provides comprehensive monitoring and observability for the Ultrafast MCP framework,
-//! including metrics collection, health checking, tracing, and OpenTelemetry integration.
+//! Comprehensive monitoring and observability system for the Model Context Protocol (MCP).
+//!
+//! This crate provides a complete monitoring solution for MCP servers and clients,
+//! including metrics collection, health checking, distributed tracing, and
+//! OpenTelemetry integration. It's designed to provide deep insights into MCP
+//! application performance and health.
+//!
+//! ## Overview
+//!
+//! The UltraFast MCP Monitoring system provides:
+//!
+//! - **Metrics Collection**: Comprehensive request, transport, and system metrics
+//! - **Health Checking**: Application and system health monitoring
+//! - **Distributed Tracing**: End-to-end request tracing with OpenTelemetry
+//! - **Performance Monitoring**: Response times, throughput, and resource usage
+//! - **Alerting**: Configurable alerts for performance and health issues
+//! - **Exporters**: Prometheus, JSON, and custom metric exporters
+//!
+//! ## Key Features
+//!
+//! ### Metrics Collection
+//! - **Request Metrics**: Count, timing, and success rate tracking
+//! - **Transport Metrics**: Network I/O, connection counts, and errors
+//! - **System Metrics**: Memory, CPU, and resource usage monitoring
+//! - **Custom Metrics**: Extensible metric system for application-specific data
+//! - **Real-time Updates**: Live metric updates with minimal overhead
+//!
+//! ### Health Checking
+//! - **System Health**: CPU, memory, and resource availability checks
+//! - **Application Health**: Service availability and dependency checks
+//! - **Custom Health Checks**: Application-specific health validation
+//! - **Health Aggregation**: Combined health status reporting
+//! - **Health History**: Historical health data and trends
+//!
+//! ### Distributed Tracing
+//! - **Request Tracing**: End-to-end request flow tracking
+//! - **Span Management**: Automatic span creation and management
+//! - **Context Propagation**: Trace context across service boundaries
+//! - **OpenTelemetry Integration**: Standard tracing protocol support
+//! - **Trace Export**: Export traces to various backends
+//!
+//! ### Performance Monitoring
+//! - **Response Time Tracking**: Detailed timing analysis
+//! - **Throughput Monitoring**: Request rate and capacity planning
+//! - **Resource Usage**: Memory, CPU, and network utilization
+//! - **Error Rate Tracking**: Failure rate and error categorization
+//! - **Performance Alerts**: Configurable performance thresholds
+//!
+//! ## Modules
+//!
+//! - **[`config`]**: Monitoring configuration and settings
+//! - **[`metrics`]**: Metrics collection and management
+//! - **[`health`]**: Health checking and status monitoring
+//! - **[`tracing`]**: Distributed tracing and OpenTelemetry integration
+//! - **[`exporters`]**: Metric and trace exporters
+//! - **[`middleware`]**: Monitoring middleware for HTTP and transport layers
+//!
+//! ## Usage Examples
+//!
+//! ### Basic Monitoring Setup
+//!
+//! ```rust
+//! use ultrafast_mcp_monitoring::{
+//!     MonitoringSystem, MonitoringConfig, RequestTimer
+//! };
+//!
+//! #[tokio::main]
+//! async fn main() -> anyhow::Result<()> {
+//!     // Create monitoring configuration
+//!     let config = MonitoringConfig::default()
+//!         .with_metrics(true)
+//!         .with_health_checks(true)
+//!         .with_tracing(true)
+//!         .with_prometheus_export(true);
+//!
+//!     // Initialize monitoring system
+//!     let monitoring = MonitoringSystem::init(config).await?;
+//!
+//!     // Start HTTP monitoring server
+//!     let addr = "127.0.0.1:9090".parse()?;
+//!     tokio::spawn(async move {
+//!         monitoring.start_http_server(addr).await.unwrap();
+//!     });
+//!
+//!     // Use monitoring in your application
+//!     let metrics = monitoring.metrics();
+//!     let timer = RequestTimer::start("tools/call", metrics.clone());
+//!
+//!     // ... perform your operation ...
+//!
+//!     // Record the request completion
+//!     timer.finish(true).await;
+//!
+//!     Ok(())
+//! }
+//! ```
+//!
+//! ### Custom Health Checks
+//!
+//! ```rust
+//! use ultrafast_mcp_monitoring::{
+//!     MonitoringSystem, HealthChecker, HealthStatus, HealthCheck
+//! };
+//! use std::time::Duration;
+//!
+//! struct DatabaseHealthCheck;
+//!
+//! #[async_trait::async_trait]
+//! impl HealthCheck for DatabaseHealthCheck {
+//!     async fn check(&self) -> HealthStatus {
+//!         // Implement your database health check
+//!         match check_database_connection().await {
+//!             Ok(_) => HealthStatus::Healthy,
+//!             Err(e) => HealthStatus::Unhealthy(format!("Database error: {}", e)),
+//!         }
+//!     }
+//!
+//!     fn name(&self) -> &str {
+//!         "database"
+//!     }
+//!
+//!     fn timeout(&self) -> Duration {
+//!         Duration::from_secs(5)
+//!     }
+//! }
+//!
+//! async fn check_database_connection() -> anyhow::Result<()> {
+//!     // Implement database connection check
+//!     Ok(())
+//! }
+//!
+//! #[tokio::main]
+//! async fn main() -> anyhow::Result<()> {
+//!     let monitoring = MonitoringSystem::init(MonitoringConfig::default()).await?;
+//!     let health_checker = monitoring.health();
+//!
+//!     // Add custom health check
+//!     health_checker.add_check(Box::new(DatabaseHealthCheck)).await;
+//!
+//!     // Check overall health
+//!     match health_checker.check_all().await {
+//!         HealthStatus::Healthy => println!("All systems healthy"),
+//!         HealthStatus::Degraded(warnings) => {
+//!             println!("System degraded: {:?}", warnings);
+//!         }
+//!         HealthStatus::Unhealthy(errors) => {
+//!             println!("System unhealthy: {:?}", errors);
+//!         }
+//!     }
+//!
+//!     Ok(())
+//! }
+//! ```
+//!
+//! ### Custom Metrics
+//!
+//! ```rust
+//! use ultrafast_mcp_monitoring::{MonitoringSystem, MetricsCollector};
+//! use std::collections::HashMap;
+//!
+//! async fn record_custom_metrics(monitoring: &MonitoringSystem) {
+//!     let metrics = monitoring.metrics();
+//!
+//!     // Record transport metrics
+//!     metrics.record_transport_send(1024).await;
+//!     metrics.record_transport_receive(2048).await;
+//!
+//!     // Update system metrics
+//!     metrics.update_system_metrics(10, 1024 * 1024, 25.5).await;
+//!
+//!     // Get current metrics
+//!     let current_metrics = metrics.get_metrics().await;
+//!     println!("Total requests: {}", current_metrics.request.total_requests);
+//!     println!("Memory usage: {} bytes", current_metrics.system.memory_usage);
+//! }
+//! ```
+//!
+//! ### Distributed Tracing
+//!
+//! ```rust
+//! use ultrafast_mcp_monitoring::tracing::{TracingConfig, TracingSystem};
+//! use tracing::{info, error};
+//!
+//! #[tokio::main]
+//! async fn main() -> anyhow::Result<()> {
+//!     // Initialize tracing
+//!     let tracing_config = TracingConfig::default()
+//!         .with_service_name("my-mcp-server")
+//!         .with_service_version("1.0.0")
+//!         .with_jaeger_endpoint("http://localhost:14268/api/traces");
+//!
+//!     let tracing_system = TracingSystem::new(tracing_config);
+//!     tracing_system.init().await?;
+//!
+//!     // Use tracing in your application
+//!     info!("Starting MCP server");
+//!
+//!     // Create spans for operations
+//!     let span = tracing::info_span!("process_request", method = "tools/call");
+//!     let _enter = span.enter();
+//!
+//!     // ... perform operation ...
+//!
+//!     info!("Request processed successfully");
+//!
+//!     Ok(())
+//! }
+//! ```
+//!
+//! ### HTTP Middleware Integration
+//!
+//! ```rust
+//! use ultrafast_mcp_monitoring::middleware::MonitoringMiddleware;
+//! use axum::{Router, routing::post};
+//!
+//! async fn create_app(monitoring: MonitoringSystem) -> Router {
+//!     Router::new()
+//!         .route("/mcp", post(handle_mcp_request))
+//!         .layer(MonitoringMiddleware::new(monitoring))
+//! }
+//!
+//! async fn handle_mcp_request() -> &'static str {
+//!     "OK"
+//! }
+//! ```
+//!
+//! ## Configuration
+//!
+//! ### Basic Configuration
+//! ```rust
+//! use ultrafast_mcp_monitoring::MonitoringConfig;
+//!
+//! let config = MonitoringConfig::default()
+//!     .with_metrics(true)
+//!     .with_health_checks(true)
+//!     .with_tracing(true)
+//!     .with_prometheus_export(true)
+//!     .with_http_server("127.0.0.1:9090")
+//!     .with_metrics_interval(std::time::Duration::from_secs(30));
+//! ```
+//!
+//! ### Advanced Configuration
+//! ```rust
+//! use ultrafast_mcp_monitoring::MonitoringConfig;
+//!
+//! let config = MonitoringConfig::default()
+//!     .with_metrics(true)
+//!     .with_health_checks(true)
+//!     .with_tracing(true)
+//!     .with_prometheus_export(true)
+//!     .with_jaeger_endpoint("http://localhost:14268/api/traces")
+//!     .with_metrics_retention(std::time::Duration::from_hours(24))
+//!     .with_health_check_interval(std::time::Duration::from_secs(30))
+//!     .with_alerting(true)
+//!     .with_alert_rules(vec![
+//!         "response_time > 1s",
+//!         "error_rate > 0.05",
+//!         "memory_usage > 80%"
+//!     ]);
+//! ```
+//!
+//! ## Metrics Types
+//!
+//! ### Request Metrics
+//! - **Total Requests**: Count of all requests processed
+//! - **Successful Requests**: Count of successful requests
+//! - **Failed Requests**: Count of failed requests
+//! - **Average Response Time**: Mean response time across all requests
+//! - **Method Counts**: Request count by MCP method
+//!
+//! ### Transport Metrics
+//! - **Bytes Sent**: Total bytes sent over the network
+//! - **Bytes Received**: Total bytes received from the network
+//! - **Connection Count**: Number of active connections
+//! - **Error Count**: Number of transport errors
+//!
+//! ### System Metrics
+//! - **Memory Usage**: Current memory consumption in bytes
+//! - **CPU Usage**: Current CPU utilization percentage
+//! - **Active Connections**: Number of active network connections
+//! - **Uptime**: Application uptime duration
+//!
+//! ## Health Check Types
+//!
+//! ### System Health Checks
+//! - **Memory Check**: Verify available memory
+//! - **CPU Check**: Monitor CPU utilization
+//! - **Disk Check**: Verify disk space availability
+//! - **Network Check**: Test network connectivity
+//!
+//! ### Application Health Checks
+//! - **Service Check**: Verify service availability
+//! - **Database Check**: Test database connectivity
+//! - **Dependency Check**: Verify external service dependencies
+//! - **Custom Checks**: Application-specific health validation
+//!
+//! ## Exporters
+//!
+//! ### Prometheus Exporter
+//! Exports metrics in Prometheus format for integration with monitoring systems.
+//!
+//! ```bash
+//! # Access metrics endpoint
+//! curl http://localhost:9090/metrics
+//!
+//! # Example Prometheus configuration
+//! scrape_configs:
+//!   - job_name: 'mcp-server'
+//!     static_configs:
+//!       - targets: ['localhost:9090']
+//!     metrics_path: '/metrics'
+//! ```
+//!
+//! ### JSON Exporter
+//! Exports metrics in JSON format for custom integrations.
+//!
+//! ```bash
+//! # Access JSON metrics
+//! curl http://localhost:9090/metrics/json
+//! ```
+//!
+//! ### Jaeger Exporter
+//! Exports traces to Jaeger for distributed tracing visualization.
+//!
+//! ```rust
+//! let config = TracingConfig::default()
+//!     .with_jaeger_endpoint("http://localhost:14268/api/traces");
+//! ```
+//!
+//! ## Performance Considerations
+//!
+//! - **Minimal Overhead**: Optimized for minimal performance impact
+//! - **Async Operations**: All monitoring operations are asynchronous
+//! - **Efficient Storage**: Optimized metric storage and retrieval
+//! - **Batch Processing**: Batch metric updates for efficiency
+//! - **Memory Management**: Efficient memory usage and cleanup
+//!
+//! ## Thread Safety
+//!
+//! All monitoring components are designed to be thread-safe:
+//! - Metrics collectors are `Send + Sync`
+//! - Health checkers support concurrent access
+//! - Tracing systems are thread-safe
+//! - No mutable global state is used
+//!
+//! ## Best Practices
+//!
+//! ### Monitoring Setup
+//! - Enable monitoring early in development
+//! - Use appropriate metric retention periods
+//! - Configure meaningful health checks
+//! - Set up alerting for critical issues
+//! - Monitor both application and system metrics
+//!
+//! ### Performance Monitoring
+//! - Track response times for all operations
+//! - Monitor error rates and failure patterns
+//! - Track resource usage and capacity
+//! - Set up performance baselines
+//! - Use percentiles for response time analysis
+//!
+//! ### Health Checking
+//! - Implement comprehensive health checks
+//! - Use appropriate timeouts for health checks
+//! - Monitor external dependencies
+//! - Implement graceful degradation
+//! - Provide detailed health status information
+//!
+//! ### Tracing
+//! - Use meaningful span names and attributes
+//! - Propagate trace context across services
+//! - Implement proper error handling in spans
+//! - Use sampling for high-traffic applications
+//! - Monitor trace performance impact
+//!
+//! ## Examples
+//!
+//! See the `examples/` directory for complete working examples:
+//! - Basic monitoring setup
+//! - Custom health checks
+//! - Distributed tracing
+//! - Metric exporters
+//! - HTTP middleware integration
 
 use std::collections::HashMap;
 use std::sync::Arc;
