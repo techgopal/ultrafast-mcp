@@ -43,7 +43,6 @@ reqwest = { workspace = true }
 
 # Tracing
 tracing = { workspace = true }
-urlencoding = { workspace = true }
 
 [features]
 default = ["oauth"]
@@ -52,4 +51,3 @@ oauth = []
 [dev-dependencies]
 tokio-test = { workspace = true }
 tempfile = { workspace = true }
-wiremock = { workspace = true }

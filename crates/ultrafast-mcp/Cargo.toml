@@ -49,11 +49,6 @@ url = { workspace = true, optional = true }
 rand = { workspace = true, optional = true }
 sha2 = { workspace = true, optional = true }
 
-# Performance optimizations
-bytes = { workspace = true, optional = true }
-smallvec = { workspace = true, optional = true }
-dashmap = { workspace = true, optional = true }
-
 # UUID generation
 uuid = { workspace = true }
 
@@ -80,9 +75,7 @@ monitoring = ["ultrafast-mcp-monitoring"]
 http = ["ultrafast-mcp-transport/http", "axum", "reqwest", "tower", "tower-http"]
 # Enables OAuth authentication support
 oauth = ["ultrafast-mcp-auth/oauth", "oauth2", "jsonwebtoken", "base64", "url", "rand", "sha2"]
-# Enables performance optimizations
-performance = ["bytes", "smallvec", "dashmap"]
 # Enables JSON Schema support
 schema = ["schemars"]
 # Enables all features
-full = ["monitoring", "http", "oauth", "performance", "schema"] 
+full = ["monitoring", "http", "oauth", "schema"] 

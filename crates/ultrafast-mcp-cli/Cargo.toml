@@ -49,10 +49,6 @@ base64 = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 
-# File system
-walkdir = { workspace = true }
-ignore = { workspace = true }
-
 # Terminal UI
 console = { workspace = true }
 indicatif = { workspace = true }
@@ -78,5 +74,3 @@ monitoring = ["ultrafast-mcp-monitoring"]
 
 [dev-dependencies]
 tempfile = { workspace = true }
-assert_cmd = { workspace = true }
-predicates = { workspace = true }

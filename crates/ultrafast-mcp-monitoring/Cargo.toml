@@ -48,7 +48,6 @@ metrics-exporter-prometheus = { workspace = true, optional = true }
 
 # System monitoring
 sysinfo = { workspace = true }
-sys-info = { workspace = true, optional = true }
 
 # HTTP support for metrics endpoints
 axum = { workspace = true, optional = true }
@@ -59,17 +58,15 @@ chrono = { workspace = true }
 
 # Configuration formats
 toml = { workspace = true, optional = true }
-serde_yaml = { workspace = true, optional = true }
 
 [features]
 default = ["prometheus", "jaeger", "console"]
 prometheus = ["dep:axum", "dep:tower", "dep:opentelemetry-prometheus", "dep:metrics", "dep:metrics-exporter-prometheus"]
 jaeger = ["dep:opentelemetry-jaeger", "dep:tracing-opentelemetry"]
 otlp = ["dep:opentelemetry-otlp", "dep:tracing-opentelemetry"]
-system-metrics = ["dep:sys-info"]
 console = ["dep:tracing-opentelemetry"]
-config-files = ["dep:toml", "dep:serde_yaml"]
-all = ["prometheus", "jaeger", "otlp", "system-metrics", "console", "config-files"]
+config-files = ["dep:toml"]
+all = ["prometheus", "jaeger", "otlp", "console", "config-files"]
 
 [dev-dependencies]
 tokio-test = { workspace = true }
