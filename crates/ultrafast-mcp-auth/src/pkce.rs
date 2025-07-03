@@ -1,13 +1,14 @@
 use crate::{error::AuthError, types::PkceParams};
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
-use rand::{distributions::Alphanumeric, Rng};
+use rand::Rng;
+use rand_distr::Alphanumeric;
 use sha2::{Digest, Sha256};
 
 /// Generate PKCE parameters for OAuth 2.1 authorization code flow
 pub fn generate_pkce_params() -> Result<PkceParams, AuthError> {
     // Generate code verifier (43-128 characters, URL-safe)
-    let code_verifier: String = rand::thread_rng()
-        .sample_iter(&Alphanumeric)
+    let code_verifier: String = rand::rng()
+        .sample_iter(Alphanumeric)
         .take(128)
         .map(char::from)
         .collect();
@@ -27,8 +28,8 @@ pub fn generate_pkce_params() -> Result<PkceParams, AuthError> {
 
 /// Generate a cryptographically secure state parameter
 pub fn generate_state() -> String {
-    rand::thread_rng()
-        .sample_iter(&Alphanumeric)
+    rand::rng()
+        .sample_iter(Alphanumeric)
         .take(32)
         .map(char::from)
         .collect()
