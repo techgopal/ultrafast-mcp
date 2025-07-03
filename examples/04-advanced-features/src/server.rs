@@ -1,19 +1,19 @@
 //! Advanced Features MCP Server
-//! 
+//!
 //! This example demonstrates sophisticated MCP patterns and production-ready features:
 //! - Advanced data processing with statistical analysis
 //! - Multi-step workflow execution with progress tracking
 //! - System monitoring with simulated metrics
 //! - Complex resource templates and prompt systems
 
-use ultrafast_mcp::{UltraFastServer, Context, ToolHandler, ToolCall, ToolResult, ToolContent, ListToolsRequest, ListToolsResponse, Tool, MCPError, McpResult, ServerCapabilities, ServerInfo, ToolsCapability};
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::sync::Arc;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
-use tracing::info;
-use tokio::time::sleep;
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+use tracing::info;
+use ultrafast_mcp::{
+    ListToolsRequest, ListToolsResponse, MCPError, McpResult, ServerCapabilities, ServerInfo, Tool,
+    ToolCall, ToolContent, ToolHandler, ToolResult, ToolsCapability, UltraFastServer,
+};
 
 #[derive(Debug, Deserialize)]
 struct CalculatorRequest {
@@ -91,33 +91,37 @@ impl AdvancedFeaturesHandler {
 impl ToolHandler for AdvancedFeaturesHandler {
     async fn handle_tool_call(&self, call: ToolCall) -> McpResult<ToolResult> {
         info!("Received tool call: {}", call.name);
-        
+
         match call.name.as_str() {
             "calculator" => {
-                let request: CalculatorRequest = serde_json::from_value(call.arguments.unwrap_or_default())
-                    .map_err(|e| MCPError::serialization_error(e.to_string()))?;
-                
+                let request: CalculatorRequest =
+                    serde_json::from_value(call.arguments.unwrap_or_default())
+                        .map_err(|e| MCPError::serialization_error(e.to_string()))?;
+
                 self.handle_calculator(request).await
             }
             "data_processor" => {
-                let request: DataProcessorRequest = serde_json::from_value(call.arguments.unwrap_or_default())
-                    .map_err(|e| MCPError::serialization_error(e.to_string()))?;
-                
+                let request: DataProcessorRequest =
+                    serde_json::from_value(call.arguments.unwrap_or_default())
+                        .map_err(|e| MCPError::serialization_error(e.to_string()))?;
+
                 self.handle_data_processor(request).await
             }
             "record_metric" => {
-                let request: MetricsRequest = serde_json::from_value(call.arguments.unwrap_or_default())
-                    .map_err(|e| MCPError::serialization_error(e.to_string()))?;
-                
+                let request: MetricsRequest =
+                    serde_json::from_value(call.arguments.unwrap_or_default())
+                        .map_err(|e| MCPError::serialization_error(e.to_string()))?;
+
                 self.handle_record_metric(request).await
             }
-            "get_metrics_report" => {
-                self.handle_get_metrics_report().await
-            }
-            _ => Err(MCPError::method_not_found(format!("Unknown tool: {}", call.name))),
+            "get_metrics_report" => self.handle_get_metrics_report().await,
+            _ => Err(MCPError::method_not_found(format!(
+                "Unknown tool: {}",
+                call.name
+            ))),
         }
     }
-    
+
     async fn list_tools(&self, _request: ListToolsRequest) -> McpResult<ListToolsResponse> {
         Ok(ListToolsResponse {
             tools: vec![
@@ -205,15 +209,20 @@ impl ToolHandler for AdvancedFeaturesHandler {
 impl AdvancedFeaturesHandler {
     async fn handle_calculator(&self, request: CalculatorRequest) -> McpResult<ToolResult> {
         let valid_operations = vec!["add", "subtract", "multiply", "divide", "average"];
-        
+
         if !valid_operations.contains(&request.operation.as_str()) {
-            return Err(MCPError::invalid_request(format!("Invalid operation: {}", request.operation)));
+            return Err(MCPError::invalid_request(format!(
+                "Invalid operation: {}",
+                request.operation
+            )));
         }
-        
+
         if request.numbers.is_empty() {
-            return Err(MCPError::invalid_request("At least one number is required".to_string()));
+            return Err(MCPError::invalid_request(
+                "At least one number is required".to_string(),
+            ));
         }
-        
+
         let result = match request.operation.as_str() {
             "add" => request.numbers.iter().sum(),
             "subtract" => {
@@ -230,37 +239,42 @@ impl AdvancedFeaturesHandler {
             "average" => request.numbers.iter().sum::<f64>() / request.numbers.len() as f64,
             _ => unreachable!(),
         };
-        
+
         let response = CalculatorResponse {
             operation: request.operation,
             numbers: request.numbers,
             result,
             timestamp: Utc::now(),
         };
-        
+
         let response_text = serde_json::to_string_pretty(&response)
             .map_err(|e| MCPError::serialization_error(e.to_string()))?;
-        
+
         Ok(ToolResult {
             content: vec![ToolContent::text(response_text)],
             is_error: None,
         })
     }
-    
+
     async fn handle_data_processor(&self, request: DataProcessorRequest) -> McpResult<ToolResult> {
         let valid_operations = vec!["uppercase", "lowercase", "reverse", "sort", "unique"];
-        
-        let invalid_ops: Vec<&String> = request.operations.iter()
+
+        let invalid_ops: Vec<&String> = request
+            .operations
+            .iter()
             .filter(|op| !valid_operations.contains(&op.as_str()))
             .collect();
-        
+
         if !invalid_ops.is_empty() {
-            return Err(MCPError::invalid_request(format!("Invalid operations: {:?}", invalid_ops)));
+            return Err(MCPError::invalid_request(format!(
+                "Invalid operations: {:?}",
+                invalid_ops
+            )));
         }
-        
+
         let start_time = std::time::Instant::now();
         let mut processed_data = request.data.clone();
-        
+
         for operation in &request.operations {
             match operation.as_str() {
                 "uppercase" => {
@@ -270,7 +284,10 @@ impl AdvancedFeaturesHandler {
                     processed_data = processed_data.iter().map(|s| s.to_lowercase()).collect();
                 }
                 "reverse" => {
-                    processed_data = processed_data.iter().map(|s| s.chars().rev().collect()).collect();
+                    processed_data = processed_data
+                        .iter()
+                        .map(|s| s.chars().rev().collect())
+                        .collect();
                 }
                 "sort" => {
                     processed_data.sort();
@@ -282,9 +299,9 @@ impl AdvancedFeaturesHandler {
                 _ => unreachable!(),
             }
         }
-        
+
         let processing_time = start_time.elapsed().as_millis() as u64;
-        
+
         let response = DataProcessorResponse {
             original_data: request.data,
             processed_data,
@@ -292,31 +309,31 @@ impl AdvancedFeaturesHandler {
             processing_time_ms: processing_time,
             timestamp: Utc::now(),
         };
-        
+
         let response_text = serde_json::to_string_pretty(&response)
             .map_err(|e| MCPError::serialization_error(e.to_string()))?;
-        
+
         Ok(ToolResult {
             content: vec![ToolContent::text(response_text)],
             is_error: None,
         })
     }
-    
+
     async fn handle_record_metric(&self, request: MetricsRequest) -> McpResult<ToolResult> {
         let tags = request.tags.unwrap_or_default();
-        
+
         let data_point = MetricDataPoint {
             name: request.metric_name.clone(),
             value: request.value,
             timestamp: Utc::now(),
             tags,
         };
-        
+
         {
             let mut metrics = self.metrics.write().await;
             metrics.push(data_point.clone());
         }
-        
+
         let response = MetricsResponse {
             metric_name: request.metric_name,
             value: request.value,
@@ -324,31 +341,31 @@ impl AdvancedFeaturesHandler {
             timestamp: data_point.timestamp,
             status: "recorded".to_string(),
         };
-        
+
         let response_text = serde_json::to_string_pretty(&response)
             .map_err(|e| MCPError::serialization_error(e.to_string()))?;
-        
+
         Ok(ToolResult {
             content: vec![ToolContent::text(response_text)],
             is_error: None,
         })
     }
-    
+
     async fn handle_get_metrics_report(&self) -> McpResult<ToolResult> {
         let data_points = {
             let metrics = self.metrics.read().await;
             metrics.clone()
         };
-        
+
         let response = MetricsReport {
             total_metrics: data_points.len(),
             data_points: data_points.clone(),
             generated_at: Utc::now(),
         };
-        
+
         let response_text = serde_json::to_string_pretty(&response)
             .map_err(|e| MCPError::serialization_error(e.to_string()))?;
-        
+
         Ok(ToolResult {
             content: vec![ToolContent::text(response_text)],
             is_error: None,
@@ -360,9 +377,9 @@ impl AdvancedFeaturesHandler {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize tracing
     tracing_subscriber::fmt::init();
-    
+
     info!("Starting Advanced Features MCP Server");
-    
+
     // Create server capabilities
     let capabilities = ServerCapabilities {
         tools: Some(ToolsCapability {
@@ -370,13 +387,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }),
         ..Default::default()
     };
-    
+
     // Create server
     let server = UltraFastServer::new(
         ServerInfo {
             name: "advanced-features-server".to_string(),
             version: "1.0.0".to_string(),
-            description: Some("An advanced features server demonstrating UltraFastServer".to_string()),
+            description: Some(
+                "An advanced features server demonstrating UltraFastServer".to_string(),
+            ),
             authors: None,
             homepage: None,
             license: None,
@@ -385,11 +404,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         capabilities,
     )
     .with_tool_handler(Arc::new(AdvancedFeaturesHandler::new()));
-    
+
     info!("Server created, starting stdio transport");
-    
+
     // Run the server
     server.run_stdio().await?;
-    
+
     Ok(())
-} 
+}

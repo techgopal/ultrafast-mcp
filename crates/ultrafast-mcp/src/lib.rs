@@ -103,40 +103,37 @@
 pub use ultrafast_mcp_core::{
     error::{MCPError, McpResult},
     protocol::capabilities::{
-        ServerCapabilities, ClientCapabilities, ToolsCapability, ResourcesCapability, 
-        PromptsCapability, LoggingCapability, RootsCapability, SamplingCapability, 
-        ElicitationCapability
+        ClientCapabilities, ElicitationCapability, LoggingCapability, PromptsCapability,
+        ResourcesCapability, RootsCapability, SamplingCapability, ServerCapabilities,
+        ToolsCapability,
     },
     types::{
-        server::ServerInfo,
         client::ClientInfo,
-        tools::{
-            Tool, ToolCall, ToolResult, ToolContent, ListToolsRequest, ListToolsResponse,
-            ResourceReference
-        },
-        resources::{Resource, ResourceTemplate, ReadResourceRequest, ReadResourceResponse},
-        prompts::{Prompt, GetPromptRequest, GetPromptResponse},
-        sampling::{CreateMessageRequest, CreateMessageResponse},
-        roots::Root,
-        elicitation::{ElicitationRequest, ElicitationResponse},
         completion::{CompleteRequest, CompleteResponse},
+        elicitation::{ElicitationRequest, ElicitationResponse},
         notifications::LogLevel,
+        prompts::{GetPromptRequest, GetPromptResponse, Prompt},
+        resources::{ReadResourceRequest, ReadResourceResponse, Resource, ResourceTemplate},
+        roots::Root,
+        sampling::{CreateMessageRequest, CreateMessageResponse},
+        server::ServerInfo,
+        tools::{
+            ListToolsRequest, ListToolsResponse, ResourceReference, Tool, ToolCall, ToolContent,
+            ToolResult,
+        },
     },
 };
 
 // Re-export server types
 pub use ultrafast_mcp_server::{
-    UltraFastServer, Context,
-    ToolHandler, ResourceHandler, PromptHandler, SamplingHandler, CompletionHandler,
-    RootsHandler, ElicitationHandler, ResourceSubscriptionHandler
+    CompletionHandler, Context, ElicitationHandler, PromptHandler, ResourceHandler,
+    ResourceSubscriptionHandler, RootsHandler, SamplingHandler, ToolHandler, UltraFastServer,
 };
 
 // Re-export client types
 pub use ultrafast_mcp_client::{
-    UltraFastClient,
-    SamplingHandler as ClientSamplingHandler, 
-    ResourceChangeHandler, 
-    ElicitationHandler as ClientElicitationHandler
+    ElicitationHandler as ClientElicitationHandler, ResourceChangeHandler,
+    SamplingHandler as ClientSamplingHandler, UltraFastClient,
 };
 
 // Re-export transport types
@@ -146,4 +143,4 @@ pub use ultrafast_mcp_transport::{Transport, TransportConfig};
 pub use ultrafast_mcp_auth::OAuthConfig;
 
 #[cfg(feature = "monitoring")]
-pub use ultrafast_mcp_monitoring::{MonitoringSystem, MonitoringConfig};
+pub use ultrafast_mcp_monitoring::{MonitoringConfig, MonitoringSystem};

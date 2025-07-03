@@ -1,13 +1,17 @@
 //! File Operations Server Example
-//! 
+//!
 //! This example demonstrates the new UltraFastServer API with file system operations.
 
-use std::sync::Arc;
 use serde::{Deserialize, Serialize};
-use tracing::info;
 use std::path::Path;
+use std::sync::Arc;
 use tokio::fs;
-use ultrafast_mcp::{UltraFastServer, ToolHandler, ListToolsRequest, ListToolsResponse, ToolCall, ToolResult, ToolContent, Tool, ServerInfo, ServerCapabilities, MCPError, McpResult, ToolsCapability, ResourcesCapability, Context};
+use tracing::info;
+use ultrafast_mcp::{
+    ListToolsRequest, ListToolsResponse, MCPError, McpResult, ResourcesCapability,
+    ServerCapabilities, ServerInfo, Tool, ToolCall, ToolContent, ToolHandler, ToolResult,
+    ToolsCapability, UltraFastServer,
+};
 
 #[derive(Debug, Deserialize)]
 struct ReadFileRequest {
@@ -77,36 +81,43 @@ struct FileOperationsHandler;
 impl ToolHandler for FileOperationsHandler {
     async fn handle_tool_call(&self, call: ToolCall) -> McpResult<ToolResult> {
         info!("Received tool call: {}", call.name);
-        
+
         match call.name.as_str() {
             "read_file" => {
-                let request: ReadFileRequest = serde_json::from_value(call.arguments.unwrap_or_default())
-                    .map_err(|e| MCPError::serialization_error(e.to_string()))?;
-                
+                let request: ReadFileRequest =
+                    serde_json::from_value(call.arguments.unwrap_or_default())
+                        .map_err(|e| MCPError::serialization_error(e.to_string()))?;
+
                 self.handle_read_file(request).await
             }
             "write_file" => {
-                let request: WriteFileRequest = serde_json::from_value(call.arguments.unwrap_or_default())
-                    .map_err(|e| ultrafast_mcp::MCPError::serialization_error(e.to_string()))?;
-                
+                let request: WriteFileRequest =
+                    serde_json::from_value(call.arguments.unwrap_or_default())
+                        .map_err(|e| ultrafast_mcp::MCPError::serialization_error(e.to_string()))?;
+
                 self.handle_write_file(request).await
             }
             "list_files" => {
-                let request: ListFilesRequest = serde_json::from_value(call.arguments.unwrap_or_default())
-                    .map_err(|e| ultrafast_mcp::MCPError::serialization_error(e.to_string()))?;
-                
+                let request: ListFilesRequest =
+                    serde_json::from_value(call.arguments.unwrap_or_default())
+                        .map_err(|e| ultrafast_mcp::MCPError::serialization_error(e.to_string()))?;
+
                 self.handle_list_files(request).await
             }
             "delete_file" => {
-                let request: DeleteFileRequest = serde_json::from_value(call.arguments.unwrap_or_default())
-                    .map_err(|e| ultrafast_mcp::MCPError::serialization_error(e.to_string()))?;
-                
+                let request: DeleteFileRequest =
+                    serde_json::from_value(call.arguments.unwrap_or_default())
+                        .map_err(|e| ultrafast_mcp::MCPError::serialization_error(e.to_string()))?;
+
                 self.handle_delete_file(request).await
             }
-            _ => Err(ultrafast_mcp::MCPError::method_not_found(format!("Unknown tool: {}", call.name))),
+            _ => Err(ultrafast_mcp::MCPError::method_not_found(format!(
+                "Unknown tool: {}",
+                call.name
+            ))),
         }
     }
-    
+
     async fn list_tools(&self, _request: ListToolsRequest) -> McpResult<ListToolsResponse> {
         Ok(ListToolsResponse {
             tools: vec![
@@ -193,50 +204,71 @@ impl ToolHandler for FileOperationsHandler {
 }
 
 impl FileOperationsHandler {
-    async fn handle_read_file(&self, request: ReadFileRequest) -> ultrafast_mcp::McpResult<ToolResult> {
+    async fn handle_read_file(
+        &self,
+        request: ReadFileRequest,
+    ) -> ultrafast_mcp::McpResult<ToolResult> {
         let path = Path::new(&request.path);
-        
+
         if !path.exists() {
-            return Err(ultrafast_mcp::MCPError::invalid_request(format!("File not found: {}", request.path)));
+            return Err(ultrafast_mcp::MCPError::invalid_request(format!(
+                "File not found: {}",
+                request.path
+            )));
         }
-        
+
         if !path.is_file() {
-            return Err(ultrafast_mcp::MCPError::invalid_request(format!("Path is not a file: {}", request.path)));
+            return Err(ultrafast_mcp::MCPError::invalid_request(format!(
+                "Path is not a file: {}",
+                request.path
+            )));
         }
-        
-        let content = fs::read_to_string(&path).await
-            .map_err(|e| ultrafast_mcp::MCPError::internal_error(format!("Failed to read file: {}", e)))?;
-        
-        let metadata = fs::metadata(&path).await
-            .map_err(|e| ultrafast_mcp::MCPError::internal_error(format!("Failed to get file metadata: {}", e)))?;
-        
+
+        let content = fs::read_to_string(&path).await.map_err(|e| {
+            ultrafast_mcp::MCPError::internal_error(format!("Failed to read file: {}", e))
+        })?;
+
+        let metadata = fs::metadata(&path).await.map_err(|e| {
+            ultrafast_mcp::MCPError::internal_error(format!("Failed to get file metadata: {}", e))
+        })?;
+
         let response = ReadFileResponse {
             content,
             size: metadata.len(),
-            modified: chrono::DateTime::<chrono::Utc>::from(metadata.modified().unwrap_or(std::time::SystemTime::now())).to_rfc3339(),
+            modified: chrono::DateTime::<chrono::Utc>::from(
+                metadata.modified().unwrap_or(std::time::SystemTime::now()),
+            )
+            .to_rfc3339(),
             path: request.path,
         };
-        
+
         let response_text = serde_json::to_string_pretty(&response)
             .map_err(|e| ultrafast_mcp::MCPError::serialization_error(e.to_string()))?;
-        
+
         Ok(ToolResult {
             content: vec![ToolContent::text(response_text)],
             is_error: None,
         })
     }
-    
-    async fn handle_write_file(&self, request: WriteFileRequest) -> ultrafast_mcp::McpResult<ToolResult> {
+
+    async fn handle_write_file(
+        &self,
+        request: WriteFileRequest,
+    ) -> ultrafast_mcp::McpResult<ToolResult> {
         let path = Path::new(&request.path);
-        
+
         // Create parent directory if it doesn't exist
         if let Some(parent) = path.parent() {
             if !parent.exists() {
-                fs::create_dir_all(parent).await
-                    .map_err(|e| ultrafast_mcp::MCPError::internal_error(format!("Failed to create directory: {}", e)))?;
+                fs::create_dir_all(parent).await.map_err(|e| {
+                    ultrafast_mcp::MCPError::internal_error(format!(
+                        "Failed to create directory: {}",
+                        e
+                    ))
+                })?;
             }
         }
-        
+
         let content = if request.append.unwrap_or(false) {
             let existing = if path.exists() {
                 fs::read_to_string(&path).await.unwrap_or_default()
@@ -247,82 +279,115 @@ impl FileOperationsHandler {
         } else {
             request.content
         };
-        
-        fs::write(&path, &content).await
-            .map_err(|e| ultrafast_mcp::MCPError::internal_error(format!("Failed to write file: {}", e)))?;
-        
-        let metadata = fs::metadata(&path).await
-            .map_err(|e| ultrafast_mcp::MCPError::internal_error(format!("Failed to get file metadata: {}", e)))?;
-        
+
+        fs::write(&path, &content).await.map_err(|e| {
+            ultrafast_mcp::MCPError::internal_error(format!("Failed to write file: {}", e))
+        })?;
+
+        let metadata = fs::metadata(&path).await.map_err(|e| {
+            ultrafast_mcp::MCPError::internal_error(format!("Failed to get file metadata: {}", e))
+        })?;
+
         let response = WriteFileResponse {
             path: request.path,
             size: metadata.len(),
             written: true,
         };
-        
+
         let response_text = serde_json::to_string_pretty(&response)
             .map_err(|e| ultrafast_mcp::MCPError::serialization_error(e.to_string()))?;
-        
+
         Ok(ToolResult {
             content: vec![ToolContent::text(response_text)],
             is_error: None,
         })
     }
-    
-    async fn handle_list_files(&self, request: ListFilesRequest) -> ultrafast_mcp::McpResult<ToolResult> {
+
+    async fn handle_list_files(
+        &self,
+        request: ListFilesRequest,
+    ) -> ultrafast_mcp::McpResult<ToolResult> {
         let path = Path::new(&request.path);
-        
+
         if !path.exists() {
-            return Err(ultrafast_mcp::MCPError::invalid_request(format!("Directory not found: {}", request.path)));
+            return Err(ultrafast_mcp::MCPError::invalid_request(format!(
+                "Directory not found: {}",
+                request.path
+            )));
         }
-        
+
         if !path.is_dir() {
-            return Err(ultrafast_mcp::MCPError::invalid_request(format!("Path is not a directory: {}", request.path)));
+            return Err(ultrafast_mcp::MCPError::invalid_request(format!(
+                "Path is not a directory: {}",
+                request.path
+            )));
         }
-        
+
         let mut files = Vec::new();
-        let mut entries = fs::read_dir(&path).await
-            .map_err(|e| ultrafast_mcp::MCPError::internal_error(format!("Failed to read directory: {}", e)))?;
-        
-        while let Some(entry) = entries.next_entry().await
-            .map_err(|e| ultrafast_mcp::MCPError::internal_error(format!("Failed to read directory entry: {}", e)))? {
-            
-            let metadata = entry.metadata().await
-                .map_err(|e| ultrafast_mcp::MCPError::internal_error(format!("Failed to get file metadata: {}", e)))?;
-            
+        let mut entries = fs::read_dir(&path).await.map_err(|e| {
+            ultrafast_mcp::MCPError::internal_error(format!("Failed to read directory: {}", e))
+        })?;
+
+        while let Some(entry) = entries.next_entry().await.map_err(|e| {
+            ultrafast_mcp::MCPError::internal_error(format!(
+                "Failed to read directory entry: {}",
+                e
+            ))
+        })? {
+            let metadata = entry.metadata().await.map_err(|e| {
+                ultrafast_mcp::MCPError::internal_error(format!(
+                    "Failed to get file metadata: {}",
+                    e
+                ))
+            })?;
+
             let file_info = FileInfo {
                 name: entry.file_name().to_string_lossy().to_string(),
                 path: entry.path().to_string_lossy().to_string(),
                 is_dir: metadata.is_dir(),
-                size: if metadata.is_file() { Some(metadata.len()) } else { None },
-                modified: chrono::DateTime::<chrono::Utc>::from(metadata.modified().unwrap_or(std::time::SystemTime::now())).to_rfc3339().into(),
+                size: if metadata.is_file() {
+                    Some(metadata.len())
+                } else {
+                    None
+                },
+                modified: chrono::DateTime::<chrono::Utc>::from(
+                    metadata.modified().unwrap_or(std::time::SystemTime::now()),
+                )
+                .to_rfc3339()
+                .into(),
             };
-            
+
             files.push(file_info);
         }
-        
+
         let response = ListFilesResponse {
             files: files.clone(),
             total_count: files.len(),
             path: request.path,
         };
-        
+
         let response_text = serde_json::to_string_pretty(&response)
             .map_err(|e| ultrafast_mcp::MCPError::serialization_error(e.to_string()))?;
-        
+
         Ok(ToolResult {
             content: vec![ToolContent::text(response_text)],
             is_error: None,
         })
     }
-    
-    async fn handle_delete_file(&self, request: DeleteFileRequest) -> ultrafast_mcp::McpResult<ToolResult> {
+
+    async fn handle_delete_file(
+        &self,
+        request: DeleteFileRequest,
+    ) -> ultrafast_mcp::McpResult<ToolResult> {
         let path = Path::new(&request.path);
-        
+
         if !path.exists() {
-            return Err(ultrafast_mcp::MCPError::invalid_request(format!("File not found: {}", request.path)));
+            return Err(ultrafast_mcp::MCPError::invalid_request(format!(
+                "File not found: {}",
+                request.path
+            )));
         }
-        
+
         let deleted = if path.is_dir() && request.recursive.unwrap_or(false) {
             fs::remove_dir_all(&path).await.is_ok()
         } else if path.is_file() {
@@ -332,22 +397,22 @@ impl FileOperationsHandler {
         } else {
             false
         };
-        
+
         let message = if deleted {
             format!("Successfully deleted: {}", request.path)
         } else {
             format!("Failed to delete: {}", request.path)
         };
-        
+
         let response = DeleteFileResponse {
             path: request.path,
             deleted,
             message,
         };
-        
+
         let response_text = serde_json::to_string_pretty(&response)
             .map_err(|e| ultrafast_mcp::MCPError::serialization_error(e.to_string()))?;
-        
+
         Ok(ToolResult {
             content: vec![ToolContent::text(response_text)],
             is_error: None,
@@ -359,9 +424,9 @@ impl FileOperationsHandler {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize tracing
     tracing_subscriber::fmt::init();
-    
+
     info!("Starting File Operations MCP Server");
-    
+
     // Create server capabilities
     let capabilities = ServerCapabilities {
         tools: Some(ToolsCapability {
@@ -373,7 +438,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }),
         ..Default::default()
     };
-    
+
     // Create server
     let server = UltraFastServer::new(
         ServerInfo {
@@ -388,11 +453,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         capabilities,
     )
     .with_tool_handler(Arc::new(FileOperationsHandler));
-    
+
     info!("Server created, starting stdio transport");
-    
+
     // Run the server
     server.run_stdio().await?;
-    
+
     Ok(())
-} 
+}

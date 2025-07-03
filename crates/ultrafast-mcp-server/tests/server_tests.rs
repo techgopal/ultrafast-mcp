@@ -1,13 +1,13 @@
-use ultrafast_mcp_server::*;
+use std::sync::Arc;
 use ultrafast_mcp_core::{
     error::McpResult,
     protocol::capabilities::ServerCapabilities,
     types::{
         server::ServerInfo,
-        tools::{Tool, ToolCall, ToolResult, ToolContent, ListToolsRequest, ListToolsResponse},
+        tools::{ListToolsRequest, ListToolsResponse, ToolCall, ToolContent, ToolResult},
     },
 };
-use std::sync::Arc;
+use ultrafast_mcp_server::*;
 
 #[cfg(test)]
 mod server_tests {
@@ -19,7 +19,7 @@ mod server_tests {
             std::mem::discriminant(&ServerState::Uninitialized),
             std::mem::discriminant(&ServerState::Uninitialized)
         );
-        
+
         // Test that states are different
         assert_ne!(
             std::mem::discriminant(&ServerState::Uninitialized),
@@ -211,9 +211,9 @@ mod integration_tests {
             authors: None,
             license: None,
         };
-        
+
         let server = UltraFastServer::new(server_info, ServerCapabilities::default());
-        
+
         // Test the server was built correctly
         assert_eq!(server.info().name, "integration-test-server");
         assert_eq!(server.info().version, "1.0.0");
@@ -230,11 +230,14 @@ mod integration_tests {
             authors: None,
             license: None,
         };
-        
-        let server = Arc::new(UltraFastServer::new(server_info, ServerCapabilities::default()));
-        
+
+        let server = Arc::new(UltraFastServer::new(
+            server_info,
+            ServerCapabilities::default(),
+        ));
+
         let mut handles = vec![];
-        
+
         // Spawn multiple concurrent access attempts
         for _i in 0..10 {
             let server_clone = Arc::clone(&server);
@@ -245,7 +248,7 @@ mod integration_tests {
             });
             handles.push(handle);
         }
-        
+
         // Wait for all tasks to complete
         for handle in handles {
             let result = timeout(Duration::from_secs(1), handle).await;
@@ -258,16 +261,16 @@ mod integration_tests {
     #[tokio::test]
     async fn test_server_state_enum() {
         // Test ServerState enum variants
-        let states = vec![
+        let states = [
             ServerState::Uninitialized,
             ServerState::Initializing,
             ServerState::Initialized,
             ServerState::Shutdown,
         ];
-        
+
         // Test that all states can be created and are different
         assert_eq!(states.len(), 4);
-        
+
         // Test state transitions make sense
         assert_ne!(
             std::mem::discriminant(&ServerState::Uninitialized),

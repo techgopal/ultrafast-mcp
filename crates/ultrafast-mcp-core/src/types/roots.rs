@@ -1,9 +1,9 @@
 //! Roots types for MCP
-//! 
+//!
 //! Filesystem boundary management for security-conscious path validation
 
-use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
 /// A filesystem root that defines boundary for file operations
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

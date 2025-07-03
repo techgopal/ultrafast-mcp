@@ -1,8 +1,8 @@
-use ultrafast_mcp_core::protocol::JsonRpcMessage;
-use std::collections::HashMap;
-use tokio::sync::RwLock;
-use std::sync::Arc;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::sync::Arc;
+use tokio::sync::RwLock;
+use ultrafast_mcp_core::protocol::JsonRpcMessage;
 
 /// HTTP session management for MCP connections
 #[derive(Debug, Clone)]
@@ -23,11 +23,11 @@ impl HttpSession {
             metadata: HashMap::new(),
         }
     }
-    
+
     pub fn update_activity(&mut self) {
         self.last_activity = std::time::SystemTime::now();
     }
-    
+
     pub fn is_expired(&self, timeout_secs: u64) -> bool {
         self.last_activity
             .elapsed()
@@ -50,13 +50,16 @@ impl SessionStore {
             timeout_secs,
         }
     }
-    
+
     pub async fn create_session(&self, session_id: String) -> HttpSession {
         let session = HttpSession::new(session_id.clone());
-        self.sessions.write().await.insert(session_id, session.clone());
+        self.sessions
+            .write()
+            .await
+            .insert(session_id, session.clone());
         session
     }
-    
+
     pub async fn get_session(&self, session_id: &str) -> Option<HttpSession> {
         let mut sessions = self.sessions.write().await;
         if let Some(session) = sessions.get_mut(session_id) {
@@ -71,11 +74,11 @@ impl SessionStore {
             None
         }
     }
-    
+
     pub async fn remove_session(&self, session_id: &str) {
         self.sessions.write().await.remove(session_id);
     }
-    
+
     pub async fn cleanup_expired_sessions(&self) {
         let mut sessions = self.sessions.write().await;
         sessions.retain(|_, session| !session.is_expired(self.timeout_secs));
@@ -104,7 +107,7 @@ impl MessageQueue {
             max_retries,
         }
     }
-    
+
     pub async fn enqueue_message(&self, session_id: String, message: JsonRpcMessage) {
         let queued_message = QueuedMessage {
             id: uuid::Uuid::new_v4().to_string(),
@@ -115,26 +118,30 @@ impl MessageQueue {
                 .unwrap_or(0),
             retry_count: 0,
         };
-        
-        self.messages.write().await
+
+        self.messages
+            .write()
+            .await
             .entry(session_id)
             .or_insert_with(Vec::new)
             .push(queued_message);
     }
-    
+
     pub async fn get_pending_messages(&self, session_id: &str) -> Vec<QueuedMessage> {
-        self.messages.read().await
+        self.messages
+            .read()
+            .await
             .get(session_id)
             .cloned()
             .unwrap_or_default()
     }
-    
+
     pub async fn acknowledge_message(&self, session_id: &str, message_id: &str) {
         if let Some(messages) = self.messages.write().await.get_mut(session_id) {
             messages.retain(|msg| msg.id != message_id);
         }
     }
-    
+
     pub async fn increment_retry(&self, session_id: &str, message_id: &str) -> bool {
         if let Some(messages) = self.messages.write().await.get_mut(session_id) {
             if let Some(message) = messages.iter_mut().find(|msg| msg.id == message_id) {

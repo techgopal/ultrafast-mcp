@@ -40,7 +40,7 @@ pub struct HealthCheckResult {
 pub trait HealthCheck: Send + Sync {
     /// Name of the health check
     fn name(&self) -> &str;
-    
+
     /// Perform the health check
     async fn check(&self) -> HealthCheckResult;
 }
@@ -77,7 +77,7 @@ impl HealthChecker {
         for check in checks.iter() {
             let result = check.check().await;
             let name = check.name();
-            
+
             // Store the result
             {
                 let mut results = self.last_results.write().await;
@@ -134,6 +134,12 @@ impl SystemHealthCheck {
     }
 }
 
+impl Default for SystemHealthCheck {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[async_trait::async_trait]
 impl HealthCheck for SystemHealthCheck {
     fn name(&self) -> &str {
@@ -142,10 +148,10 @@ impl HealthCheck for SystemHealthCheck {
 
     async fn check(&self) -> HealthCheckResult {
         let start = Instant::now();
-        
+
         // Basic system checks - always pass for now
         let status = HealthStatus::Healthy;
-        
+
         HealthCheckResult {
             status,
             duration: start.elapsed(),
@@ -170,7 +176,7 @@ impl MemoryHealthCheck {
 
     /// Get current memory usage as a percentage (0.0-1.0)
     fn get_memory_usage(&self) -> Result<f64, Box<dyn std::error::Error>> {
-        // Simplified memory check - in a real implementation, 
+        // Simplified memory check - in a real implementation,
         // you'd use system APIs to get actual memory usage
         #[cfg(target_os = "linux")]
         {
@@ -182,7 +188,7 @@ impl MemoryHealthCheck {
                 return Ok(0.5); // Placeholder
             }
         }
-        
+
         // Fallback - assume healthy
         Ok(0.3)
     }
@@ -196,17 +202,18 @@ impl HealthCheck for MemoryHealthCheck {
 
     async fn check(&self) -> HealthCheckResult {
         let start = Instant::now();
-        
+
         // Get system memory info (simplified implementation)
         let status = match self.get_memory_usage() {
-            Ok(usage) if usage > self.threshold => {
-                HealthStatus::Unhealthy(format!("Memory usage {:.1}% exceeds threshold {:.1}%", 
-                    usage * 100.0, self.threshold * 100.0))
-            },
+            Ok(usage) if usage > self.threshold => HealthStatus::Unhealthy(format!(
+                "Memory usage {:.1}% exceeds threshold {:.1}%",
+                usage * 100.0,
+                self.threshold * 100.0
+            )),
             Ok(_) => HealthStatus::Healthy,
             Err(e) => HealthStatus::Unhealthy(format!("Failed to get memory usage: {}", e)),
         };
-        
+
         HealthCheckResult {
             status,
             duration: start.elapsed(),

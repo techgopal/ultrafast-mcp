@@ -1,6 +1,6 @@
-use clap::{Parser, Subcommand};
 use anyhow::Result;
-use tracing::{info, debug};
+use clap::{Parser, Subcommand};
+use tracing::{debug, info};
 
 mod commands;
 mod config;

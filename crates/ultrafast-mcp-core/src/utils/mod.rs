@@ -1,9 +1,9 @@
-pub mod uri;
+pub mod cancellation;
 pub mod pagination;
 pub mod progress;
-pub mod cancellation;
+pub mod uri;
 
-pub use uri::*;
+pub use cancellation::*;
 pub use pagination::*;
 pub use progress::*;
-pub use cancellation::*;
+pub use uri::*;

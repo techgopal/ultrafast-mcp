@@ -1,9 +1,9 @@
-use clap::Args;
-use anyhow::{Result, Context};
-use std::path::PathBuf;
-use colored::*;
 use crate::config::Config;
 use crate::templates::Template;
+use anyhow::{Context, Result};
+use clap::Args;
+use colored::*;
+use std::path::PathBuf;
 
 /// Initialize a new MCP project
 #[derive(Debug, Args)]
@@ -91,7 +91,10 @@ pub async fn execute(args: InitArgs, config: Option<Config>) -> Result<()> {
             if args.yes {
                 format!("An MCP project: {}", project_name)
             } else {
-                prompt_for_input("Description", Some(&format!("An MCP project: {}", project_name)))?
+                prompt_for_input(
+                    "Description",
+                    Some(&format!("An MCP project: {}", project_name)),
+                )?
             }
         }
     };
@@ -120,7 +123,8 @@ pub async fn execute(args: InitArgs, config: Option<Config>) -> Result<()> {
     context.insert("version".to_string(), "0.1.0".to_string());
 
     // Generate project from template
-    template.generate(&project_dir, &context)
+    template
+        .generate(&project_dir, &context)
         .context("Failed to generate project from template")?;
 
     println!("✅ Project initialized successfully!");

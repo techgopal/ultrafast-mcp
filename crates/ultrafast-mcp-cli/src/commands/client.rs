@@ -1,7 +1,7 @@
-use clap::{Args, Subcommand};
-use anyhow::{Result, Context};
-use colored::*;
 use crate::config::Config;
+use anyhow::{Context, Result};
+use clap::{Args, Subcommand};
+use colored::*;
 
 /// Manage client configurations
 #[derive(Debug, Args)]
@@ -80,7 +80,7 @@ pub async fn execute(args: ClientArgs, config: Option<Config>) -> Result<()> {
 
 async fn list_clients(config: Option<Config>) -> Result<()> {
     println!("{}", "Configured Clients".green().bold());
-    
+
     if let Some(config) = config {
         if config.clients.is_empty() {
             println!("No clients configured.");
@@ -94,13 +94,13 @@ async fn list_clients(config: Option<Config>) -> Result<()> {
     } else {
         println!("No configuration found.");
     }
-    
+
     Ok(())
 }
 
 async fn add_client(args: AddClientArgs, config: Option<Config>) -> Result<()> {
     println!("➕ Adding client: {}", args.name.green());
-    
+
     let mut config = config.unwrap_or_else(|| Config {
         project: crate::config::ProjectConfig {
             name: "default".to_string(),
@@ -115,7 +115,7 @@ async fn add_client(args: AddClientArgs, config: Option<Config>) -> Result<()> {
         templates: crate::config::TemplateConfig::default(),
         dev: crate::config::DevConfig::default(),
     });
-    
+
     let client_config = crate::config::ClientConfig {
         name: args.name.clone(),
         version: "0.1.0".to_string(),
@@ -137,34 +137,34 @@ async fn add_client(args: AddClientArgs, config: Option<Config>) -> Result<()> {
             }),
         },
     };
-    
+
     config.clients.insert(args.name.clone(), client_config);
-    
+
     // Save config
     save_config(&config)?;
-    
+
     println!("✅ Client '{}' added successfully", args.name);
     Ok(())
 }
 
 async fn remove_client(args: RemoveClientArgs, config: Option<Config>) -> Result<()> {
     println!("➖ Removing client: {}", args.name.red());
-    
+
     let mut config = config.ok_or_else(|| anyhow::anyhow!("No configuration found"))?;
-    
+
     if config.clients.remove(&args.name).is_some() {
         save_config(&config)?;
         println!("✅ Client '{}' removed successfully", args.name);
     } else {
         anyhow::bail!("Client '{}' not found", args.name);
     }
-    
+
     Ok(())
 }
 
 async fn show_client(args: ShowClientArgs, config: Option<Config>) -> Result<()> {
     println!("👤 Client: {}", args.name.green().bold());
-    
+
     if let Some(config) = config {
         if let Some(client) = config.clients.get(&args.name) {
             println!("   Name: {}", client.name);
@@ -178,30 +178,30 @@ async fn show_client(args: ShowClientArgs, config: Option<Config>) -> Result<()>
     } else {
         println!("No configuration found.");
     }
-    
+
     Ok(())
 }
 
 async fn connect_client(args: ConnectClientArgs, config: Option<Config>) -> Result<()> {
     println!("🔗 Connecting to: {}", args.target.green());
     println!("   Transport: {}", args.transport);
-    
+
     if args.interactive {
         println!("💬 Starting interactive session...");
         println!("Type 'help' for available commands, 'quit' to exit.");
-        
+
         // Try to establish connection
         let client = create_mcp_client(&args.target, &args.transport, &config).await?;
-        
+
         loop {
             use std::io::{self, Write};
             print!("> ");
             io::stdout().flush()?;
-            
+
             let mut input = String::new();
             io::stdin().read_line(&mut input)?;
             let input = input.trim();
-            
+
             match input {
                 "quit" | "exit" => break,
                 "help" => {
@@ -214,28 +214,24 @@ async fn connect_client(args: ConnectClientArgs, config: Option<Config>) -> Resu
                     println!("  status     - Show connection status");
                     println!("  quit/exit  - Exit the session");
                 }
-                "tools" => {
-                    match client.list_tools().await {
-                        Ok(tools) => {
-                            println!("🔧 Available tools:");
-                            for tool in tools {
-                                println!("  {} - {}", tool.name, tool.description.unwrap_or_default());
-                            }
+                "tools" => match client.list_tools().await {
+                    Ok(tools) => {
+                        println!("🔧 Available tools:");
+                        for tool in tools {
+                            println!("  {} - {}", tool.name, tool.description.unwrap_or_default());
                         }
-                        Err(e) => println!("❌ Error listing tools: {}", e),
                     }
-                }
-                "resources" => {
-                    match client.list_resources().await {
-                        Ok(resources) => {
-                            println!("📄 Available resources:");
-                            for resource in resources {
-                                println!("  {} - {}", resource.uri, resource.name.unwrap_or_default());
-                            }
+                    Err(e) => println!("❌ Error listing tools: {}", e),
+                },
+                "resources" => match client.list_resources().await {
+                    Ok(resources) => {
+                        println!("📄 Available resources:");
+                        for resource in resources {
+                            println!("  {} - {}", resource.uri, resource.name.unwrap_or_default());
                         }
-                        Err(e) => println!("❌ Error listing resources: {}", e),
                     }
-                }
+                    Err(e) => println!("❌ Error listing resources: {}", e),
+                },
                 "status" => {
                     println!("📊 Connection Status:");
                     println!("  Target: {}", args.target);
@@ -257,7 +253,7 @@ async fn connect_client(args: ConnectClientArgs, config: Option<Config>) -> Resu
                         } else {
                             serde_json::Value::Object(serde_json::Map::new())
                         };
-                        
+
                         match client.call_tool(tool_name, tool_args).await {
                             Ok(result) => {
                                 println!("✅ Tool result:");
@@ -286,7 +282,10 @@ async fn connect_client(args: ConnectClientArgs, config: Option<Config>) -> Resu
                 }
                 "" => continue,
                 _ => {
-                    println!("Unknown command: {}. Type 'help' for available commands.", input);
+                    println!(
+                        "Unknown command: {}. Type 'help' for available commands.",
+                        input
+                    );
                 }
             }
         }
@@ -300,49 +299,59 @@ async fn connect_client(args: ConnectClientArgs, config: Option<Config>) -> Resu
             }
         }
     }
-    
+
     Ok(())
 }
 
-async fn create_mcp_client(target: &str, transport: &str, _config: &Option<Config>) -> Result<MockMcpClient> {
+async fn create_mcp_client(
+    target: &str,
+    transport: &str,
+    _config: &Option<Config>,
+) -> Result<MockMcpClient> {
     println!("🔌 Establishing connection...");
-    
+
     // For now, create a mock client since we don't have the full client implementation
     let client = MockMcpClient::new(target, transport)?;
-    
+
     println!("✅ Connected successfully");
     Ok(client)
 }
 
 async fn test_connection(target: &str, transport: &str, _config: &Option<Config>) -> Result<()> {
     println!("🧪 Testing connection to {} via {}", target, transport);
-    
+
     match transport {
         "stdio" => {
             let parts: Vec<&str> = target.split_whitespace().collect();
             if parts.is_empty() {
                 anyhow::bail!("Invalid STDIO target");
             }
-            
+
             // Test if command exists
             std::process::Command::new(parts[0])
                 .args(&parts[1..])
                 .arg("--help")
                 .output()
                 .context("Failed to execute command")?;
-            
+
             println!("✅ STDIO command is available");
         }
         "http" => {
             let client = reqwest::Client::new();
-            let response = client.get(target).send().await
+            let response = client
+                .get(target)
+                .send()
+                .await
                 .context("Failed to connect to HTTP endpoint")?;
-            
-            println!("✅ HTTP endpoint responded with status: {}", response.status());
+
+            println!(
+                "✅ HTTP endpoint responded with status: {}",
+                response.status()
+            );
         }
         _ => anyhow::bail!("Unsupported transport: {}", transport),
     }
-    
+
     Ok(())
 }
 
@@ -350,17 +359,14 @@ fn save_config(config: &Config) -> Result<()> {
     let config_dir = dirs::config_dir()
         .ok_or_else(|| anyhow::anyhow!("Could not determine config directory"))?
         .join("mcp");
-    
-    std::fs::create_dir_all(&config_dir)
-        .context("Failed to create config directory")?;
-    
+
+    std::fs::create_dir_all(&config_dir).context("Failed to create config directory")?;
+
     let config_file = config_dir.join("config.toml");
-    let config_content = toml::to_string_pretty(config)
-        .context("Failed to serialize config")?;
-    
-    std::fs::write(&config_file, config_content)
-        .context("Failed to write config file")?;
-    
+    let config_content = toml::to_string_pretty(config).context("Failed to serialize config")?;
+
+    std::fs::write(&config_file, config_content).context("Failed to write config file")?;
+
     println!("💾 Configuration saved to: {}", config_file.display());
     Ok(())
 }
@@ -380,7 +386,7 @@ impl MockMcpClient {
             transport: transport.to_string(),
         })
     }
-    
+
     async fn list_tools(&self) -> Result<Vec<MockTool>> {
         // Mock implementation
         Ok(vec![
@@ -394,18 +400,20 @@ impl MockMcpClient {
             },
         ])
     }
-    
+
     async fn list_resources(&self) -> Result<Vec<MockResource>> {
         // Mock implementation
-        Ok(vec![
-            MockResource {
-                uri: "resource://example".to_string(),
-                name: Some("Example Resource".to_string()),
-            },
-        ])
+        Ok(vec![MockResource {
+            uri: "resource://example".to_string(),
+            name: Some("Example Resource".to_string()),
+        }])
     }
-    
-    async fn call_tool(&self, tool_name: &str, args: serde_json::Value) -> Result<serde_json::Value> {
+
+    async fn call_tool(
+        &self,
+        tool_name: &str,
+        args: serde_json::Value,
+    ) -> Result<serde_json::Value> {
         // Mock implementation
         Ok(serde_json::json!({
             "tool": tool_name,
@@ -414,7 +422,7 @@ impl MockMcpClient {
             "timestamp": chrono::Utc::now().to_rfc3339()
         }))
     }
-    
+
     async fn read_resource(&self, uri: &str) -> Result<serde_json::Value> {
         // Mock implementation
         Ok(serde_json::json!({

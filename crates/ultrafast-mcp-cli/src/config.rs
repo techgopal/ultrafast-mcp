@@ -1,7 +1,7 @@
+use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
-use anyhow::{Result, Context};
 
 /// CLI configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -319,28 +319,26 @@ impl Config {
     pub fn load(path: &Path) -> Result<Self> {
         let content = std::fs::read_to_string(path)
             .with_context(|| format!("Failed to read config file: {}", path.display()))?;
-        
+
         let config: Config = toml::from_str(&content)
             .with_context(|| format!("Failed to parse config file: {}", path.display()))?;
-        
+
         Ok(config)
     }
 
     /// Save configuration to a file
     pub fn save(&self, path: &Path) -> Result<()> {
-        let content = toml::to_string_pretty(self)
-            .context("Failed to serialize configuration")?;
-        
+        let content = toml::to_string_pretty(self).context("Failed to serialize configuration")?;
+
         std::fs::write(path, content)
             .with_context(|| format!("Failed to write config file: {}", path.display()))?;
-        
+
         Ok(())
     }
 
     /// Get default configuration file path
     pub fn default_path() -> Result<std::path::PathBuf> {
-        let mut path = dirs::config_dir()
-            .context("Failed to get config directory")?;
+        let mut path = dirs::config_dir().context("Failed to get config directory")?;
         path.push("ultrafast-mcp");
         path.push("config.toml");
         Ok(path)
@@ -350,13 +348,14 @@ impl Config {
     pub fn create_default() -> Result<()> {
         let path = Self::default_path()?;
         if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent)
-                .with_context(|| format!("Failed to create config directory: {}", parent.display()))?;
+            std::fs::create_dir_all(parent).with_context(|| {
+                format!("Failed to create config directory: {}", parent.display())
+            })?;
         }
-        
+
         let config = Self::default();
         config.save(&path)?;
-        
+
         Ok(())
     }
 }

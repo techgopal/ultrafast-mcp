@@ -6,11 +6,11 @@ use serde_json::Value;
 pub struct Prompt {
     /// Prompt name (unique identifier)
     pub name: String,
-    
+
     /// Human-readable description
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
-    
+
     /// Prompt arguments
     #[serde(skip_serializing_if = "Option::is_none")]
     pub arguments: Option<Vec<PromptArgument>>,
@@ -21,11 +21,11 @@ pub struct Prompt {
 pub struct PromptArgument {
     /// Argument name
     pub name: String,
-    
+
     /// Human-readable description
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
-    
+
     /// Whether the argument is required
     #[serde(skip_serializing_if = "Option::is_none")]
     pub required: Option<bool>,
@@ -36,7 +36,7 @@ pub struct PromptArgument {
 pub struct GetPromptRequest {
     /// Prompt name
     pub name: String,
-    
+
     /// Prompt arguments
     #[serde(skip_serializing_if = "Option::is_none")]
     pub arguments: Option<Value>,
@@ -48,7 +48,7 @@ pub struct GetPromptResponse {
     /// Prompt description
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
-    
+
     /// Prompt messages
     pub messages: Vec<PromptMessage>,
 }
@@ -58,7 +58,7 @@ pub struct GetPromptResponse {
 pub struct PromptMessage {
     /// Message role
     pub role: PromptRole,
-    
+
     /// Message content
     pub content: PromptContent,
 }
@@ -78,14 +78,14 @@ pub enum PromptRole {
 pub enum PromptContent {
     #[serde(rename = "text")]
     Text { text: String },
-    
+
     #[serde(rename = "image")]
-    Image { 
-        data: String,  // Base64 encoded
+    Image {
+        data: String, // Base64 encoded
         #[serde(rename = "mimeType")]
         mime_type: String,
     },
-    
+
     #[serde(rename = "resource")]
     Resource {
         resource: super::tools::ResourceReference,
@@ -105,7 +105,7 @@ pub struct ListPromptsRequest {
 pub struct ListPromptsResponse {
     /// Available prompts
     pub prompts: Vec<Prompt>,
-    
+
     /// Next cursor for pagination
     #[serde(rename = "nextCursor", skip_serializing_if = "Option::is_none")]
     pub next_cursor: Option<String>,
@@ -119,12 +119,12 @@ impl Prompt {
             arguments: None,
         }
     }
-    
+
     pub fn with_description(mut self, description: String) -> Self {
         self.description = Some(description);
         self
     }
-    
+
     pub fn with_arguments(mut self, arguments: Vec<PromptArgument>) -> Self {
         self.arguments = Some(arguments);
         self
@@ -139,12 +139,12 @@ impl PromptArgument {
             required: None,
         }
     }
-    
+
     pub fn with_description(mut self, description: String) -> Self {
         self.description = Some(description);
         self
     }
-    
+
     pub fn required(mut self, required: bool) -> Self {
         self.required = Some(required);
         self
@@ -158,14 +158,14 @@ impl PromptMessage {
             content,
         }
     }
-    
+
     pub fn assistant(content: PromptContent) -> Self {
         Self {
             role: PromptRole::Assistant,
             content,
         }
     }
-    
+
     pub fn system(content: PromptContent) -> Self {
         Self {
             role: PromptRole::System,
@@ -178,17 +178,17 @@ impl PromptContent {
     pub fn text(text: String) -> Self {
         Self::Text { text }
     }
-    
+
     pub fn image(data: String, mime_type: String) -> Self {
         Self::Image { data, mime_type }
     }
-    
+
     pub fn resource(uri: String) -> Self {
         Self::Resource {
             resource: super::tools::ResourceReference {
                 uri,
                 description: None,
-            }
+            },
         }
     }
 }
@@ -204,27 +204,35 @@ impl PromptMessages {
             messages: Vec::new(),
         }
     }
-    
+
     pub fn user(mut self, text: &str) -> Self {
-        self.messages.push(PromptMessage::user(PromptContent::text(text.to_string())));
+        self.messages
+            .push(PromptMessage::user(PromptContent::text(text.to_string())));
         self
     }
-    
+
     pub fn assistant(mut self, text: &str) -> Self {
-        self.messages.push(PromptMessage::assistant(PromptContent::text(text.to_string())));
+        self.messages
+            .push(PromptMessage::assistant(PromptContent::text(
+                text.to_string(),
+            )));
         self
     }
-    
+
     pub fn system(mut self, text: &str) -> Self {
-        self.messages.push(PromptMessage::system(PromptContent::text(text.to_string())));
+        self.messages
+            .push(PromptMessage::system(PromptContent::text(text.to_string())));
         self
     }
-    
+
     pub fn with_context(mut self, context: &str) -> Self {
-        self.messages.push(PromptMessage::system(PromptContent::text(context.to_string())));
+        self.messages
+            .push(PromptMessage::system(PromptContent::text(
+                context.to_string(),
+            )));
         self
     }
-    
+
     pub fn build(self) -> Vec<PromptMessage> {
         self.messages
     }

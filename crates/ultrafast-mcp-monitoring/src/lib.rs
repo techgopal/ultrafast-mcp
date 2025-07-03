@@ -3,24 +3,21 @@
 //! This crate provides comprehensive monitoring and observability for the Ultrafast MCP framework,
 //! including metrics collection, health checking, tracing, and OpenTelemetry integration.
 
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use std::collections::HashMap;
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
-use axum::{
-    routing::get,
-    Router,
-};
+use axum::{routing::get, Router};
 
 pub mod config;
+pub mod exporters;
 pub mod health;
 pub mod metrics;
 pub mod middleware;
 pub mod tracing;
-pub mod exporters;
 
 pub use config::MonitoringConfig;
 pub use health::{HealthChecker, HealthStatus};
@@ -44,7 +41,7 @@ pub struct RequestMetrics {
 }
 
 /// Transport-level metrics
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct TransportMetrics {
     pub bytes_sent: u64,
     pub bytes_received: u64,
@@ -87,7 +84,9 @@ impl MonitoringSystem {
         let health_checker = Arc::new(HealthChecker::new());
 
         // Add basic health checks
-        health_checker.add_check(Box::new(health::SystemHealthCheck::new())).await;
+        health_checker
+            .add_check(Box::new(health::SystemHealthCheck::new()))
+            .await;
 
         let metrics_collector = Arc::new(MetricsCollector::new());
 
@@ -110,36 +109,47 @@ impl MonitoringSystem {
 
     /// Initialize health checks asynchronously
     pub async fn init_health_checks(&self) -> Result<()> {
-        self.health_checker.add_check(Box::new(health::SystemHealthCheck::new())).await;
+        self.health_checker
+            .add_check(Box::new(health::SystemHealthCheck::new()))
+            .await;
         Ok(())
     }
 
     /// Start the HTTP monitoring server
     pub async fn start_http_server(&self, addr: std::net::SocketAddr) -> Result<()> {
         let app = Router::new()
-            .route("/metrics", get({
-                let collector = self.metrics_collector.clone();
-                move || async move { collector.export_prometheus().await }
-            }))
-            .route("/health", get({
-                let health = self.health_checker.clone();
-                move || async move { 
-                    match health.check_all().await {
-                        HealthStatus::Healthy => "OK",
-                        HealthStatus::Unhealthy(_) => "UNHEALTHY",
-                        HealthStatus::Degraded(_) => "DEGRADED",
+            .route(
+                "/metrics",
+                get({
+                    let collector = self.metrics_collector.clone();
+                    move || async move { collector.export_prometheus().await }
+                }),
+            )
+            .route(
+                "/health",
+                get({
+                    let health = self.health_checker.clone();
+                    move || async move {
+                        match health.check_all().await {
+                            HealthStatus::Healthy => "OK",
+                            HealthStatus::Unhealthy(_) => "UNHEALTHY",
+                            HealthStatus::Degraded(_) => "DEGRADED",
+                        }
                     }
-                }
-            }))
-            .route("/metrics/json", get({
-                let collector = self.metrics_collector.clone();
-                move || async move {
-                    match collector.export_json().await {
-                        Ok(json) => json,
-                        Err(_) => "{}".to_string(),
+                }),
+            )
+            .route(
+                "/metrics/json",
+                get({
+                    let collector = self.metrics_collector.clone();
+                    move || async move {
+                        match collector.export_json().await {
+                            Ok(json) => json,
+                            Err(_) => "{}".to_string(),
+                        }
                     }
-                }
-            }));
+                }),
+            );
 
         println!("Starting monitoring HTTP server on {}", addr);
         let listener = tokio::net::TcpListener::bind(addr).await?;
@@ -173,26 +183,30 @@ impl MetricsCollector {
     /// Record a request with timing and success information
     pub async fn record_request(&self, method: &str, response_time: Duration, success: bool) {
         let mut metrics = self.metrics.write().await;
-        
+
         metrics.request.total_requests += 1;
         if success {
             metrics.request.successful_requests += 1;
         } else {
             metrics.request.failed_requests += 1;
         }
-        
+
         // Update method count
-        *metrics.request.method_counts.entry(method.to_string()).or_insert(0) += 1;
-        
+        *metrics
+            .request
+            .method_counts
+            .entry(method.to_string())
+            .or_insert(0) += 1;
+
         // Update average response time (simple moving average)
         let current_avg = metrics.request.average_response_time;
         let total_requests = metrics.request.total_requests as f64;
         let new_time = response_time.as_secs_f64();
-        
+
         if total_requests == 1.0 {
             metrics.request.average_response_time = new_time;
         } else {
-            metrics.request.average_response_time = 
+            metrics.request.average_response_time =
                 (current_avg * (total_requests - 1.0) + new_time) / total_requests;
         }
     }
@@ -216,7 +230,12 @@ impl MetricsCollector {
     }
 
     /// Update system metrics
-    pub async fn update_system_metrics(&self, active_connections: u32, memory_usage: u64, cpu_usage: f64) {
+    pub async fn update_system_metrics(
+        &self,
+        active_connections: u32,
+        memory_usage: u64,
+        cpu_usage: f64,
+    ) {
         let mut metrics = self.metrics.write().await;
         metrics.system.active_connections = active_connections;
         metrics.system.memory_usage = memory_usage;
@@ -238,49 +257,83 @@ impl MetricsCollector {
     /// Export metrics in Prometheus format
     pub async fn export_prometheus(&self) -> String {
         let metrics = self.get_metrics().await;
-        
+
         let mut output = String::new();
-        
+
         // Request metrics
-        output.push_str(&format!("# HELP mcp_requests_total Total number of requests\n"));
-        output.push_str(&format!("# TYPE mcp_requests_total counter\n"));
-        output.push_str(&format!("mcp_requests_total {}\n", metrics.request.total_requests));
-        
-        output.push_str(&format!("# HELP mcp_requests_successful Total number of successful requests\n"));
-        output.push_str(&format!("# TYPE mcp_requests_successful counter\n"));
-        output.push_str(&format!("mcp_requests_successful {}\n", metrics.request.successful_requests));
-        
-        output.push_str(&format!("# HELP mcp_requests_failed Total number of failed requests\n"));
-        output.push_str(&format!("# TYPE mcp_requests_failed counter\n"));
-        output.push_str(&format!("mcp_requests_failed {}\n", metrics.request.failed_requests));
-        
-        output.push_str(&format!("# HELP mcp_request_duration_average Average request duration in seconds\n"));
-        output.push_str(&format!("# TYPE mcp_request_duration_average gauge\n"));
-        output.push_str(&format!("mcp_request_duration_average {}\n", metrics.request.average_response_time));
-        
-        // Transport metrics
-        output.push_str(&format!("# HELP mcp_transport_bytes_sent Total bytes sent\n"));
-        output.push_str(&format!("# TYPE mcp_transport_bytes_sent counter\n"));
-        output.push_str(&format!("mcp_transport_bytes_sent {}\n", metrics.transport.bytes_sent));
-        
-        output.push_str(&format!("# HELP mcp_transport_bytes_received Total bytes received\n"));
-        output.push_str(&format!("# TYPE mcp_transport_bytes_received counter\n"));
-        output.push_str(&format!("mcp_transport_bytes_received {}\n", metrics.transport.bytes_received));
-        
-        // System metrics
-        output.push_str(&format!("# HELP mcp_system_memory_usage Memory usage in bytes\n"));
-        output.push_str(&format!("# TYPE mcp_system_memory_usage gauge\n"));
-        output.push_str(&format!("mcp_system_memory_usage {}\n", metrics.system.memory_usage));
-        
-        output.push_str(&format!("# HELP mcp_system_cpu_usage CPU usage percentage\n"));
-        output.push_str(&format!("# TYPE mcp_system_cpu_usage gauge\n"));
-        output.push_str(&format!("mcp_system_cpu_usage {}\n", metrics.system.cpu_usage));
-        
-        output.push_str(&format!("# HELP mcp_system_active_connections Active connections\n"));
-        output.push_str(&format!("# TYPE mcp_system_active_connections gauge\n"));
-        output.push_str(&format!("mcp_system_active_connections {}\n", metrics.system.active_connections));
-        
+        output.push_str("# HELP mcp_requests_total Total number of requests\n");
+        output.push_str("# TYPE mcp_requests_total counter\n");
+        output.push_str(&format!(
+            "mcp_requests_total {}\n",
+            metrics.request.total_requests
+        ));
+
+        output.push_str("# HELP mcp_requests_successful Total number of successful requests\n");
+        output.push_str("# TYPE mcp_requests_successful counter\n");
+        output.push_str(&format!(
+            "mcp_requests_successful {}\n",
+            metrics.request.successful_requests
+        ));
+
+        output.push_str("# HELP mcp_requests_failed Total number of failed requests\n");
+        output.push_str("# TYPE mcp_requests_failed counter\n");
+        output.push_str(&format!(
+            "mcp_requests_failed {}\n",
+            metrics.request.failed_requests
+        ));
+
         output
+            .push_str("# HELP mcp_request_duration_average Average request duration in seconds\n");
+        output.push_str("# TYPE mcp_request_duration_average gauge\n");
+        output.push_str(&format!(
+            "mcp_request_duration_average {}\n",
+            metrics.request.average_response_time
+        ));
+
+        // Transport metrics
+        output.push_str("# HELP mcp_transport_bytes_sent Total bytes sent\n");
+        output.push_str("# TYPE mcp_transport_bytes_sent counter\n");
+        output.push_str(&format!(
+            "mcp_transport_bytes_sent {}\n",
+            metrics.transport.bytes_sent
+        ));
+
+        output.push_str("# HELP mcp_transport_bytes_received Total bytes received\n");
+        output.push_str("# TYPE mcp_transport_bytes_received counter\n");
+        output.push_str(&format!(
+            "mcp_transport_bytes_received {}\n",
+            metrics.transport.bytes_received
+        ));
+
+        // System metrics
+        output.push_str("# HELP mcp_system_memory_usage Memory usage in bytes\n");
+        output.push_str("# TYPE mcp_system_memory_usage gauge\n");
+        output.push_str(&format!(
+            "mcp_system_memory_usage {}\n",
+            metrics.system.memory_usage
+        ));
+
+        output.push_str("# HELP mcp_system_cpu_usage CPU usage percentage\n");
+        output.push_str("# TYPE mcp_system_cpu_usage gauge\n");
+        output.push_str(&format!(
+            "mcp_system_cpu_usage {}\n",
+            metrics.system.cpu_usage
+        ));
+
+        output.push_str("# HELP mcp_system_active_connections Active connections\n");
+        output.push_str("# TYPE mcp_system_active_connections gauge\n");
+        output.push_str(&format!(
+            "mcp_system_active_connections {}\n",
+            metrics.system.active_connections
+        ));
+
+        output
+    }
+}
+
+impl Default for MetricsCollector {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -293,17 +346,6 @@ impl Default for RequestMetrics {
             failed_requests: 0,
             average_response_time: 0.0,
             method_counts: HashMap::new(),
-        }
-    }
-}
-
-impl Default for TransportMetrics {
-    fn default() -> Self {
-        Self {
-            bytes_sent: 0,
-            bytes_received: 0,
-            connection_count: 0,
-            error_count: 0,
         }
     }
 }
@@ -337,6 +379,8 @@ impl RequestTimer {
 
     pub async fn finish(self, success: bool) {
         let duration = self.start.elapsed();
-        self.metrics.record_request(&self.method, duration, success).await;
+        self.metrics
+            .record_request(&self.method, duration, success)
+            .await;
     }
 }

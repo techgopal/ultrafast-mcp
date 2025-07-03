@@ -8,11 +8,11 @@ pub struct CompleteRequest {
     /// Reference type ("prompts", "resource_templates")
     #[serde(rename = "ref")]
     pub ref_type: String,
-    
+
     /// Reference name (prompt name, resource template URI)
     #[serde(rename = "name")]
     pub ref_name: String,
-    
+
     /// Argument to complete (optional)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub argument: Option<String>,
@@ -30,11 +30,11 @@ pub struct CompleteResponse {
 pub struct Completion {
     /// Completion values
     pub values: Vec<CompletionValue>,
-    
+
     /// Total number of possible completions (for pagination)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub total: Option<u32>,
-    
+
     /// Whether there are more completions available
     #[serde(rename = "hasMore", skip_serializing_if = "Option::is_none")]
     pub has_more: Option<bool>,
@@ -45,11 +45,11 @@ pub struct Completion {
 pub struct CompletionValue {
     /// Completion value
     pub value: String,
-    
+
     /// Optional label (display name)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub label: Option<String>,
-    
+
     /// Optional description
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
@@ -64,7 +64,7 @@ impl CompletionValue {
             description: None,
         }
     }
-    
+
     /// Create a completion value with label
     pub fn with_label(value: impl Into<String>, label: impl Into<String>) -> Self {
         Self {
@@ -73,7 +73,7 @@ impl CompletionValue {
             description: None,
         }
     }
-    
+
     /// Create a completion value with description
     pub fn with_description(value: impl Into<String>, description: impl Into<String>) -> Self {
         Self {
@@ -93,7 +93,7 @@ impl Completion {
             has_more: None,
         }
     }
-    
+
     /// Create with metadata
     pub fn with_metadata(values: Vec<CompletionValue>, total: u32, has_more: bool) -> Self {
         Self {
