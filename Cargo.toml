@@ -101,3 +101,4 @@ chrono = { version = "0.4", features = ["serde"] }
 
 # Configuration formats
 toml = "0.8"
+serde_yaml = "0.9"

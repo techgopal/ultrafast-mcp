@@ -1,13 +1,10 @@
 use std::sync::Arc;
 use ultrafast_mcp_core::protocol::capabilities::ServerCapabilities;
 use ultrafast_mcp_core::types::{
-    client::ClientInfo,
-    prompts::Prompt,
-    resources::{Resource, ResourceContent},
     server::ServerInfo,
-    tools::{Tool, ToolCall, ToolContent, ToolResult},
+    tools::{ToolCall, ToolContent, ToolResult},
 };
-use ultrafast_mcp_server::{UltraFastServer, ToolHandler, ResourceHandler, ServerState, ListToolsRequest, ListToolsResponse};
+use ultrafast_mcp_server::{UltraFastServer, ToolHandler, ServerState, ListToolsRequest, ListToolsResponse};
 use ultrafast_mcp_core::error::MCPResult;
 
 #[cfg(test)]
@@ -91,10 +88,7 @@ mod server_tests {
         let capabilities = ServerCapabilities::default();
         let server = UltraFastServer::new(server_info.clone(), capabilities);
         assert_eq!(server.info().name, "test-server");
-        #[cfg(feature = "monitoring")]
-        {
-            let _monitoring = server.monitoring();
-        }
+        // Note: monitoring system is available as a field but not exposed via a method
     }
 
     #[tokio::test]

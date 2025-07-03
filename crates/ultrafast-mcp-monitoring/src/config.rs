@@ -240,6 +240,7 @@ impl MonitoringConfig {
         let content = std::fs::read_to_string(path)?;
         let config = match path.split('.').next_back() {
             Some("toml") => toml::from_str(&content)?,
+            #[cfg(feature = "config-files")]
             Some("yaml") | Some("yml") => serde_yaml::from_str(&content)?,
             Some("json") => serde_json::from_str(&content)?,
             _ => return Err(anyhow::anyhow!("Unsupported file format")),

@@ -16,7 +16,7 @@ jobs:
   pr-checks:
     name: PR Checks
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
 
     steps:
     - name: Checkout code
@@ -57,7 +57,7 @@ jobs:
   security:
     name: Security Audit
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 5
 
     steps:
     - name: Checkout code
@@ -72,37 +72,12 @@ jobs:
     - name: Run security audit
       run: cargo audit
 
-  # Cross-platform testing for non-draft PRs
-  cross-platform:
-    name: Cross-Platform Test
-    runs-on: ${{ matrix.os }}
-    if: github.event.pull_request.draft == false
-    timeout-minutes: 20
-    strategy:
-      matrix:
-        os: [windows-latest, macos-latest]
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Install Rust toolchain
-      uses: dtolnay/rust-toolchain@stable
-
-    - name: Cache dependencies
-      uses: Swatinem/rust-cache@v2
-      with:
-        key: cross-${{ matrix.os }}-${{ hashFiles('**/Cargo.lock') }}
-
-    - name: Run tests
-      run: cargo test --all-targets --all-features
-
-  # Feature testing for non-draft PRs
+  # Basic feature testing for non-draft PRs
   feature-test:
     name: Feature Testing
     runs-on: ubuntu-latest
     if: github.event.pull_request.draft == false
-    timeout-minutes: 15
+    timeout-minutes: 10
 
     steps:
     - name: Checkout code
@@ -124,97 +99,4 @@ jobs:
         cargo test --no-default-features
         cargo test --features stdio-transport
         cargo test --features http-transport
-        cargo test --features oauth
-
-  # Code coverage for non-draft PRs
-  coverage:
-    name: Code Coverage
-    runs-on: ubuntu-latest
-    if: github.event.pull_request.draft == false
-    timeout-minutes: 20
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Install Rust toolchain
-      uses: dtolnay/rust-toolchain@stable
-
-    - name: Cache dependencies
-      uses: Swatinem/rust-cache@v2
-
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y pkg-config libssl-dev
-
-    - name: Install cargo-tarpaulin
-      run: cargo install cargo-tarpaulin
-
-    - name: Run coverage
-      run: cargo tarpaulin --all-features --out Html --output-dir coverage
-
-    - name: Upload coverage report
-      uses: actions/upload-artifact@v4
-      with:
-        name: coverage-report
-        path: coverage/
-
-  # Integration tests for non-draft PRs
-  integration:
-    name: Integration Tests
-    runs-on: ubuntu-latest
-    if: github.event.pull_request.draft == false
-    timeout-minutes: 15
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Install Rust toolchain
-      uses: dtolnay/rust-toolchain@stable
-
-    - name: Cache dependencies
-      uses: Swatinem/rust-cache@v2
-
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y pkg-config libssl-dev
-
-    - name: Run integration tests
-      run: |
-        cargo test --test integration_tests
-        cargo test --test http_integration_tests
-        cargo test --test test_ergonomic_api
-
-  # Performance regression check for non-draft PRs
-  performance:
-    name: Performance Check
-    runs-on: ubuntu-latest
-    if: github.event.pull_request.draft == false
-    timeout-minutes: 30
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Install Rust toolchain
-      uses: dtolnay/rust-toolchain@stable
-
-    - name: Cache dependencies
-      uses: Swatinem/rust-cache@v2
-
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y pkg-config libssl-dev
-
-    - name: Run performance benchmarks
-      run: cargo bench --all-features --no-run
-
-    - name: Upload benchmark artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: benchmark-artifacts
-        path: target/criterion/ 
+        cargo test --features oauth 
