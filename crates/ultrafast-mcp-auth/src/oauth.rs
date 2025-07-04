@@ -52,6 +52,10 @@ impl OAuthClient {
         &self.auth_url
     }
 
+    pub fn client_secret(&self) -> &str {
+        &self.client_secret
+    }
+
     pub async fn get_authorization_url(&self, state: String) -> Result<String, AuthError> {
         Ok(format!(
             "{}?client_id={}&state={}",

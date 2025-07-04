@@ -52,7 +52,7 @@
 //!
 //! ### Basic OAuth 2.1 Flow
 //!
-//! ```rust
+//! ```rust,no_run
 //! use ultrafast_mcp_auth::{
 //!     OAuthClient, OAuthConfig, generate_pkce_params, generate_state,
 //!     AuthResult, AuthError
@@ -63,29 +63,36 @@
 //!     // Create OAuth configuration
 //!     let config = OAuthConfig {
 //!         client_id: "your-client-id".to_string(),
-//!         client_secret: Some("your-client-secret".to_string()),
+//!         client_secret: "your-client-secret".to_string(),
+//!         auth_url: "https://auth.example.com/oauth/authorize".to_string(),
+//!         token_url: "https://auth.example.com/oauth/token".to_string(),
 //!         redirect_uri: "http://localhost:8080/callback".to_string(),
-//!         authorization_endpoint: "https://auth.example.com/oauth/authorize".to_string(),
-//!         token_endpoint: "https://auth.example.com/oauth/token".to_string(),
-//!         scope: "read write".to_string(),
+//!         scopes: vec!["read".to_string(), "write".to_string()],
 //!     };
 //!
 //!     // Create OAuth client
-//!     let client = OAuthClient::new(config);
+//!     let client = OAuthClient::from_config(config.clone());
 //!
 //!     // Generate PKCE parameters
-//!     let pkce_params = generate_pkce_params();
+//!     let pkce_params = generate_pkce_params()?;
 //!
 //!     // Generate state parameter for CSRF protection
 //!     let state = generate_state();
 //!
 //!     // Create authorization URL
-//!     let auth_url = client.create_authorization_url(&pkce_params, &state)?;
+//!     let auth_url = client.get_authorization_url_with_pkce(state, pkce_params.clone()).await?;
 //!     println!("Authorization URL: {}", auth_url);
 //!
 //!     // After user authorization, exchange code for tokens
 //!     let code = "authorization_code_from_callback";
-//!     let tokens = client.exchange_code_for_tokens(code, &pkce_params).await?;
+//!     let tokens = client.exchange_code_for_token(
+//!         &config.token_url,
+//!         &config.client_id,
+//!         Some(&config.client_secret),
+//!         &config.redirect_uri,
+//!         code,
+//!         &pkce_params.code_verifier
+//!     ).await?;
 //!
 //!     println!("Access token: {}", tokens.access_token);
 //!     if let Some(refresh_token) = &tokens.refresh_token {
@@ -99,23 +106,22 @@
 //! ### Token Validation
 //!
 //! ```rust
-//! use ultrafast_mcp_auth::{TokenValidator, extract_bearer_token, AuthResult};
+//! use ultrafast_mcp_auth::{TokenValidator, AuthResult, AuthError};
 //!
-//! async fn validate_request(auth_header: &str) -> AuthResult<()> {
-//!     // Extract bearer token from Authorization header
-//!     let token = extract_bearer_token(auth_header)?;
-//!
-//!     // Create token validator
-//!     let validator = TokenValidator::new();
+//! async fn validate_request(token: &str) -> AuthResult<()> {
+//!     // Create token validator with secret
+//!     let validator = TokenValidator::new("your-jwt-secret".to_string());
 //!
 //!     // Validate the token
-//!     let claims = validator.validate_token(&token).await?;
+//!     let claims = validator.validate_token(token).await?;
 //!
 //!     // Check if token has required scopes
-//!     if !claims.scopes.contains(&"read".to_string()) {
-//!         return Err(AuthError::InsufficientPermissions(
-//!             "Token does not have 'read' scope".to_string()
-//!         ));
+//!     if let Some(scope) = &claims.scope {
+//!         if !scope.contains("read") {
+//!             return Err(AuthError::MissingScope {
+//!                 scope: "read".to_string()
+//!             });
+//!         }
 //!     }
 //!
 //!     println!("Token is valid for user: {}", claims.sub);
@@ -126,11 +132,11 @@
 //! ### PKCE Implementation
 //!
 //! ```rust
-//! use ultrafast_mcp_auth::{generate_pkce_params, generate_session_id, AuthResult};
+//! use ultrafast_mcp_auth::{generate_pkce_params, generate_session_id, generate_state, AuthResult};
 //!
 //! fn setup_pkce_flow() -> AuthResult<(String, String, String)> {
 //!     // Generate PKCE parameters
-//!     let pkce_params = generate_pkce_params();
+//!     let pkce_params = generate_pkce_params()?;
 //!
 //!     // Generate session ID for tracking
 //!     let session_id = generate_session_id();
@@ -150,12 +156,11 @@
 //! ### OAuth Client with Refresh
 //!
 //! ```rust
-//! use ultrafast_mcp_auth::{OAuthClient, OAuthConfig, AuthResult};
-//! use std::time::Duration;
+//! use ultrafast_mcp_auth::{OAuthClient, OAuthConfig, TokenResponse, AuthResult};
 //!
-//! async fn handle_token_refresh(client: &OAuthClient, refresh_token: &str) -> AuthResult<()> {
+//! async fn handle_token_refresh(client: &OAuthClient, refresh_token: &str, token_url: &str) -> AuthResult<()> {
 //!     // Refresh the access token
-//!     let new_tokens = client.refresh_tokens(refresh_token).await?;
+//!     let new_tokens = client.refresh_token(token_url, &client.client_id(), Some(&client.client_secret()), refresh_token).await?;
 //!
 //!     // Store the new tokens securely
 //!     store_tokens_securely(&new_tokens).await?;
@@ -164,7 +169,7 @@
 //!     Ok(())
 //! }
 //!
-//! async fn store_tokens_securely(tokens: &OAuthTokens) -> AuthResult<()> {
+//! async fn store_tokens_securely(tokens: &TokenResponse) -> AuthResult<()> {
 //!     // Implement secure token storage
 //!     // This could involve encryption, secure key storage, etc.
 //!     Ok(())
@@ -175,7 +180,7 @@
 //!
 //! The crate implements the complete OAuth 2.1 authorization code flow:
 //!
-//! ```
+//! ```text
 //! Client                    Authorization Server
 //!   |                              |
 //!   |-- Authorization Request ---->|
@@ -192,7 +197,7 @@
 //!
 //! For enhanced security, the crate supports PKCE:
 //!
-//! ```
+//! ```text
 //! 1. Generate code_verifier (random string)
 //! 2. Generate code_challenge (SHA256 hash of code_verifier)
 //! 3. Send code_challenge in authorization request
@@ -227,14 +232,11 @@
 //!
 //! let config = OAuthConfig {
 //!     client_id: "your-client-id".to_string(),
-//!     client_secret: Some("your-client-secret".to_string()),
+//!     client_secret: "your-client-secret".to_string(),
+//!     auth_url: "https://auth.example.com/oauth/authorize".to_string(),
+//!     token_url: "https://auth.example.com/oauth/token".to_string(),
 //!     redirect_uri: "http://localhost:8080/callback".to_string(),
-//!     authorization_endpoint: "https://auth.example.com/oauth/authorize".to_string(),
-//!     token_endpoint: "https://auth.example.com/oauth/token".to_string(),
-//!     scope: "read write".to_string(),
-//!     // Optional fields
-//!     audience: Some("your-audience".to_string()),
-//!     issuer: Some("https://auth.example.com".to_string()),
+//!     scopes: vec!["read".to_string(), "write".to_string()],
 //! };
 //! ```
 //!
@@ -242,10 +244,7 @@
 //! ```rust
 //! use ultrafast_mcp_auth::TokenValidator;
 //!
-//! let validator = TokenValidator::new()
-//!     .with_issuer("https://auth.example.com")
-//!     .with_audience("your-audience")
-//!     .with_clock_skew(Duration::from_secs(30));
+//! let validator = TokenValidator::new("your-jwt-secret".to_string());
 //! ```
 //!
 //! ## Error Handling
@@ -262,8 +261,8 @@
 //!             eprintln!("Invalid token: {}", message);
 //!             // Handle invalid token
 //!         }
-//!         Err(AuthError::InsufficientPermissions(message)) => {
-//!             eprintln!("Insufficient permissions: {}", message);
+//!         Err(AuthError::MissingScope { scope }) => {
+//!             eprintln!("Missing scope: {}", scope);
 //!             // Handle permission error
 //!         }
 //!         Err(AuthError::NetworkError(message)) => {
