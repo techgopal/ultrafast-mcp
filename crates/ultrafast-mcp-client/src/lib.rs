@@ -158,6 +158,8 @@
 //!         Ok(ElicitationResponse {
 //!             value: serde_json::json!("User input"),
 //!             cancelled: Some(false),
+//!             session_id: request.session_id.clone(),
+//!             step: request.step,
 //!         })
 //!     }
 //! }
