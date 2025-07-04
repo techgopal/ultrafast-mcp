@@ -784,7 +784,7 @@ impl ModelSelector {
             .map(|(model, score)| AlternativeModel {
                 model: model.clone(),
                 score: *score,
-                rejection_reason: format!("Lower composite score: {:.3}", score),
+                rejection_reason: format!("Lower composite score: {score:.3}"),
             })
             .collect();
 
@@ -914,7 +914,7 @@ impl ModelSelector {
         // Warn about high cost
         let request_cost = self.calculate_request_cost(selected_model, &context.request_context);
         if request_cost > 0.10 {
-            warnings.push(format!("High cost per request: ${:.4}", request_cost));
+            warnings.push(format!("High cost per request: ${request_cost:.4}"));
         }
 
         // Warn about potential slow response

@@ -87,10 +87,10 @@ impl HealthChecker {
             match result.status {
                 HealthStatus::Healthy => {}
                 HealthStatus::Degraded(reason) => {
-                    degraded_reasons.push(format!("{}: {}", name, reason));
+                    degraded_reasons.push(format!("{name}: {reason}"));
                 }
                 HealthStatus::Unhealthy(reason) => {
-                    unhealthy_reasons.push(format!("{}: {}", name, reason));
+                    unhealthy_reasons.push(format!("{name}: {reason}"));
                 }
             }
         }
