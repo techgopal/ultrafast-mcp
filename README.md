@@ -57,23 +57,23 @@ cargo add ultrafast-mcp --features="http,oauth"
 ```toml
 [dependencies]
 ultrafast-mcp = { version = "202506018.1.0-rc.1.2", features = [
-    "stdio-transport",    # Default: stdio transport
     "http",               # HTTP/HTTPS transport
     "oauth",              # OAuth 2.1 authentication
-    "performance",        # Zero-copy optimizations
     "monitoring",         # OpenTelemetry observability
-    "schema"              # JSON Schema generation
+    "full"                # All features enabled
 ] }
 ```
+
+**Note:** stdio transport and JSON Schema support are always included by default.
 
 ### Convenience Features
 
 ```bash
 # Web server with authentication
-cargo add ultrafast-mcp --features="web"
+cargo add ultrafast-mcp --features="http,oauth"
 
 # All features enabled
-cargo add ultrafast-mcp --features="all"
+cargo add ultrafast-mcp --features="full"
 ```
 
 ## 🚀 Quick Start
