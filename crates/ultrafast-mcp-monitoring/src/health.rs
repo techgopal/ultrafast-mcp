@@ -20,9 +20,9 @@ pub enum HealthStatus {
 impl std::fmt::Display for HealthStatus {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            HealthStatus::Healthy => write!(f, "OK"),
-            HealthStatus::Degraded(msg) => write!(f, "DEGRADED: {}", msg),
-            HealthStatus::Unhealthy(msg) => write!(f, "UNHEALTHY: {}", msg),
+            HealthStatus::Healthy => write!(f, "HEALTHY"),
+            HealthStatus::Degraded(msg) => write!(f, "DEGRADED: {msg}"),
+            HealthStatus::Unhealthy(msg) => write!(f, "UNHEALTHY: {msg}"),
         }
     }
 }
@@ -182,7 +182,7 @@ impl MemoryHealthCheck {
         {
             // Read from /proc/meminfo on Linux
             use std::fs;
-            if let Ok(contents) = fs::read_to_string("/proc/meminfo") {
+            if let Ok(_contents) = fs::read_to_string("/proc/meminfo") {
                 // Parse memory info and calculate usage percentage
                 // This is a simplified implementation
                 return Ok(0.5); // Placeholder
@@ -211,7 +211,7 @@ impl HealthCheck for MemoryHealthCheck {
                 self.threshold * 100.0
             )),
             Ok(_) => HealthStatus::Healthy,
-            Err(e) => HealthStatus::Unhealthy(format!("Failed to get memory usage: {}", e)),
+            Err(e) => HealthStatus::Unhealthy(format!("Failed to get memory usage: {e}")),
         };
 
         HealthCheckResult {

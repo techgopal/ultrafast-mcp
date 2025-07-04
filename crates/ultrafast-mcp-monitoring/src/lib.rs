@@ -528,7 +528,7 @@ impl MonitoringSystem {
                 }),
             );
 
-        println!("Starting monitoring HTTP server on {}", addr);
+        println!("Starting monitoring HTTP server on {addr}");
         let listener = tokio::net::TcpListener::bind(addr).await?;
         axum::serve(listener, app).await?;
         Ok(())
