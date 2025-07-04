@@ -117,8 +117,7 @@ pub fn validate_against_schema(data: &Value, schema: &Value) -> MCPResult<()> {
         if let Some(enum_array) = enum_values.as_array() {
             if !enum_array.contains(data) {
                 return Err(ToolError::SchemaValidation(format!(
-                    "Value must be one of: {:?}",
-                    enum_array
+                    "Value must be one of: {enum_array:?}"
                 ))
                 .into());
             }
