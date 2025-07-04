@@ -137,7 +137,7 @@
 //!
 //! ### Creating an MCP Client
 //!
-//! ```rust
+//! ```rust,no_run
 //! use ultrafast_mcp::{
 //!     UltraFastClient, ClientInfo, ClientCapabilities, ToolCall, ToolResult
 //! };
