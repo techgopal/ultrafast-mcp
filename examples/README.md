@@ -183,6 +183,14 @@ impl ultrafast_mcp::ToolHandler for MyToolHandler {
 }
 ```
 
+## API Consistency and Error Handling
+
+All examples in this directory are designed to use the same ergonomic API patterns and robust error handling. When adding new examples:
+- Use the builder pattern for server and client creation.
+- Always handle errors gracefully and provide user-friendly messages.
+- Follow the patterns demonstrated in the Basic Echo example for tool handler implementation, logging, and progress tracking.
+- Document any deviations from the standard patterns in the example's README.
+
 ## Running Examples
 
 ### Prerequisites

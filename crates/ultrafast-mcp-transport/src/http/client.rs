@@ -1,6 +1,9 @@
-use crate::{Transport, TransportError, Result};
+use crate::{Result, Transport, TransportError};
 use async_trait::async_trait;
-use reqwest::{Client, header::{HeaderMap, HeaderValue}};
+use reqwest::{
+    header::{HeaderMap, HeaderValue},
+    Client,
+};
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use tokio::sync::mpsc;
@@ -23,7 +26,7 @@ impl HttpClientConfig {
     pub fn mcp_url(&self) -> String {
         format!("{}/mcp", self.base_url)
     }
-    
+
     /// Get the messages endpoint URL
     pub fn messages_url(&self) -> String {
         format!("{}/mcp/messages", self.base_url)
@@ -57,12 +60,12 @@ impl HttpTransportClient {
         let client = Client::builder()
             .timeout(config.timeout)
             .build()
-            .map_err(|e| TransportError::InitializationError { 
-                message: format!("Failed to create HTTP client: {}", e) 
+            .map_err(|e| TransportError::InitializationError {
+                message: format!("Failed to create HTTP client: {}", e),
             })?;
-        
+
         let (message_sender, message_receiver) = mpsc::channel(1000);
-        
+
         Ok(Self {
             client,
             config,
@@ -71,77 +74,85 @@ impl HttpTransportClient {
             message_sender,
         })
     }
-    
+
     #[cfg(feature = "http")]
     pub fn with_oauth_token(mut self, token: &str) -> Self {
         self.config.auth_token = Some(format!("Bearer {}", token));
         self
     }
-    
+
     /// Connect to the MCP server
     pub async fn connect(&mut self) -> Result<String> {
         let mut headers = HeaderMap::new();
-        headers.insert("mcp-protocol-version", str_to_header_value(&self.config.protocol_version)?);
-        
+        headers.insert(
+            "mcp-protocol-version",
+            str_to_header_value(&self.config.protocol_version)?,
+        );
+
         if let Some(token) = &self.config.auth_token {
             headers.insert("authorization", str_to_header_value(token)?);
         }
-        
+
         let mut query_params = Vec::new();
         if let Some(session_id) = &self.config.session_id {
-            query_params.push(("session_id", session_id.as_str()));        }
+            query_params.push(("session_id", session_id.as_str()));
+        }
 
         let url = self.config.mcp_url();
-        let response = self.client
+        let response = self
+            .client
             .get(&url)
             .headers(headers)
             .query(&query_params)
             .send()
             .await
-            .map_err(|e| TransportError::ConnectionError { 
-                message: format!("Failed to connect: {}", e) 
+            .map_err(|e| TransportError::ConnectionError {
+                message: format!("Failed to connect: {}", e),
             })?;
-        
+
         if !response.status().is_success() {
             let error_text = response.text().await.unwrap_or_default();
-            return Err(TransportError::ConnectionError { 
-                message: format!("Connection failed: {}", error_text) 
-            }.into());
+            return Err(TransportError::ConnectionError {
+                message: format!("Connection failed: {}", error_text),
+            });
         }
-        
-        let connect_response: McpConnectResponse = response.json().await
-            .map_err(|e| TransportError::SerializationError { 
-                message: format!("Failed to parse connect response: {}", e) 
-            })?;
-        
+
+        let connect_response: McpConnectResponse =
+            response
+                .json()
+                .await
+                .map_err(|e| TransportError::SerializationError {
+                    message: format!("Failed to parse connect response: {}", e),
+                })?;
+
         self.session_id = Some(connect_response.session_id.clone());
-        
+
         // Process any pending messages
         for message in connect_response.pending_messages {
             let _ = self.message_sender.send(message).await;
         }
-        
+
         // Start polling for messages
         self.start_message_polling().await;
-        
+
         Ok(connect_response.session_id)
     }
-    
+
     /// Start polling for messages from the server
     async fn start_message_polling(&self) {
         let client = self.client.clone();
         let config = self.config.clone();
         let session_id = self.session_id.clone();
         let sender = self.message_sender.clone();
-        
+
         tokio::spawn(async move {
             if let Some(session_id) = session_id {
                 tracing::info!("Starting message polling for session: {}", session_id);
                 let mut interval = tokio::time::interval(Duration::from_millis(500));
-                
+
                 loop {
                     interval.tick().await;
-                    
+
                     tracing::debug!("Polling for messages, session: {}", session_id);
                     if let Ok(messages) = poll_messages(&client, &config, &session_id, 0).await {
                         tracing::info!("Received {} messages", messages.len());
@@ -149,7 +160,7 @@ impl HttpTransportClient {
                             let _ = sender.send(message).await;
                         }
                     }
-                    
+
                     // Break on channel closed
                     if sender.is_closed() {
                         break;
@@ -160,48 +171,55 @@ impl HttpTransportClient {
             }
         });
     }
-    
+
     /// Send a message and acknowledge it
     async fn send_and_ack(&self, message: JsonRpcMessage) -> Result<()> {
-        let session_id = self.session_id.as_ref()
-            .ok_or_else(|| TransportError::ConnectionError { 
-                message: "Not connected".to_string() 
-            })?;
-        
+        let session_id =
+            self.session_id
+                .as_ref()
+                .ok_or_else(|| TransportError::ConnectionError {
+                    message: "Not connected".to_string(),
+                })?;
+
         let mut headers = HeaderMap::new();
         headers.insert("content-type", str_to_header_value("application/json")?);
-        
+
         if let Some(token) = &self.config.auth_token {
             headers.insert("authorization", str_to_header_value(token)?);
         }
-        
+
         let request_body = McpRequest {
             session_id: session_id.clone(),
-            message: message.clone(),        };
+            message: message.clone(),
+        };
 
         let url = self.config.mcp_url();
-        let response = self.client
+        let response = self
+            .client
             .post(&url)
             .headers(headers)
             .json(&request_body)
             .send()
             .await
-            .map_err(|e| TransportError::NetworkError { 
-                message: format!("Failed to send message: {}", e) 
+            .map_err(|e| TransportError::NetworkError {
+                message: format!("Failed to send message: {}", e),
             })?;
-        
+
         if !response.status().is_success() {
             let error_text = response.text().await.unwrap_or_default();
-            return Err(TransportError::NetworkError { 
-                message: format!("Send failed: {}", error_text) 
-            }.into());
+            return Err(TransportError::NetworkError {
+                message: format!("Send failed: {}", error_text),
+            });
         }
-        
-        let _send_response: McpResponse = response.json().await
-            .map_err(|e| TransportError::SerializationError { 
-                message: format!("Failed to parse send response: {}", e) 
-            })?;
-        
+
+        let _send_response: McpResponse =
+            response
+                .json()
+                .await
+                .map_err(|e| TransportError::SerializationError {
+                    message: format!("Failed to parse send response: {}", e),
+                })?;
+
         Ok(())
     }
 }
@@ -211,12 +229,14 @@ impl Transport for HttpTransportClient {
     async fn send_message(&mut self, message: JsonRpcMessage) -> Result<()> {
         self.send_and_ack(message).await
     }
-    
+
     async fn receive_message(&mut self) -> Result<JsonRpcMessage> {
-        self.message_receiver.recv().await
-            .ok_or_else(|| TransportError::ConnectionClosed.into())
+        self.message_receiver
+            .recv()
+            .await
+            .ok_or(TransportError::ConnectionClosed)
     }
-    
+
     async fn close(&mut self) -> Result<()> {
         self.session_id = None;
         Ok(())
@@ -234,33 +254,45 @@ async fn poll_messages(
     if let Some(token) = &config.auth_token {
         headers.insert("authorization", str_to_header_value(token)?);
     }
-    
+
     let mut query_params = vec![("session_id", session_id.to_string())];
     if since > 0 {
         query_params.push(("since", since.to_string()));
     }
-    
+
     let url = config.messages_url();
     let response = client
         .get(&url)
         .headers(headers)
-        .query(&query_params.iter().map(|(k, v)| (k, v.as_str())).collect::<Vec<_>>())
+        .query(
+            &query_params
+                .iter()
+                .map(|(k, v)| (k, v.as_str()))
+                .collect::<Vec<_>>(),
+        )
         .send()
         .await
-        .map_err(|e| TransportError::NetworkError { 
-            message: format!("Failed to poll messages: {}", e) 
+        .map_err(|e| TransportError::NetworkError {
+            message: format!("Failed to poll messages: {}", e),
         })?;
-    
+
     if !response.status().is_success() {
-        tracing::warn!("Polling failed with status {}: {}", response.status(), response.text().await.unwrap_or_default());
+        tracing::warn!(
+            "Polling failed with status {}: {}",
+            response.status(),
+            response.text().await.unwrap_or_default()
+        );
         return Ok(Vec::new()); // Return empty on error
     }
-    
-    let messages: Vec<JsonRpcMessage> = response.json().await
-        .map_err(|e| TransportError::SerializationError { 
-            message: format!("Failed to parse messages: {}", e) 
-        })?;
-    
+
+    let messages: Vec<JsonRpcMessage> =
+        response
+            .json()
+            .await
+            .map_err(|e| TransportError::SerializationError {
+                message: format!("Failed to parse messages: {}", e),
+            })?;
+
     Ok(messages)
 }
 
@@ -288,5 +320,5 @@ pub struct McpResponse {
 fn str_to_header_value(s: &str) -> Result<HeaderValue> {
     HeaderValue::from_str(s).map_err(|e| TransportError::InitializationError {
         message: format!("Failed to parse header value: {}", e),
-    }.into())
+    })
 }

@@ -20,21 +20,34 @@ pub struct PromptsListChangedNotification {
     // Empty object for now
 }
 
-/// Logging message notification
+/// Logging message notification - MCP 2025-06-18 compliant
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LoggingMessageNotification {
-    /// Log level
+    /// Log level (RFC 5424 compliant)
     pub level: LogLevel,
-    
-    /// Log message
+
+    /// Log data (arbitrary JSON-serializable data)
     pub data: serde_json::Value,
-    
-    /// Logger name
+
+    /// Optional logger name
     #[serde(skip_serializing_if = "Option::is_none")]
     pub logger: Option<String>,
 }
 
-/// Log level
+/// Log level set request - MCP 2025-06-18 compliant
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LogLevelSetRequest {
+    /// Minimum log level to receive
+    pub level: LogLevel,
+}
+
+/// Log level set response - MCP 2025-06-18 compliant
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LogLevelSetResponse {
+    // Empty response as per MCP 2025-06-18 specification
+}
+
+/// Log level - RFC 5424 compliant levels
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum LogLevel {
@@ -54,7 +67,7 @@ pub struct CancelledNotification {
     /// The ID of the request to cancel
     #[serde(rename = "requestId")]
     pub request_id: serde_json::Value,
-    
+
     /// Optional reason for cancellation
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reason: Option<String>,
@@ -66,14 +79,14 @@ pub struct ProgressNotification {
     /// Progress token from the original request
     #[serde(rename = "progressToken")]
     pub progress_token: serde_json::Value,
-    
+
     /// Current progress value
     pub progress: f64,
-    
+
     /// Optional total value
     #[serde(skip_serializing_if = "Option::is_none")]
     pub total: Option<f64>,
-    
+
     /// Optional human-readable message
     #[serde(skip_serializing_if = "Option::is_none")]
     pub message: Option<String>,
@@ -121,10 +134,22 @@ impl LoggingMessageNotification {
             logger: None,
         }
     }
-    
+
     pub fn with_logger(mut self, logger: String) -> Self {
         self.logger = Some(logger);
         self
+    }
+}
+
+impl LogLevelSetRequest {
+    pub fn new(level: LogLevel) -> Self {
+        Self { level }
+    }
+}
+
+impl LogLevelSetResponse {
+    pub fn new() -> Self {
+        Self {}
     }
 }
 
@@ -135,7 +160,7 @@ impl CancelledNotification {
             reason: None,
         }
     }
-    
+
     pub fn with_reason(mut self, reason: String) -> Self {
         self.reason = Some(reason);
         self
@@ -151,12 +176,12 @@ impl ProgressNotification {
             message: None,
         }
     }
-    
+
     pub fn with_total(mut self, total: f64) -> Self {
         self.total = Some(total);
         self
     }
-    
+
     pub fn with_message(mut self, message: String) -> Self {
         self.message = Some(message);
         self
@@ -167,7 +192,7 @@ impl PingRequest {
     pub fn new() -> Self {
         Self { data: None }
     }
-    
+
     pub fn with_data(mut self, data: serde_json::Value) -> Self {
         self.data = Some(data);
         self
@@ -178,7 +203,7 @@ impl PingResponse {
     pub fn new() -> Self {
         Self { data: None }
     }
-    
+
     pub fn with_data(mut self, data: serde_json::Value) -> Self {
         self.data = Some(data);
         self
@@ -222,6 +247,12 @@ impl Default for PingRequest {
 }
 
 impl Default for PingResponse {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Default for LogLevelSetResponse {
     fn default() -> Self {
         Self::new()
     }

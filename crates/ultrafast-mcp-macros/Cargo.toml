@@ -1,26 +1,35 @@
 [package]
 name = "ultrafast-mcp-macros"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+authors.workspace = true
+keywords.workspace = true
+categories.workspace = true
+readme.workspace = true
 description = "Procedural macros for the ULTRAFAST MCP implementation"
-authors = ["ULTRAFAST MCP Team"]
-license = "MIT OR Apache-2.0"
-repository = "https://github.com/ultrafast-mcp/ultrafast-mcp"
-keywords = ["mcp", "model-context-protocol", "macros", "procedural"]
-categories = ["development-tools::procedural-macro-helpers"]
+
+# docs.rs configuration
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+targets = ["x86_64-unknown-linux-gnu"]
 
 [lib]
 proc-macro = true
 
 [dependencies]
-proc-macro2 = "1.0"
-quote = "1.0"
-syn = { version = "2.0", features = ["full", "extra-traits"] }
-serde_json = "1.0"
+# Procedural macro dependencies
+proc-macro2 = { workspace = true }
+quote = { workspace = true }
+syn = { workspace = true }
+serde_json = { workspace = true }
 
 [dev-dependencies]
-trybuild = "1.0"
 ultrafast-mcp-core = { path = "../ultrafast-mcp-core" }
 ultrafast-mcp-server = { path = "../ultrafast-mcp-server" }
 ultrafast-mcp-client = { path = "../ultrafast-mcp-client" }
-serde = { version = "1.0", features = ["derive"] }
+serde = { workspace = true }

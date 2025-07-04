@@ -4,21 +4,23 @@ version = "0.1.0"
 edition = "2021"
 
 [[bin]]
-name = "server"
+name = "basic-echo-server"
 path = "src/server.rs"
+doc = false
 
 [[bin]]
-name = "client"
+name = "basic-echo-client"
 path = "src/client.rs"
+doc = false
 
 [dependencies]
-ultrafast-mcp = { path = "../../crates/ultrafast-mcp", features = ["http-transport"] }
+ultrafast-mcp = { path = "../../crates/ultrafast-mcp", features = ["http"] }
 ultrafast-mcp-transport = { path = "../../crates/ultrafast-mcp-transport", features = ["http"] }
-tokio = { version = "1.0", features = ["full"] }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-anyhow = "1.0"
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-async-trait = "0.1"
-chrono = { version = "0.4", features = ["serde"] } 
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+async-trait = { workspace = true }
+chrono = { workspace = true } 

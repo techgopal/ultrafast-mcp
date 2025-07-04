@@ -1,7 +1,7 @@
+use crate::error::{MCPError, MCPResult, ResourceError};
+use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::str::FromStr;
-use serde::{Serialize, Deserialize};
-use crate::error::{MCPError, MCPResult, ResourceError};
 
 /// A URI type for MCP resources and references
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -59,7 +59,10 @@ impl Uri {
                     Ok(Uri::new(format!("{}{}", self.0, path)))
                 }
             } else {
-                Err(MCPError::Resource(ResourceError::InvalidUri(format!("Cannot join absolute path to non-URI: {}", self.0))))
+                Err(MCPError::Resource(ResourceError::InvalidUri(format!(
+                    "Cannot join absolute path to non-URI: {}",
+                    self.0
+                ))))
             }
         } else {
             // Relative path - append to current path
@@ -75,7 +78,9 @@ impl Uri {
     /// Validate the URI format
     pub fn validate(&self) -> MCPResult<()> {
         if self.0.is_empty() {
-            return Err(MCPError::Resource(ResourceError::InvalidUri("URI cannot be empty".to_string())));
+            return Err(MCPError::Resource(ResourceError::InvalidUri(
+                "URI cannot be empty".to_string(),
+            )));
         }
 
         // Basic validation - must have a scheme or be a relative path
@@ -91,8 +96,15 @@ impl Uri {
 
         // Must have valid scheme
         if let Some(scheme) = self.scheme() {
-            if scheme.is_empty() || !scheme.chars().all(|c| c.is_ascii_alphanumeric() || c == '+' || c == '-' || c == '.') {
-                return Err(MCPError::Resource(ResourceError::InvalidUri(format!("Invalid URI scheme: {}", scheme))));
+            if scheme.is_empty()
+                || !scheme
+                    .chars()
+                    .all(|c| c.is_ascii_alphanumeric() || c == '+' || c == '-' || c == '.')
+            {
+                return Err(MCPError::Resource(ResourceError::InvalidUri(format!(
+                    "Invalid URI scheme: {}",
+                    scheme
+                ))));
             }
         }
 

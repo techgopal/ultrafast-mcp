@@ -1,10 +1,10 @@
 //! Rate limiting for HTTP transport
 
+use crate::{Result, TransportError};
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 use tokio::sync::RwLock;
-use std::collections::HashMap;
-use crate::{TransportError, Result};
 
 /// Rate limiter configuration
 #[derive(Debug, Clone)]
@@ -42,10 +42,10 @@ impl TokenBucket {
             refill_rate: refill_rate as f64,
         }
     }
-    
+
     fn try_consume(&mut self, tokens: f64) -> bool {
         self.refill();
-        
+
         if self.tokens >= tokens {
             self.tokens -= tokens;
             true
@@ -53,7 +53,7 @@ impl TokenBucket {
             false
         }
     }
-    
+
     fn refill(&mut self) {
         let now = SystemTime::now();
         if let Ok(elapsed) = now.duration_since(self.last_refill) {
@@ -77,32 +77,33 @@ impl RateLimiter {
             config,
         }
     }
-    
+
     /// Check if a request is allowed for the given identifier (e.g., IP address, session ID)
     pub async fn check_rate_limit(&self, identifier: &str) -> Result<()> {
         let mut buckets = self.buckets.write().await;
-        
+
         let bucket = buckets.entry(identifier.to_string()).or_insert_with(|| {
             TokenBucket::new(self.config.burst_size, self.config.requests_per_second)
         });
-        
+
         if bucket.try_consume(1.0) {
             Ok(())
         } else {
             Err(TransportError::NetworkError {
-                message: "Rate limit exceeded".to_string()
+                message: "Rate limit exceeded".to_string(),
             })
         }
     }
-    
+
     /// Clean up old buckets
     pub async fn cleanup_expired(&self) {
         let mut buckets = self.buckets.write().await;
         let _now = SystemTime::now();
-        
+
         buckets.retain(|_, bucket| {
             // Remove buckets that haven't been used for more than the window size
-            bucket.last_refill
+            bucket
+                .last_refill
                 .elapsed()
                 .map(|elapsed| elapsed < self.config.window_size * 2)
                 .unwrap_or(false)

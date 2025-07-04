@@ -6,14 +6,14 @@ use serde_json::Value;
 pub struct Resource {
     /// Resource URI
     pub uri: String,
-    
+
     /// Resource name
     pub name: String,
-    
+
     /// Human-readable description
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
-    
+
     /// MIME type of the resource
     #[serde(rename = "mimeType", skip_serializing_if = "Option::is_none")]
     pub mime_type: Option<String>,
@@ -25,14 +25,14 @@ pub struct ResourceTemplate {
     /// URI template (RFC 6570)
     #[serde(rename = "uriTemplate")]
     pub uri_template: String,
-    
+
     /// Template name
     pub name: String,
-    
+
     /// Human-readable description
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
-    
+
     /// MIME type of resources created from this template
     #[serde(rename = "mimeType", skip_serializing_if = "Option::is_none")]
     pub mime_type: Option<String>,
@@ -57,15 +57,15 @@ pub struct ReadResourceResponse {
 #[serde(tag = "type")]
 pub enum ResourceContent {
     #[serde(rename = "text")]
-    Text { 
+    Text {
         text: String,
         #[serde(rename = "mimeType", skip_serializing_if = "Option::is_none")]
         mime_type: Option<String>,
     },
-    
+
     #[serde(rename = "blob")]
-    Blob { 
-        blob: String,  // Base64 encoded
+    Blob {
+        blob: String, // Base64 encoded
         #[serde(rename = "mimeType")]
         mime_type: String,
     },
@@ -84,7 +84,7 @@ pub struct ListResourcesRequest {
 pub struct ListResourcesResponse {
     /// Available resources
     pub resources: Vec<Resource>,
-    
+
     /// Next cursor for pagination
     #[serde(rename = "nextCursor", skip_serializing_if = "Option::is_none")]
     pub next_cursor: Option<String>,
@@ -104,7 +104,7 @@ pub struct ListResourceTemplatesResponse {
     /// Available resource templates
     #[serde(rename = "resourceTemplates")]
     pub resource_templates: Vec<ResourceTemplate>,
-    
+
     /// Next cursor for pagination
     #[serde(rename = "nextCursor", skip_serializing_if = "Option::is_none")]
     pub next_cursor: Option<String>,
@@ -140,12 +140,12 @@ impl Resource {
             mime_type: None,
         }
     }
-    
+
     pub fn with_description(mut self, description: String) -> Self {
         self.description = Some(description);
         self
     }
-    
+
     pub fn with_mime_type(mut self, mime_type: String) -> Self {
         self.mime_type = Some(mime_type);
         self
@@ -161,12 +161,12 @@ impl ResourceTemplate {
             mime_type: None,
         }
     }
-    
+
     pub fn with_description(mut self, description: String) -> Self {
         self.description = Some(description);
         self
     }
-    
+
     pub fn with_mime_type(mut self, mime_type: String) -> Self {
         self.mime_type = Some(mime_type);
         self
@@ -175,20 +175,26 @@ impl ResourceTemplate {
 
 impl ResourceContent {
     pub fn text(text: String) -> Self {
-        Self::Text { text, mime_type: Some("text/plain".to_string()) }
-    }
-    
-    pub fn text_with_mime_type(text: String, mime_type: String) -> Self {
-        Self::Text { text, mime_type: Some(mime_type) }
-    }
-    
-    pub fn json(value: &Value) -> Self {
-        Self::Text { 
-            text: serde_json::to_string_pretty(value).unwrap_or_default(),
-            mime_type: Some("application/json".to_string())
+        Self::Text {
+            text,
+            mime_type: Some("text/plain".to_string()),
         }
     }
-    
+
+    pub fn text_with_mime_type(text: String, mime_type: String) -> Self {
+        Self::Text {
+            text,
+            mime_type: Some(mime_type),
+        }
+    }
+
+    pub fn json(value: &Value) -> Self {
+        Self::Text {
+            text: serde_json::to_string_pretty(value).unwrap_or_default(),
+            mime_type: Some("application/json".to_string()),
+        }
+    }
+
     pub fn blob(blob: String, mime_type: String) -> Self {
         Self::Blob { blob, mime_type }
     }

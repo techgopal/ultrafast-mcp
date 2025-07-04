@@ -1,4 +1,4 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -117,7 +117,8 @@ impl Progress {
     pub fn fail(&mut self, error: Option<String>) {
         self.status = ProgressStatus::Failed;
         if let Some(error) = error {
-            self.metadata.insert("error".to_string(), serde_json::Value::String(error));
+            self.metadata
+                .insert("error".to_string(), serde_json::Value::String(error));
         }
         self.updated_at = current_timestamp();
     }
@@ -149,7 +150,10 @@ impl Progress {
 
     /// Check if the operation is active
     pub fn is_active(&self) -> bool {
-        matches!(self.status, ProgressStatus::Running | ProgressStatus::Starting)
+        matches!(
+            self.status,
+            ProgressStatus::Running | ProgressStatus::Starting
+        )
     }
 
     /// Get the age of this progress update
@@ -251,9 +255,8 @@ impl ProgressTracker {
     /// Clean up old finished progress instances
     pub fn cleanup_finished(&mut self, max_age: Duration) {
         let cutoff = current_timestamp() - max_age.as_secs();
-        self.progress_map.retain(|_, progress| {
-            !progress.is_finished() || progress.updated_at > cutoff
-        });
+        self.progress_map
+            .retain(|_, progress| !progress.is_finished() || progress.updated_at > cutoff);
     }
 
     /// Get the number of tracked progress instances
@@ -342,20 +345,20 @@ mod tests {
     #[test]
     fn test_progress_tracker() {
         let mut tracker = ProgressTracker::new();
-        
+
         // Start tracking
         let progress = tracker.start("test1");
         progress.update(50);
-        
+
         // Check active
         assert_eq!(tracker.active().count(), 1);
         assert_eq!(tracker.finished().count(), 0);
-        
+
         // Complete
         tracker.complete("test1");
         assert_eq!(tracker.active().count(), 0);
         assert_eq!(tracker.finished().count(), 1);
-        
+
         // Test update
         tracker.start("test2");
         let updated = tracker.update("test2", 75);
@@ -366,11 +369,11 @@ mod tests {
     #[test]
     fn test_progress_cleanup() {
         let mut tracker = ProgressTracker::new();
-        
+
         // Add some progress
         tracker.start("test1");
         tracker.complete("test1");
-        
+
         // Cleanup should remove finished progress
         tracker.cleanup_finished(Duration::from_secs(0));
         assert_eq!(tracker.len(), 0);
