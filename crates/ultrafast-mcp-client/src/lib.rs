@@ -62,14 +62,15 @@
 //!
 //! ### Basic Client Setup
 //!
-//! ```rust
-//! use ultrafast_mcp_client::{
-//!     UltraFastClient, ClientInfo, ClientCapabilities, ToolCall, ToolResult
-//! };
+//! ```rust,no_run
+//! use ultrafast_mcp_client::UltraFastClient;
+//! use ultrafast_mcp_core::types::client::ClientInfo;
+//! use ultrafast_mcp_core::protocol::capabilities::ClientCapabilities;
+//! use ultrafast_mcp_core::types::tools::ToolCall;
 //! use serde_json::json;
 //!
 //! #[tokio::main]
-//! async fn main() -> anyhow::Result<()> {
+//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     // Create client configuration
 //!     let client_info = ClientInfo {
 //!         name: "example-client".to_string(),
@@ -86,8 +87,8 @@
 //!     // Create the client
 //!     let client = UltraFastClient::new(client_info, capabilities);
 //!
-//!     // Connect to the server using Streamable HTTP
-//!     client.connect_streamable_http("http://127.0.0.1:8080/mcp").await?;
+//!     // Connect to the server using STDIO (no feature gate required)
+//!     client.connect_stdio().await?;
 //!
 //!     // Call a tool
 //!     let tool_call = ToolCall {
@@ -109,11 +110,13 @@
 //!
 //! ### Advanced Client with Handlers
 //!
-//! ```rust
+//! ```rust,no_run
 //! use ultrafast_mcp_client::{
-//!     UltraFastClient, SamplingHandler, ResourceChangeHandler, ElicitationHandler,
-//!     SamplingRequest, SamplingResponse, ElicitationRequest, ElicitationResponse
+//!     UltraFastClient, SamplingHandler, ResourceChangeHandler, ElicitationHandler
 //! };
+//! use ultrafast_mcp_core::types::sampling::{SamplingRequest, SamplingResponse, SamplingContent};
+//! use ultrafast_mcp_core::types::elicitation::{ElicitationRequest, ElicitationResponse};
+//! use ultrafast_mcp_core::MCPResult;
 //! use std::sync::Arc;
 //!
 //! // Sampling handler for LLM integration
@@ -124,7 +127,10 @@
 //!     async fn handle_sampling(&self, request: SamplingRequest) -> MCPResult<SamplingResponse> {
 //!         // Implement LLM sampling logic
 //!         Ok(SamplingResponse {
-//!             content: vec![SamplingContent::text("Generated content".to_string())],
+//!             role: "assistant".to_string(),
+//!             content: SamplingContent::text("Generated content".to_string()),
+//!             model: Some("gpt-4".to_string()),
+//!             stop_reason: Some("stop".to_string()),
 //!         })
 //!     }
 //! }
@@ -150,27 +156,41 @@
 //!     ) -> MCPResult<ElicitationResponse> {
 //!         // Implement user input collection logic
 //!         Ok(ElicitationResponse {
-//!             content: vec![ElicitationContent::text("User input".to_string())],
+//!             value: serde_json::json!("User input"),
+//!             cancelled: Some(false),
 //!         })
 //!     }
 //! }
 //!
 //! #[tokio::main]
-//! async fn main() -> anyhow::Result<()> {
+//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     let client_info = ultrafast_mcp_core::types::client::ClientInfo {
+//!         name: "example-client".to_string(),
+//!         version: "1.0.0".to_string(),
+//!         authors: None,
+//!         description: Some("An example MCP client".to_string()),
+//!         homepage: None,
+//!         repository: None,
+//!         license: None,
+//!     };
+//!     
+//!     let capabilities = ultrafast_mcp_core::protocol::capabilities::ClientCapabilities::default();
 //!     let client = UltraFastClient::new(client_info, capabilities);
 //!
 //!     // Set up handlers
 //!     client.set_sampling_handler(Arc::new(MySamplingHandler)).await?;
 //!     client.set_elicitation_handler(Arc::new(MyElicitationHandler)).await?;
 //!
-//!     // Subscribe to resource changes
+//!     // Subscribe to resource changes using a closure
 //!     client.subscribe_resource(
 //!         "file:///path/to/resource".to_string(),
-//!         Arc::new(MyResourceChangeHandler),
+//!         |uri, content| Box::pin(async move {
+//!             println!("Resource changed: {} -> {:?}", uri, content);
+//!         }),
 //!     ).await?;
 //!
 //!     // Connect and use the client
-//!     client.connect_streamable_http("http://127.0.0.1:8080/mcp").await?;
+//!     client.connect_stdio().await?;
 //!
 //!     // ... use the client ...
 //!
@@ -180,10 +200,11 @@
 //!
 //! ### Resource Management
 //!
-//! ```rust
-//! use ultrafast_mcp_client::{UltraFastClient, ReadResourceRequest};
+//! ```rust,no_run
+//! use ultrafast_mcp_client::UltraFastClient;
+//! use ultrafast_mcp_core::types::resources::ReadResourceRequest;
 //!
-//! async fn manage_resources(client: &UltraFastClient) -> anyhow::Result<()> {
+//! async fn manage_resources(client: &UltraFastClient) -> Result<(), Box<dyn std::error::Error>> {
 //!     // List available resources
 //!     let resources = client.list_resources().await?;
 //!     println!("Available resources: {:?}", resources);
@@ -212,11 +233,11 @@
 //!
 //! ### Progress Tracking and Cancellation
 //!
-//! ```rust
+//! ```rust,no_run
 //! use ultrafast_mcp_client::UltraFastClient;
 //! use std::time::Duration;
 //!
-//! async fn handle_long_operation(client: &UltraFastClient) -> anyhow::Result<()> {
+//! async fn handle_long_operation(client: &UltraFastClient) -> Result<(), Box<dyn std::error::Error>> {
 //!     // Register a request for cancellation tracking
 //!     let request_id = serde_json::json!("operation_123");
 //!     client.register_request(request_id.clone(), "tools/call".to_string()).await?;
