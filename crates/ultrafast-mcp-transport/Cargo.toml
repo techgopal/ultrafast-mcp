@@ -20,8 +20,8 @@ targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
 # Internal dependencies
-ultrafast-mcp-core = { path = "../ultrafast-mcp-core", version = "202506018.1.0-rc.1.3" }
-ultrafast-mcp-auth = { path = "../ultrafast-mcp-auth", version = "202506018.1.0-rc.1.3", optional = true }
+ultrafast-mcp-core = { path = "../ultrafast-mcp-core", version = "202506018.1.0-rc.1" }
+ultrafast-mcp-auth = { path = "../ultrafast-mcp-auth", version = "202506018.1.0-rc.1", optional = true }
 
 # Core runtime dependencies
 tokio = { workspace = true }
