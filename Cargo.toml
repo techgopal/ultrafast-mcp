@@ -74,10 +74,10 @@ description = "UltraFast MCP - High-performance Model Context Protocol implement
 
 [workspace.dependencies]
 # Core runtime dependencies
-tokio = { version = "202506018.1.0-rc.1.3"] }
-tokio-util = { version = "202506018.1.0-rc.1.3"] }
-tokio-stream = "0.1"
-serde = { version = "202506018.1.0-rc.1.3"] }
+tokio = { version = "1.46", features = ["full"] }
+tokio-util = { version = "0.7", features = ["codec"] }
+tokio-stream = { version = "0.1", features = ["sync"] }
+serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 anyhow = "1.0"
 thiserror = "2.0"
@@ -88,11 +88,11 @@ async-trait = "0.1"
 
 # HTTP transport
 axum = "0.8"
-reqwest = { version = "202506018.1.0-rc.1.3"] }
-tower = "0.4"
-tower-http = { version = "202506018.1.0-rc.1.3"] }
+reqwest = { version = "0.12", features = ["json"] }
+tower = { version = "0.5", features = ["util"] }
+tower-http = { version = "0.6", features = ["cors", "trace"] }
 hyper = "1.6"
-hyper-util = { version = "202506018.1.0-rc.1.3"] }
+hyper-util = { version = "0.1", features = ["tokio"] }
 
 # Authentication
 oauth2 = "5.0"
@@ -105,10 +105,10 @@ sha2 = "0.10"
 # Procedural macros
 proc-macro2 = "1.0"
 quote = "1.0"
-syn = { version = "202506018.1.0-rc.1.3"] }
+syn = { version = "2.0", features = ["full", "extra-traits"] }
 
 # CLI dependencies
-clap = { version = "202506018.1.0-rc.1.3"] }
+clap = { version = "4.5", features = ["derive"] }
 clap_complete = "4.5"
 console = "0.16"
 indicatif = "0.17"
@@ -116,31 +116,31 @@ colored = "3.0"
 dirs = "6.0"
 
 # UUID generation  
-uuid = { version = "202506018.1.0-rc.1.3"] }
+uuid = { version = "1.17", features = ["v4", "serde"] }
 
 # Logging
 tracing = "0.1"
-tracing-subscriber = { version = "202506018.1.0-rc.1.3"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 
 # Testing dependencies
-criterion = { version = "202506018.1.0-rc.1.3"] }
+criterion = { version = "0.6", features = ["html_reports"] }
 tokio-test = "0.4"
 tempfile = "3.20"
 
 # JSON Schema
-schemars = { version = "202506018.1.0-rc.1.3"] }
+schemars = { version = "1.0", features = ["uuid1"] }
 
 # Monitoring and observability
 opentelemetry = "0.30"
-opentelemetry_sdk = { version = "202506018.1.0-rc.1.3"] }
-opentelemetry-jaeger = { version = "202506018.1.0-rc.1.3"] }
+opentelemetry_sdk = { version = "0.30", features = ["rt-tokio"] }
+opentelemetry-jaeger = { version = "0.22", features = ["rt-tokio"] }
 opentelemetry-prometheus = "0.29"
-opentelemetry-otlp = { version = "202506018.1.0-rc.1.3"] }
+opentelemetry-otlp = { version = "0.30", features = ["grpc-tonic", "tokio"] }
 tracing-opentelemetry = "0.31"
 metrics = "0.24"
 metrics-exporter-prometheus = "0.17"
 sysinfo = "0.35"
-chrono = { version = "202506018.1.0-rc.1.3"] }
+chrono = { version = "0.4", features = ["serde"] }
 
 # Configuration formats
 toml = "0.8"
