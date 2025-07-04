@@ -194,6 +194,7 @@ serde_json = "1.0"
 anyhow = "1.0"
 tracing = "0.1"
 tracing-subscriber = "0.3"
+chrono = { version = "0.4", features = ["serde"] }
 
 [[bin]]
 name = "{{project_name}}"
@@ -205,9 +206,11 @@ path = "src/main.rs"
                 TemplateFile {
                     path: "src/main.rs".to_string(),
                     content: r#"use ultrafast_mcp::prelude::*;
-use ultrafast_mcp_server::{Server, ServerBuilder};
 use anyhow::Result;
 use tracing::info;
+
+mod tools;
+mod resources;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -215,37 +218,26 @@ async fn main() -> Result<()> {
     
     info!("Starting {{project_name}} MCP server");
     
-    let server = ServerBuilder::new()
-        .with_info(ServerInfo {
+    let mut server = UltraFastServer::new(
+        ServerInfo {
             name: "{{project_name}}".to_string(),
             version: "{{version}}".to_string(),
-        })
-        .with_tool("echo", "Echo back the input", echo_handler)
-        .with_resource("info://server", "Server information", info_handler)
-        .build()?;
+            description: Some("{{description}}".to_string()),
+            authors: None,
+            homepage: None,
+            license: None,
+            repository: None,
+        },
+        ServerCapabilities::default(),
+    );
+    
+    // Register tools and resources
+    tools::register_tools(&mut server)?;
+    resources::register_resources(&mut server)?;
     
     server.run_stdio().await?;
     
     Ok(())
-}
-
-async fn echo_handler(args: serde_json::Value) -> Result<serde_json::Value> {
-    Ok(args)
-}
-
-async fn info_handler(_uri: String) -> Result<Resource> {
-    Ok(Resource {
-        uri: "info://server".to_string(),
-        name: "Server Information".to_string(),
-        description: Some("Information about this MCP server".to_string()),
-        mime_type: Some("application/json".to_string()),
-        text: Some(serde_json::json!({
-            "name": "{{project_name}}",
-            "version": "{{version}}",
-            "description": "{{description}}"
-        }).to_string()),
-        blob: None,
-    })
 }
 
 #[cfg(test)]
@@ -253,10 +245,21 @@ mod tests {
     use super::*;
     
     #[tokio::test]
-    async fn test_echo_handler() {
-        let input = serde_json::json!({"message": "test"});
-        let result = echo_handler(input.clone()).await.unwrap();
-        assert_eq!(result, input);
+    async fn test_server_creation() {
+        let server = UltraFastServer::new(
+            ServerInfo {
+                name: "test-server".to_string(),
+                version: "1.0.0".to_string(),
+                description: Some("Test server".to_string()),
+                authors: None,
+                homepage: None,
+                license: None,
+                repository: None,
+            },
+            ServerCapabilities::default(),
+        );
+        
+        assert_eq!(server.info().name, "test-server");
     }
 }
 "#
@@ -322,7 +325,428 @@ mcp dev
         template.description =
             "Advanced MCP server template with multiple tools and resources".to_string();
 
-        // TODO: Add more server-specific files
+        // Add server-specific files
+        template.files.extend(vec![
+                            TemplateFile {
+                    path: "src/tools/mod.rs".to_string(),
+                    content: r#"//! Tools module
+
+pub mod echo;
+pub mod info;
+pub mod calculator;
+
+use ultrafast_mcp::prelude::*;
+use serde_json::Value;
+
+/// Register all tools with the server
+pub fn register_tools(server: &mut UltraFastServer) -> Result<()> {
+    server
+        .with_tool_handler(Arc::new(echo::EchoHandler))
+        .with_tool_handler(Arc::new(info::InfoHandler))
+        .with_tool_handler(Arc::new(calculator::CalculatorHandler));
+    
+    Ok(())
+}
+"#
+                    .to_string(),
+                    is_binary: false,
+                },
+                TemplateFile {
+                    path: "src/tools/echo.rs".to_string(),
+                    content: r#"//! Echo tool implementation
+
+use ultrafast_mcp::prelude::*;
+use serde::{Deserialize, Serialize};
+use chrono::{DateTime, Utc};
+
+#[derive(Debug, Deserialize)]
+pub struct EchoRequest {
+    pub message: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct EchoResponse {
+    pub message: String,
+    pub timestamp: DateTime<Utc>,
+    pub echo_count: usize,
+}
+
+pub struct EchoHandler;
+
+#[async_trait::async_trait]
+impl ToolHandler for EchoHandler {
+    async fn handle_tool_call(&self, call: ToolCall) -> MCPResult<ToolResult> {
+        if call.name != "echo" {
+            return Err(MCPError::method_not_found(format!("Unknown tool: {}", call.name)));
+        }
+
+        let request: EchoRequest = serde_json::from_value(call.arguments.unwrap_or_default())
+            .map_err(|e| MCPError::invalid_params(format!("Invalid request: {}", e)))?;
+
+        let response = EchoResponse {
+            message: request.message,
+            timestamp: Utc::now(),
+            echo_count: 1,
+        };
+
+        let response_text = serde_json::to_string_pretty(&response)
+            .map_err(|e| MCPError::serialization_error(e.to_string()))?;
+
+        Ok(ToolResult {
+            content: vec![ToolContent::text(response_text)],
+            is_error: None,
+        })
+    }
+
+    async fn list_tools(&self, _request: ListToolsRequest) -> MCPResult<ListToolsResponse> {
+        Ok(ListToolsResponse {
+            tools: vec![Tool {
+                name: "echo".to_string(),
+                description: "Echo back input with timestamp".to_string(),
+                input_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "message": {
+                            "type": "string",
+                            "description": "Message to echo back"
+                        }
+                    },
+                    "required": ["message"]
+                }),
+                output_schema: None,
+            }],
+            next_cursor: None,
+        })
+    }
+}
+"#
+                    .to_string(),
+                    is_binary: false,
+                },
+                TemplateFile {
+                    path: "src/tools/info.rs".to_string(),
+                    content: r#"//! Info tool implementation
+
+use ultrafast_mcp::prelude::*;
+use serde::Serialize;
+
+#[derive(Debug, Serialize)]
+pub struct ServerInfo {
+    pub name: String,
+    pub version: String,
+    pub description: Option<String>,
+    pub uptime: String,
+    pub tools: Vec<String>,
+    pub resources: Vec<String>,
+}
+
+pub struct InfoHandler;
+
+#[async_trait::async_trait]
+impl ToolHandler for InfoHandler {
+    async fn handle_tool_call(&self, call: ToolCall) -> MCPResult<ToolResult> {
+        if call.name != "info" {
+            return Err(MCPError::method_not_found(format!("Unknown tool: {}", call.name)));
+        }
+
+        let info = ServerInfo {
+            name: env!("CARGO_PKG_NAME").to_string(),
+            version: env!("CARGO_PKG_VERSION").to_string(),
+            description: Some("{{description}}".to_string()),
+            uptime: "0s".to_string(), // TODO: Calculate actual uptime
+            tools: vec![
+                "echo".to_string(),
+                "info".to_string(),
+                "calculate".to_string(),
+            ],
+            resources: vec![
+                "status://server".to_string(),
+                "config://server".to_string(),
+            ],
+        };
+
+        let response_text = serde_json::to_string_pretty(&info)
+            .map_err(|e| MCPError::serialization_error(e.to_string()))?;
+
+        Ok(ToolResult {
+            content: vec![ToolContent::text(response_text)],
+            is_error: None,
+        })
+    }
+
+    async fn list_tools(&self, _request: ListToolsRequest) -> MCPResult<ListToolsResponse> {
+        Ok(ListToolsResponse {
+            tools: vec![Tool {
+                name: "info".to_string(),
+                description: "Get server information and status".to_string(),
+                input_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }),
+                output_schema: None,
+            }],
+            next_cursor: None,
+        })
+    }
+}
+"#
+                    .to_string(),
+                    is_binary: false,
+                },
+            TemplateFile {
+                path: "src/tools/calculator.rs".to_string(),
+                content: r#"//! Calculator tool implementation
+
+use ultrafast_mcp::prelude::*;
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Deserialize)]
+pub struct CalculatorRequest {
+    pub operation: String,
+    pub a: f64,
+    pub b: f64,
+}
+
+#[derive(Debug, Serialize)]
+pub struct CalculatorResponse {
+    pub result: f64,
+    pub operation: String,
+}
+
+pub struct CalculatorHandler;
+
+#[async_trait::async_trait]
+impl ToolHandler for CalculatorHandler {
+    async fn handle_tool_call(&self, call: ToolCall) -> MCPResult<ToolResult> {
+        if call.name != "calculate" {
+            return Err(MCPError::method_not_found(format!("Unknown tool: {}", call.name)));
+        }
+
+        let request: CalculatorRequest = serde_json::from_value(call.arguments.unwrap_or_default())
+            .map_err(|e| MCPError::invalid_params(format!("Invalid request: {}", e)))?;
+
+        let result = match request.operation.as_str() {
+            "add" => request.a + request.b,
+            "subtract" => request.a - request.b,
+            "multiply" => request.a * request.b,
+            "divide" => {
+                if request.b == 0.0 {
+                    return Err(MCPError::invalid_params("Division by zero".to_string()));
+                }
+                request.a / request.b
+            }
+            _ => return Err(MCPError::invalid_params(format!("Unknown operation: {}", request.operation))),
+        };
+
+        let response = CalculatorResponse {
+            result,
+            operation: request.operation,
+        };
+
+        let response_text = serde_json::to_string_pretty(&response)
+            .map_err(|e| MCPError::serialization_error(e.to_string()))?;
+
+        Ok(ToolResult {
+            content: vec![ToolContent::text(response_text)],
+            is_error: None,
+        })
+    }
+
+    async fn list_tools(&self, _request: ListToolsRequest) -> MCPResult<ListToolsResponse> {
+        Ok(ListToolsResponse {
+            tools: vec![Tool {
+                name: "calculate".to_string(),
+                description: "Perform basic mathematical operations".to_string(),
+                input_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "operation": {
+                            "type": "string",
+                            "enum": ["add", "subtract", "multiply", "divide"],
+                            "description": "Mathematical operation to perform"
+                        },
+                        "a": {
+                            "type": "number",
+                            "description": "First operand"
+                        },
+                        "b": {
+                            "type": "number",
+                            "description": "Second operand"
+                        }
+                    },
+                    "required": ["operation", "a", "b"]
+                }),
+                output_schema: None,
+            }],
+            next_cursor: None,
+        })
+    }
+}
+"#
+                .to_string(),
+                is_binary: false,
+            },
+            TemplateFile {
+                path: "src/resources/mod.rs".to_string(),
+                content: r#"//! Resources module
+
+pub mod status;
+pub mod config;
+
+use ultrafast_mcp::prelude::*;
+
+/// Register all resources with the server
+pub fn register_resources(server: &mut UltraFastServer) -> Result<()> {
+    server
+        .with_resource_handler(Arc::new(status::StatusResourceHandler))
+        .with_resource_handler(Arc::new(config::ConfigResourceHandler));
+    
+    Ok(())
+}
+"#
+                .to_string(),
+                is_binary: false,
+            },
+            TemplateFile {
+                path: "src/resources/status.rs".to_string(),
+                content: r#"//! Status resource implementation
+
+use ultrafast_mcp::prelude::*;
+use serde::Serialize;
+
+#[derive(Debug, Serialize)]
+pub struct ServerStatus {
+    pub status: String,
+    pub uptime: String,
+    pub version: String,
+    pub tools_count: usize,
+    pub resources_count: usize,
+}
+
+pub struct StatusResourceHandler;
+
+#[async_trait::async_trait]
+impl ResourceHandler for StatusResourceHandler {
+    async fn read_resource(&self, request: ReadResourceRequest) -> MCPResult<ReadResourceResponse> {
+        if request.uri != "status://server" {
+            return Err(MCPError::resource_not_found(format!("Resource not found: {}", request.uri)));
+        }
+
+        let status = ServerStatus {
+            status: "healthy".to_string(),
+            uptime: "0s".to_string(), // TODO: Calculate actual uptime
+            version: env!("CARGO_PKG_VERSION").to_string(),
+            tools_count: 3, // echo, info, calculator
+            resources_count: 2, // status, config
+        };
+
+        let content = serde_json::to_string_pretty(&status)
+            .map_err(|e| MCPError::serialization_error(e.to_string()))?;
+
+        Ok(ReadResourceResponse {
+            contents: vec![ResourceContent::text(content)],
+        })
+    }
+
+    async fn list_resources(&self, _request: ListResourcesRequest) -> MCPResult<ListResourcesResponse> {
+        Ok(ListResourcesResponse {
+            resources: vec![Resource {
+                uri: "status://server".to_string(),
+                name: Some("Server Status".to_string()),
+                description: Some("Current server status and metrics".to_string()),
+                mime_type: Some("application/json".to_string()),
+            }],
+            next_cursor: None,
+        })
+    }
+
+    async fn list_resource_templates(&self, _request: ListResourceTemplatesRequest) -> MCPResult<ListResourceTemplatesResponse> {
+        Ok(ListResourceTemplatesResponse {
+            resource_templates: vec![],
+            next_cursor: None,
+        })
+    }
+}
+"#
+                .to_string(),
+                is_binary: false,
+            },
+            TemplateFile {
+                path: "src/resources/config.rs".to_string(),
+                content: r#"//! Config resource implementation
+
+use ultrafast_mcp::prelude::*;
+use serde::Serialize;
+
+#[derive(Debug, Serialize)]
+pub struct ServerConfig {
+    pub name: String,
+    pub version: String,
+    pub description: Option<String>,
+    pub capabilities: Vec<String>,
+    pub features: Vec<String>,
+}
+
+pub struct ConfigResourceHandler;
+
+#[async_trait::async_trait]
+impl ResourceHandler for ConfigResourceHandler {
+    async fn read_resource(&self, request: ReadResourceRequest) -> MCPResult<ReadResourceResponse> {
+        if request.uri != "config://server" {
+            return Err(MCPError::resource_not_found(format!("Resource not found: {}", request.uri)));
+        }
+
+        let config = ServerConfig {
+            name: env!("CARGO_PKG_NAME").to_string(),
+            version: env!("CARGO_PKG_VERSION").to_string(),
+            description: Some("{{description}}".to_string()),
+            capabilities: vec![
+                "tools".to_string(),
+                "resources".to_string(),
+            ],
+            features: vec![
+                "echo".to_string(),
+                "info".to_string(),
+                "calculator".to_string(),
+                "status".to_string(),
+                "config".to_string(),
+            ],
+        };
+
+        let content = serde_json::to_string_pretty(&config)
+            .map_err(|e| MCPError::serialization_error(e.to_string()))?;
+
+        Ok(ReadResourceResponse {
+            contents: vec![ResourceContent::text(content)],
+        })
+    }
+
+    async fn list_resources(&self, _request: ListResourcesRequest) -> MCPResult<ListResourcesResponse> {
+        Ok(ListResourcesResponse {
+            resources: vec![Resource {
+                uri: "config://server".to_string(),
+                name: Some("Server Configuration".to_string()),
+                description: Some("Server configuration and capabilities".to_string()),
+                mime_type: Some("application/json".to_string()),
+            }],
+            next_cursor: None,
+        })
+    }
+
+    async fn list_resource_templates(&self, _request: ListResourceTemplatesRequest) -> MCPResult<ListResourceTemplatesResponse> {
+        Ok(ListResourceTemplatesResponse {
+            resource_templates: vec![],
+            next_cursor: None,
+        })
+    }
+}
+"#
+                .to_string(),
+                is_binary: false,
+            },
+        ]);
+        
         template
     }
 
@@ -410,7 +834,239 @@ async fn main() -> Result<()> {
         template.description =
             "Full-featured MCP project with server, client, and examples".to_string();
 
-        // TODO: Add client files and examples
+        // Add client files and examples
+        template.files.extend(vec![
+            TemplateFile {
+                path: "client/Cargo.toml".to_string(),
+                content: r#"[package]
+name = "{{project_name}}-client"
+version = "{{version}}"
+edition = "2021"
+description = "{{description}} - Client"
+authors = ["{{author}}"]
+license = "{{license}}"
+
+[dependencies]
+ultrafast-mcp = { version = "0.1.0" }
+ultrafast-mcp-client = { version = "0.1.0" }
+tokio = { version = "1.0", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+anyhow = "1.0"
+tracing = "0.1"
+tracing-subscriber = "0.3"
+clap = { version = "4.0", features = ["derive"] }
+
+[[bin]]
+name = "{{project_name}}-client"
+path = "src/main.rs"
+"#
+                .to_string(),
+                is_binary: false,
+            },
+            TemplateFile {
+                path: "client/src/main.rs".to_string(),
+                content: r#"use ultrafast_mcp::prelude::*;
+use ultrafast_mcp_client::UltraFastClient;
+use anyhow::Result;
+use tracing::info;
+use clap::Parser;
+
+#[derive(Parser)]
+#[command(name = "{{project_name}}-client")]
+#[command(about = "MCP client for {{project_name}}")]
+struct Args {
+    /// Server command to connect to
+    #[arg(short, long, default_value = "cargo run")]
+    server: String,
+    
+    /// Tool to call
+    #[arg(short, long)]
+    tool: Option<String>,
+    
+    /// Tool arguments (JSON)
+    #[arg(short, long)]
+    args: Option<String>,
+}
+
+#[tokio::main]
+async fn main() -> Result<()> {
+    tracing_subscriber::fmt::init();
+    
+    let args = Args::parse();
+    info!("Starting {{project_name}} MCP client");
+    
+    let client_info = ClientInfo {
+        name: "{{project_name}}-client".to_string(),
+        version: "{{version}}".to_string(),
+        authors: None,
+        description: Some("Client for {{project_name}} MCP server".to_string()),
+        homepage: None,
+        repository: None,
+        license: None,
+    };
+    
+    let capabilities = ClientCapabilities::default();
+    let client = UltraFastClient::new(client_info, capabilities);
+    
+    // Connect to server using STDIO
+    client.connect_stdio().await?;
+    
+    // Initialize connection
+    client.initialize().await?;
+    
+    // List available tools
+    let tools = client.list_tools().await?;
+    info!("Available tools: {:?}", tools);
+    
+    // Call specific tool if requested
+    if let Some(tool_name) = args.tool {
+        let args_value = if let Some(args_str) = args.args {
+            serde_json::from_str(&args_str)?
+        } else {
+            serde_json::json!({})
+        };
+        
+        let tool_call = ToolCall {
+            name: tool_name,
+            arguments: Some(args_value),
+        };
+        
+        let result = client.call_tool(tool_call).await?;
+        println!("Tool result: {:?}", result);
+    }
+    
+    Ok(())
+}
+"#
+                .to_string(),
+                is_binary: false,
+            },
+            TemplateFile {
+                path: "examples/basic_usage.rs".to_string(),
+                content: r#"//! Basic usage example for {{project_name}}
+
+use ultrafast_mcp::prelude::*;
+use anyhow::Result;
+
+#[tokio::main]
+async fn main() -> Result<()> {
+    // This example shows how to use the {{project_name}} MCP server
+    // from a client application
+    
+    println!("{{project_name}} Basic Usage Example");
+    println!("===================================");
+    println!();
+    println!("1. Start the server:");
+    println!("   cargo run");
+    println!();
+    println!("2. In another terminal, run the client:");
+    println!("   cd client && cargo run");
+    println!();
+    println!("3. Or use the MCP CLI to test:");
+    println!("   mcp test --server 'cargo run'");
+    println!();
+    println!("Available tools:");
+    println!("  - echo: Echo back input with timestamp");
+    println!("  - info: Get server information");
+    println!("  - calculate: Perform mathematical operations");
+    println!();
+    println!("Available resources:");
+    println!("  - status://server: Server status and metrics");
+    println!("  - config://server: Server configuration");
+    
+    Ok(())
+}
+"#
+                .to_string(),
+                is_binary: false,
+            },
+            TemplateFile {
+                path: "examples/advanced_usage.rs".to_string(),
+                content: r#"//! Advanced usage example for {{project_name}}
+
+use ultrafast_mcp::prelude::*;
+use ultrafast_mcp_client::UltraFastClient;
+use anyhow::Result;
+use serde_json::json;
+
+#[tokio::main]
+async fn main() -> Result<()> {
+    println!("{{project_name}} Advanced Usage Example");
+    println!("======================================");
+    
+    // Create client
+    let client_info = ClientInfo {
+        name: "advanced-example".to_string(),
+        version: "1.0.0".to_string(),
+        authors: None,
+        description: Some("Advanced usage example".to_string()),
+        homepage: None,
+        repository: None,
+        license: None,
+    };
+    
+    let client = UltraFastClient::new(client_info, ClientCapabilities::default());
+    
+    // Connect and initialize
+    client.connect_stdio().await?;
+    client.initialize().await?;
+    
+    // Example 1: Echo tool
+    println!("\\n1. Testing echo tool:");
+    let echo_call = ToolCall {
+        name: "echo".to_string(),
+        arguments: Some(json!({
+            "message": "Hello from advanced example!"
+        })),
+    };
+    
+    let echo_result = client.call_tool(echo_call).await?;
+    println!("Echo result: {:?}", echo_result);
+    
+    // Example 2: Calculator tool
+    println!("\\n2. Testing calculator tool:");
+    let calc_call = ToolCall {
+        name: "calculate".to_string(),
+        arguments: Some(json!({
+            "operation": "multiply",
+            "a": 15.5,
+            "b": 2.0
+        })),
+    };
+    
+    let calc_result = client.call_tool(calc_call).await?;
+    println!("Calculator result: {:?}", calc_result);
+    
+    // Example 3: Server info
+    println!("\\n3. Testing info tool:");
+    let info_call = ToolCall {
+        name: "info".to_string(),
+        arguments: Some(json!({})),
+    };
+    
+    let info_result = client.call_tool(info_call).await?;
+    println!("Info result: {:?}", info_result);
+    
+    // Example 4: Read status resource
+    println!("\\n4. Reading status resource:");
+    let status_request = ReadResourceRequest {
+        uri: "status://server".to_string(),
+    };
+    
+    let status_result = client.read_resource(status_request).await?;
+    println!("Status result: {:?}", status_result);
+    
+    println!("\\nAdvanced example completed successfully!");
+    
+    Ok(())
+}
+"#
+                .to_string(),
+                is_binary: false,
+            },
+        ]);
+        
         template
     }
 }

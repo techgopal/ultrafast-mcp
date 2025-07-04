@@ -386,7 +386,71 @@
 
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_macro_input, Data, DeriveInput, Fields, ItemFn, ItemStruct};
+use syn::{parse_macro_input, Data, DeriveInput, Fields, ItemFn, ItemStruct, Type};
+
+/// Infer JSON schema type from Rust type
+fn infer_type_schema(ty: &Type) -> proc_macro2::TokenStream {
+    match ty {
+        Type::Path(type_path) => {
+            if let Some(ident) = type_path.path.get_ident() {
+                let type_name = ident.to_string();
+                match type_name.as_str() {
+                    "String" | "str" => quote! {
+                        serde_json::json!({
+                            "type": "string"
+                        })
+                    },
+                    "i32" | "i64" | "u32" | "u64" | "isize" | "usize" => quote! {
+                        serde_json::json!({
+                            "type": "integer"
+                        })
+                    },
+                    "f32" | "f64" => quote! {
+                        serde_json::json!({
+                            "type": "number"
+                        })
+                    },
+                    "bool" => quote! {
+                        serde_json::json!({
+                            "type": "boolean"
+                        })
+                    },
+                    "Vec" | "HashMap" => quote! {
+                        serde_json::json!({
+                            "type": "array"
+                        })
+                    },
+                    _ => quote! {
+                        serde_json::json!({
+                            "type": "string"
+                        })
+                    }
+                }
+            } else {
+                quote! {
+                    serde_json::json!({
+                        "type": "string"
+                    })
+                }
+            }
+        },
+        Type::Reference(_) => quote! {
+            serde_json::json!({
+                "type": "string"
+            })
+        },
+        Type::Slice(_) => quote! {
+            serde_json::json!({
+                "type": "array"
+            })
+        },
+        _ => quote! {
+            serde_json::json!({
+                "type": "string"
+            })
+        }
+    }
+}
 
 /// Derive macro for automatic JSON Schema generation
 ///
@@ -416,10 +480,12 @@ pub fn derive_mcp_schema(input: TokenStream) -> TokenStream {
                         let field_entries = fields.named.iter().filter_map(|field| {
                         let field_name = field.ident.as_ref()?; // Skip fields without a name
                         let field_name_str = field_name.to_string();
+                        
+                        // Infer the actual type from the field
+                        let type_schema = infer_type_schema(&field.ty);
+                        
                         Some(quote! {
-                            properties.insert(#field_name_str.to_string(), serde_json::json!({
-                                "type": "string" // TODO: Infer actual type
-                            }));
+                            properties.insert(#field_name_str.to_string(), #type_schema);
                         })
                     }).collect::<Vec<_>>();
                         quote! {
@@ -428,9 +494,16 @@ pub fn derive_mcp_schema(input: TokenStream) -> TokenStream {
                             properties
                         }
                     }
-                    Fields::Unnamed(_) => {
+                    Fields::Unnamed(fields) => {
+                        let field_schemas: Vec<proc_macro2::TokenStream> = fields.unnamed.iter()
+                            .map(|field| infer_type_schema(&field.ty))
+                            .collect();
+                        
                         quote! {
-                            std::collections::HashMap::new() // TODO: Handle tuple structs
+                            serde_json::json!({
+                                "type": "array",
+                                "items": [#(#field_schemas),*]
+                            })
                         }
                     }
                     Fields::Unit => {
@@ -457,13 +530,17 @@ pub fn derive_mcp_schema(input: TokenStream) -> TokenStream {
                 }
             }
         }
-        Data::Enum(_) => {
+        Data::Enum(data_enum) => {
+            let variants: Vec<String> = data_enum.variants.iter()
+                .map(|variant| variant.ident.to_string())
+                .collect();
+            
             quote! {
                 impl #impl_generics ultrafast_mcp_core::schema::McpSchema for #name #ty_generics #where_clause {
                     fn schema() -> serde_json::Value {
                         serde_json::json!({
                             "type": "string",
-                            "enum": [] // TODO: Extract enum variants
+                            "enum": [#(#variants),*]
                         })
                     }
 

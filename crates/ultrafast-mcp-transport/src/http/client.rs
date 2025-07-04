@@ -10,6 +10,9 @@ use tokio::sync::mpsc;
 use tracing;
 use ultrafast_mcp_core::protocol::JsonRpcMessage;
 
+/// MCP Protocol version constant
+pub const MCP_PROTOCOL_VERSION: &str = "2025-06-18";
+
 /// HTTP client configuration
 #[derive(Debug, Clone)]
 pub struct HttpClientConfig {
@@ -38,7 +41,7 @@ impl Default for HttpClientConfig {
         Self {
             base_url: "http://127.0.0.1:8080".to_string(),
             session_id: None,
-            protocol_version: "2025-06-18".to_string(), // TODO: Use centralized version constant
+            protocol_version: MCP_PROTOCOL_VERSION.to_string(),
             timeout: Duration::from_secs(30),
             max_retries: 3,
             auth_token: None,

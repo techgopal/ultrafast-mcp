@@ -14,6 +14,41 @@ use ultrafast_mcp_core::{
     types::notifications::{LogLevel, LoggingMessageNotification, ProgressNotification},
 };
 
+/// Simple cancellation manager for tracking cancelled requests
+#[derive(Debug, Clone)]
+pub struct CancellationManager {
+    cancelled_requests: Arc<tokio::sync::RwLock<std::collections::HashSet<String>>>,
+}
+
+impl CancellationManager {
+    pub fn new() -> Self {
+        Self {
+            cancelled_requests: Arc::new(tokio::sync::RwLock::new(std::collections::HashSet::new())),
+        }
+    }
+
+    pub async fn cancel_request(&self, request_id: &str) {
+        let mut requests = self.cancelled_requests.write().await;
+        requests.insert(request_id.to_string());
+    }
+
+    pub async fn is_cancelled(&self, request_id: &str) -> bool {
+        let requests = self.cancelled_requests.read().await;
+        requests.contains(request_id)
+    }
+
+    pub async fn clear_cancelled(&self, request_id: &str) {
+        let mut requests = self.cancelled_requests.write().await;
+        requests.remove(request_id);
+    }
+}
+
+impl Default for CancellationManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// Logger configuration for the context
 #[derive(Debug, Clone)]
 pub struct LoggerConfig {
@@ -67,6 +102,7 @@ pub struct Context {
     metadata: HashMap<String, serde_json::Value>,
     logger_config: LoggerConfig,
     notification_sender: Option<NotificationSender>,
+    cancellation_manager: Option<Arc<CancellationManager>>,
 }
 
 impl std::fmt::Debug for Context {
@@ -90,6 +126,7 @@ impl Context {
             metadata: HashMap::new(),
             logger_config: LoggerConfig::default(),
             notification_sender: None,
+            cancellation_manager: None,
         }
     }
 
@@ -120,6 +157,12 @@ impl Context {
     /// Set the notification sender
     pub fn with_notification_sender(mut self, sender: NotificationSender) -> Self {
         self.notification_sender = Some(sender);
+        self
+    }
+
+    /// Set the cancellation manager
+    pub fn with_cancellation_manager(mut self, manager: Arc<CancellationManager>) -> Self {
+        self.cancellation_manager = Some(manager);
         self
     }
 
@@ -485,8 +528,15 @@ impl Context {
 
     /// Check if the current request has been cancelled
     pub async fn is_cancelled(&self) -> bool {
-        // TODO: Check with cancellation manager
-        false
+        if let Some(cancellation_manager) = &self.cancellation_manager {
+            if let Some(request_id) = &self.request_id {
+                cancellation_manager.is_cancelled(request_id).await
+            } else {
+                false
+            }
+        } else {
+            false
+        }
     }
 }
 
