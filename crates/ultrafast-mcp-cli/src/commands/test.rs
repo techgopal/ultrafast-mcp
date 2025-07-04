@@ -226,7 +226,7 @@ async fn test_stdio_connection(args: &TestArgs) -> Result<()> {
 
         // Implement actual MCP handshake test
         println!("   🔄 Testing MCP handshake...");
-        
+
         // Start server process
         let mut server_process = std::process::Command::new(command)
             .args(server_args)
@@ -258,29 +258,29 @@ async fn test_stdio_connection(args: &TestArgs) -> Result<()> {
 
         if let Some(stdin) = server_process.stdin.as_mut() {
             let request_str = serde_json::to_string(&init_request)?;
-            stdin.write_all((request_str + "\n").as_bytes())
+            stdin
+                .write_all((request_str + "\n").as_bytes())
                 .context("Failed to write to server stdin")?;
         }
 
         // Read response with timeout
-        let response = tokio::time::timeout(
-            Duration::from_secs(5),
-            async {
-                if let Some(stdout) = server_process.stdout.as_mut() {
-                    let mut buffer = String::new();
-                    let mut reader = std::io::BufReader::new(stdout);
-                    std::io::BufRead::read_line(&mut reader, &mut buffer)
-                        .context("Failed to read server response")?;
-                    Ok(buffer)
-                } else {
-                    anyhow::bail!("No stdout from server process")
-                }
+        let response = tokio::time::timeout(Duration::from_secs(5), async {
+            if let Some(stdout) = server_process.stdout.as_mut() {
+                let mut buffer = String::new();
+                let mut reader = std::io::BufReader::new(stdout);
+                std::io::BufRead::read_line(&mut reader, &mut buffer)
+                    .context("Failed to read server response")?;
+                Ok(buffer)
+            } else {
+                anyhow::bail!("No stdout from server process")
             }
-        ).await.context("Timeout waiting for server response")??;
+        })
+        .await
+        .context("Timeout waiting for server response")??;
 
         // Parse and validate response
-        let response_json: serde_json::Value = serde_json::from_str(&response)
-            .context("Failed to parse server response as JSON")?;
+        let response_json: serde_json::Value =
+            serde_json::from_str(&response).context("Failed to parse server response as JSON")?;
 
         if let Some(result) = response_json.get("result") {
             if let Some(protocol_version) = result.get("protocolVersion") {
@@ -303,7 +303,8 @@ async fn test_stdio_connection(args: &TestArgs) -> Result<()> {
 
         if let Some(stdin) = server_process.stdin.as_mut() {
             let request_str = serde_json::to_string(&shutdown_request)?;
-            stdin.write_all((request_str + "\n").as_bytes())
+            stdin
+                .write_all((request_str + "\n").as_bytes())
                 .context("Failed to write shutdown request")?;
         }
 
@@ -347,7 +348,7 @@ async fn test_http_connection(args: &TestArgs) -> Result<()> {
 
         // Implement MCP-over-HTTP test
         println!("   🔄 Testing MCP-over-HTTP protocol...");
-        
+
         // Test MCP HTTP endpoint
         let mcp_url = format!("{}/mcp", server);
         let init_request = serde_json::json!({
@@ -375,10 +376,15 @@ async fn test_http_connection(args: &TestArgs) -> Result<()> {
             .context("Failed to send MCP initialization request")?;
 
         if !response.status().is_success() {
-            anyhow::bail!("MCP initialization failed with status: {}", response.status());
+            anyhow::bail!(
+                "MCP initialization failed with status: {}",
+                response.status()
+            );
         }
 
-        let response_json: serde_json::Value = response.json().await
+        let response_json: serde_json::Value = response
+            .json()
+            .await
             .context("Failed to parse MCP response")?;
 
         if let Some(result) = response_json.get("result") {
@@ -515,12 +521,7 @@ async fn test_mcp_message_format() -> Result<()> {
 
 async fn test_required_methods() -> Result<()> {
     // Define required MCP methods
-    let required_methods = vec![
-        "initialize",
-        "shutdown",
-        "tools/list",
-        "tools/call",
-    ];
+    let required_methods = vec!["initialize", "shutdown", "tools/list", "tools/call"];
 
     // Test method name format
     for method in required_methods {

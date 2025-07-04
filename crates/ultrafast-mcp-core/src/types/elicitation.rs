@@ -22,6 +22,21 @@ pub struct ElicitationRequest {
     pub validation: Option<ElicitationValidation>,
 }
 
+impl Default for ElicitationRequest {
+    fn default() -> Self {
+        Self {
+            session_id: None,
+            step: None,
+            prompt: String::new(),
+            input_type: ElicitationInputType::Text {
+                placeholder: None,
+                sensitive: None,
+            },
+            validation: None,
+        }
+    }
+}
+
 /// Type of input expected from user
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "type")]

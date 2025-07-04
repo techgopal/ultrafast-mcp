@@ -416,9 +416,11 @@ pub use ultrafast_mcp_server::{
 
 // Re-export client types
 #[cfg(not(doc))]
-pub use ultrafast_mcp_client::{
-    ElicitationHandler as ClientElicitationHandler, ResourceChangeHandler,
-    SamplingHandler as ClientSamplingHandler, UltraFastClient,
+pub use ultrafast_mcp_client::UltraFastClient;
+// Use handler traits from server crate
+#[cfg(not(doc))]
+pub use ultrafast_mcp_server::{
+    ElicitationHandler as ClientElicitationHandler, SamplingHandler as ClientSamplingHandler,
 };
 
 // Re-export transport types

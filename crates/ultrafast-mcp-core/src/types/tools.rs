@@ -75,7 +75,7 @@ pub struct ResourceReference {
 }
 
 /// List tools request
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ListToolsRequest {
     /// Optional cursor for pagination
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -168,7 +168,9 @@ impl Tool {
         use crate::schema::validation::validate_against_schema;
 
         validate_against_schema(arguments, &self.input_schema).map_err(|e| {
-            crate::error::ToolError::SchemaValidation(format!("Tool argument validation failed: {e}"))
+            crate::error::ToolError::SchemaValidation(format!(
+                "Tool argument validation failed: {e}"
+            ))
         })
     }
 }

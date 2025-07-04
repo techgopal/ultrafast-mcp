@@ -23,7 +23,9 @@ pub struct CancellationManager {
 impl CancellationManager {
     pub fn new() -> Self {
         Self {
-            cancelled_requests: Arc::new(tokio::sync::RwLock::new(std::collections::HashSet::new())),
+            cancelled_requests: Arc::new(
+                tokio::sync::RwLock::new(std::collections::HashSet::new()),
+            ),
         }
     }
 

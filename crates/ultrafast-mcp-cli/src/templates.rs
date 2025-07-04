@@ -746,7 +746,7 @@ impl ResourceHandler for ConfigResourceHandler {
                 is_binary: false,
             },
         ]);
-        
+
         template
     }
 
@@ -1066,7 +1066,7 @@ async fn main() -> Result<()> {
                 is_binary: false,
             },
         ]);
-        
+
         template
     }
 }

@@ -6,7 +6,7 @@ pub type CreateMessageRequest = SamplingRequest;
 pub type CreateMessageResponse = SamplingResponse;
 
 /// Sampling request (server asking client to perform LLM sampling)
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct SamplingRequest {
     /// Messages to send to the LLM
     pub messages: Vec<SamplingMessage>,

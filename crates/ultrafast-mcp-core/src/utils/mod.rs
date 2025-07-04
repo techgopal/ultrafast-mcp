@@ -118,9 +118,9 @@
 //! if let Some(progress) = tracker.get("batch1") {
 //!     match progress.status {
 //!         ProgressStatus::Running => {
-//!             println!("Progress: {}/{} - {}", 
-//!                 progress.current, 
-//!                 progress.total.unwrap_or(0), 
+//!             println!("Progress: {}/{} - {}",
+//!                 progress.current,
+//!                 progress.total.unwrap_or(0),
 //!                 progress.description.as_deref().unwrap_or(""));
 //!         }
 //!         ProgressStatus::Completed => {

@@ -343,7 +343,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Set up graceful shutdown
     let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel();
-    
+
     // Handle shutdown signals
     tokio::spawn(async move {
         tokio::signal::ctrl_c().await.unwrap();

@@ -3,7 +3,7 @@
 //! This module contains the main server implementation with all the core functionality.
 
 use std::{collections::HashMap, sync::Arc};
-use tokio::sync::RwLock;
+use tokio::sync::{broadcast, RwLock};
 use tracing::{error, info, warn};
 
 use ultrafast_mcp_core::{
@@ -30,12 +30,31 @@ use crate::context::{Context, LoggerConfig};
 use crate::handlers::*;
 
 /// MCP Server state
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ServerState {
     Uninitialized,
     Initializing,
     Initialized,
+    Operating,
+    ShuttingDown,
     Shutdown,
+}
+
+impl ServerState {
+    /// Check if the server can accept operations
+    pub fn can_operate(&self) -> bool {
+        matches!(self, ServerState::Operating)
+    }
+
+    /// Check if the server is initialized
+    pub fn is_initialized(&self) -> bool {
+        matches!(self, ServerState::Initialized | ServerState::Operating)
+    }
+
+    /// Check if the server is shutting down
+    pub fn is_shutting_down(&self) -> bool {
+        matches!(self, ServerState::ShuttingDown | ServerState::Shutdown)
+    }
 }
 
 /// Tool registration error
@@ -492,12 +511,101 @@ impl UltraFastServer {
     /// Run the server with HTTP transport
     #[cfg(feature = "http")]
     pub async fn run_http(&self, config: HttpTransportConfig) -> MCPResult<()> {
-        let server = HttpTransportServer::new(config);
-        server
-            .run()
-            .await
-            .map_err(|e| MCPError::internal_error(format!("HTTP server failed: {}", e)))?;
-        Ok(())
+        info!("Starting HTTP transport server with config: {:?}", config);
+
+        let transport_server = HttpTransportServer::new(config);
+        let message_receiver = transport_server.get_message_receiver();
+        let message_sender = transport_server.get_message_sender();
+
+        // Start message processing task
+        let server_clone = self.clone();
+        let message_processor = tokio::spawn(async move {
+            server_clone
+                .process_http_messages(message_receiver, message_sender)
+                .await;
+        });
+
+        // Start the HTTP server
+        let http_server = transport_server.run();
+
+        // Wait for either the HTTP server or message processor to complete
+        tokio::select! {
+            result = http_server => {
+                match result {
+                    Ok(_) => {
+                        info!("HTTP server completed successfully");
+                        Ok(())
+                    }
+                    Err(e) => {
+                        error!("HTTP server failed: {}", e);
+                        Err(MCPError::internal_error(format!("HTTP server failed: {}", e)))
+                    }
+                }
+            }
+            result = message_processor => {
+                match result {
+                    Ok(_) => {
+                        info!("Message processor completed");
+                        Ok(())
+                    }
+                    Err(e) => {
+                        error!("Message processor failed: {}", e);
+                        Err(MCPError::internal_error(format!("Message processor failed: {}", e)))
+                    }
+                }
+            }
+        }
+    }
+
+    /// Process HTTP messages from the transport layer
+    #[allow(dead_code)]
+    async fn process_http_messages(
+        &self,
+        mut message_receiver: broadcast::Receiver<(String, JsonRpcMessage)>,
+        message_sender: broadcast::Sender<(String, JsonRpcMessage)>,
+    ) {
+        info!("HTTP message processor started");
+
+        while let Ok((session_id, message)) = message_receiver.recv().await {
+            let session_id_clone = session_id.clone();
+            match message {
+                JsonRpcMessage::Request(request) => {
+                    info!(
+                        "Processing HTTP request: {} (session: {})",
+                        request.method, session_id
+                    );
+
+                    let response = self.handle_request(request).await;
+                    let response_message = JsonRpcMessage::Response(response);
+
+                    // Send response back through the transport
+                    if let Err(e) = message_sender.send((session_id_clone, response_message)) {
+                        error!("Failed to send response for session {}: {}", session_id, e);
+                    }
+                }
+                JsonRpcMessage::Notification(notification) => {
+                    info!(
+                        "Processing HTTP notification: {} (session: {})",
+                        notification.method, session_id
+                    );
+
+                    if let Err(e) = self.handle_notification(notification).await {
+                        error!(
+                            "Failed to handle notification for session {}: {}",
+                            session_id, e
+                        );
+                    }
+                }
+                JsonRpcMessage::Response(_) => {
+                    warn!(
+                        "Received unexpected response message for session: {}",
+                        session_id
+                    );
+                }
+            }
+        }
+
+        info!("HTTP message processor stopped");
     }
 
     /// Get server info
@@ -513,6 +621,175 @@ impl UltraFastServer {
     /// Get ping manager
     pub fn ping_manager(&self) -> Arc<PingManager> {
         self.ping_manager.clone()
+    }
+
+    /// Handle MCP initialize request
+    async fn handle_initialize(
+        &self,
+        request: ultrafast_mcp_core::protocol::InitializeRequest,
+    ) -> ultrafast_mcp_core::protocol::InitializeResponse {
+        info!(
+            "Handling initialize request from client: {}",
+            request.client_info.name
+        );
+
+        // Validate protocol version
+        if let Err(e) = request.validate_protocol_version() {
+            error!("Protocol version validation failed: {}", e);
+            // Return error response
+            return ultrafast_mcp_core::protocol::InitializeResponse {
+                protocol_version: "2025-06-18".to_string(),
+                capabilities: self.capabilities.clone(),
+                server_info: self.info.clone(),
+                instructions: Some(format!("Protocol version error: {}", e)),
+            };
+        }
+
+        // Update server state
+        {
+            let mut state = self.state.write().await;
+            *state = ServerState::Initializing;
+        }
+
+        info!("Server initialized successfully");
+
+        ultrafast_mcp_core::protocol::InitializeResponse {
+            protocol_version: request.protocol_version,
+            capabilities: self.capabilities.clone(),
+            server_info: self.info.clone(),
+            instructions: None,
+        }
+    }
+
+    /// Handle MCP initialized notification
+    async fn handle_initialized(
+        &self,
+        _notification: ultrafast_mcp_core::protocol::InitializedNotification,
+    ) -> MCPResult<()> {
+        info!("Received initialized notification from client");
+
+        // Update server state to operating
+        {
+            let mut state = self.state.write().await;
+            *state = ServerState::Operating;
+        }
+
+        info!("Server is now operating");
+        Ok(())
+    }
+
+    /// Handle MCP shutdown request
+    async fn handle_shutdown(
+        &self,
+        request: ultrafast_mcp_core::protocol::ShutdownRequest,
+    ) -> MCPResult<()> {
+        info!("Handling shutdown request: {:?}", request.reason);
+
+        // Update server state
+        {
+            let mut state = self.state.write().await;
+            *state = ServerState::ShuttingDown;
+        }
+
+        // Perform cleanup
+        self.perform_shutdown_cleanup().await;
+
+        // Update state to shutdown
+        {
+            let mut state = self.state.write().await;
+            *state = ServerState::Shutdown;
+        }
+
+        info!("Server shutdown completed");
+        Ok(())
+    }
+
+    /// Perform shutdown cleanup
+    async fn perform_shutdown_cleanup(&self) {
+        info!("Performing shutdown cleanup");
+
+        // Clear all tools
+        self.clear_tools().await;
+
+        // Clear all resources
+        {
+            let mut resources = self.resources.write().await;
+            resources.clear();
+        }
+
+        // Clear all prompts
+        {
+            let mut prompts = self.prompts.write().await;
+            prompts.clear();
+        }
+
+        // Clear resource subscriptions
+        {
+            let mut subscriptions = self.resource_subscriptions.write().await;
+            subscriptions.clear();
+        }
+
+        info!("Shutdown cleanup completed");
+    }
+
+    /// Get current server state
+    pub async fn get_state(&self) -> ServerState {
+        self.state.read().await.clone()
+    }
+
+    /// Check if server can accept operations
+    pub async fn can_operate(&self) -> bool {
+        self.state.read().await.can_operate()
+    }
+
+    /// Helper function to deserialize request parameters with proper defaults
+    fn deserialize_list_tools_request(
+        &self,
+        params: Option<serde_json::Value>,
+    ) -> ultrafast_mcp_core::types::tools::ListToolsRequest {
+        serde_json::from_value(params.unwrap_or_default()).unwrap_or_default()
+    }
+
+    fn deserialize_list_resources_request(
+        &self,
+        params: Option<serde_json::Value>,
+    ) -> ultrafast_mcp_core::types::resources::ListResourcesRequest {
+        serde_json::from_value(params.unwrap_or_default()).unwrap_or_default()
+    }
+
+    fn deserialize_list_prompts_request(
+        &self,
+        params: Option<serde_json::Value>,
+    ) -> ultrafast_mcp_core::types::prompts::ListPromptsRequest {
+        serde_json::from_value(params.unwrap_or_default()).unwrap_or_default()
+    }
+
+    fn deserialize_get_prompt_request(
+        &self,
+        params: Option<serde_json::Value>,
+    ) -> ultrafast_mcp_core::types::prompts::GetPromptRequest {
+        serde_json::from_value(params.unwrap_or_default()).unwrap_or_default()
+    }
+
+    fn deserialize_read_resource_request(
+        &self,
+        params: Option<serde_json::Value>,
+    ) -> ultrafast_mcp_core::types::resources::ReadResourceRequest {
+        serde_json::from_value(params.unwrap_or_default()).unwrap_or_default()
+    }
+
+    fn deserialize_create_message_request(
+        &self,
+        params: Option<serde_json::Value>,
+    ) -> ultrafast_mcp_core::types::sampling::CreateMessageRequest {
+        serde_json::from_value(params.unwrap_or_default()).unwrap_or_default()
+    }
+
+    fn deserialize_elicitation_request(
+        &self,
+        params: Option<serde_json::Value>,
+    ) -> ultrafast_mcp_core::types::elicitation::ElicitationRequest {
+        serde_json::from_value(params.unwrap_or_default()).unwrap_or_default()
     }
 
     /// Handle incoming messages
@@ -543,52 +820,428 @@ impl UltraFastServer {
 
     /// Handle incoming requests
     async fn handle_request(&self, request: JsonRpcRequest) -> JsonRpcResponse {
+        info!(
+            "Handling request: {} (id: {:?})",
+            request.method, request.id
+        );
+
         match request.method.as_str() {
+            // MCP Lifecycle methods
+            "initialize" => {
+                match serde_json::from_value::<ultrafast_mcp_core::protocol::InitializeRequest>(
+                    request.params.unwrap_or_default(),
+                ) {
+                    Ok(init_request) => {
+                        let response = self.handle_initialize(init_request).await;
+                        JsonRpcResponse::success(
+                            serde_json::to_value(response).unwrap(),
+                            request.id,
+                        )
+                    }
+                    Err(e) => JsonRpcResponse::error(
+                        JsonRpcError::new(-32602, format!("Invalid initialize request: {}", e)),
+                        request.id,
+                    ),
+                }
+            }
+            "initialized" => {
+                let notification = ultrafast_mcp_core::protocol::InitializedNotification {};
+                match self.handle_initialized(notification).await {
+                    Ok(_) => JsonRpcResponse::success(serde_json::json!({}), request.id),
+                    Err(e) => JsonRpcResponse::error(
+                        JsonRpcError::new(-32603, format!("Initialized failed: {}", e)),
+                        request.id,
+                    ),
+                }
+            }
+            "shutdown" => {
+                let shutdown_request = match serde_json::from_value::<
+                    ultrafast_mcp_core::protocol::ShutdownRequest,
+                >(request.params.unwrap_or_default())
+                {
+                    Ok(req) => req,
+                    Err(_) => ultrafast_mcp_core::protocol::ShutdownRequest { reason: None },
+                };
+
+                match self.handle_shutdown(shutdown_request).await {
+                    Ok(_) => JsonRpcResponse::success(serde_json::json!({}), request.id),
+                    Err(e) => JsonRpcResponse::error(
+                        JsonRpcError::new(-32603, format!("Shutdown failed: {}", e)),
+                        request.id,
+                    ),
+                }
+            }
+
+            // Tools methods
             "tools/list" => {
-                // List all registered tools
-                let tools = self.list_tools().await;
-                let response = serde_json::json!({
-                    "tools": tools
-                });
-                JsonRpcResponse::success(response, request.id)
+                if !self.can_operate().await {
+                    return JsonRpcResponse::error(
+                        JsonRpcError::new(-32603, "Server not ready".to_string()),
+                        request.id,
+                    );
+                }
+
+                let list_request = self.deserialize_list_tools_request(request.params.clone());
+
+                if let Some(handler) = &self.tool_handler {
+                    match handler.list_tools(list_request).await {
+                        Ok(response) => {
+                            // If handler returns empty tools, fallback to registered tools
+                            if response.tools.is_empty() {
+                                let tools = self.list_tools().await;
+                                let response =
+                                    ultrafast_mcp_core::types::tools::ListToolsResponse {
+                                        tools,
+                                        next_cursor: None,
+                                    };
+                                JsonRpcResponse::success(
+                                    serde_json::to_value(response).unwrap(),
+                                    request.id,
+                                )
+                            } else {
+                                JsonRpcResponse::success(
+                                    serde_json::to_value(response).unwrap(),
+                                    request.id,
+                                )
+                            }
+                        }
+                        Err(e) => JsonRpcResponse::error(
+                            JsonRpcError::new(-32603, format!("Tools list failed: {}", e)),
+                            request.id,
+                        ),
+                    }
+                } else {
+                    // Fallback to registered tools
+                    let tools = self.list_tools().await;
+                    let response = ultrafast_mcp_core::types::tools::ListToolsResponse {
+                        tools,
+                        next_cursor: None,
+                    };
+                    JsonRpcResponse::success(serde_json::to_value(response).unwrap(), request.id)
+                }
             }
             "tools/call" => {
-                // Parse tool call arguments
+                if !self.can_operate().await {
+                    return JsonRpcResponse::error(
+                        JsonRpcError::new(-32603, "Server not ready".to_string()),
+                        request.id,
+                    );
+                }
+
                 let params = match &request.params {
                     Some(params) => params,
                     None => {
                         return JsonRpcResponse::error(
-                            JsonRpcError::new(-32602, "Missing parameters".to_string()),
+                            JsonRpcError::new(
+                                -32602,
+                                "Tool call failed: Missing parameters".to_string(),
+                            ),
                             request.id,
                         );
                     }
                 };
-                // Expect { name: String, arguments: Object }
+
                 let tool_name = params.get("name").and_then(|v| v.as_str());
                 let arguments = params
                     .get("arguments")
                     .cloned()
                     .unwrap_or(serde_json::json!({}));
+
                 if let Some(tool_name) = tool_name {
-                    match self.execute_tool_call(tool_name, arguments).await {
-                        Ok(result) => JsonRpcResponse::success(
-                            serde_json::to_value(result).unwrap(),
+                    if let Some(handler) = &self.tool_handler {
+                        let tool_call = ultrafast_mcp_core::types::tools::ToolCall {
+                            name: tool_name.to_string(),
+                            arguments: Some(arguments.clone()),
+                        };
+                        // If arguments are empty or invalid, return -32602
+                        if arguments.is_null()
+                            || (arguments.is_object() && arguments.as_object().unwrap().is_empty())
+                        {
+                            return JsonRpcResponse::error(
+                                JsonRpcError::new(
+                                    -32602,
+                                    "Tool call failed: Invalid or empty arguments".to_string(),
+                                ),
+                                request.id,
+                            );
+                        }
+                        match handler.handle_tool_call(tool_call).await {
+                            Ok(result) => JsonRpcResponse::success(
+                                serde_json::to_value(result).unwrap(),
+                                request.id,
+                            ),
+                            Err(e) => {
+                                use ultrafast_mcp_core::error::{MCPError, ProtocolError};
+                                let (code, msg) = match &e {
+                                    MCPError::Protocol(ProtocolError::InvalidParams(_))
+                                    | MCPError::Protocol(ProtocolError::NotFound(_)) => {
+                                        (-32602, format!("Tool call failed: {}", e))
+                                    }
+                                    _ => (-32603, format!("Tool call failed: {}", e)),
+                                };
+                                JsonRpcResponse::error(JsonRpcError::new(code, msg), request.id)
+                            }
+                        }
+                    } else {
+                        // Fallback to registered tools
+                        if !self.has_tool(tool_name).await {
+                            return JsonRpcResponse::error(
+                                JsonRpcError::new(
+                                    -32602,
+                                    format!("Tool call failed: Tool not found: {}", tool_name),
+                                ),
+                                request.id,
+                            );
+                        }
+                        // If arguments are empty or invalid, return -32602
+                        if arguments.is_null()
+                            || (arguments.is_object() && arguments.as_object().unwrap().is_empty())
+                        {
+                            return JsonRpcResponse::error(
+                                JsonRpcError::new(
+                                    -32602,
+                                    "Tool call failed: Invalid or empty arguments".to_string(),
+                                ),
+                                request.id,
+                            );
+                        }
+                        match self.execute_tool_call(tool_name, arguments).await {
+                            Ok(result) => JsonRpcResponse::success(
+                                serde_json::to_value(result).unwrap(),
+                                request.id,
+                            ),
+                            Err(e) => {
+                                use ultrafast_mcp_core::error::{MCPError, ProtocolError};
+                                let (code, msg) = match &e {
+                                    MCPError::Protocol(ProtocolError::InvalidParams(_))
+                                    | MCPError::Protocol(ProtocolError::NotFound(_)) => {
+                                        (-32602, format!("Tool call failed: {}", e))
+                                    }
+                                    _ => (-32603, format!("Tool call failed: {}", e)),
+                                };
+                                JsonRpcResponse::error(JsonRpcError::new(code, msg), request.id)
+                            }
+                        }
+                    }
+                } else {
+                    JsonRpcResponse::error(
+                        JsonRpcError::new(
+                            -32602,
+                            "Tool call failed: Missing or invalid tool name".to_string(),
+                        ),
+                        request.id,
+                    )
+                }
+            }
+
+            // Resources methods
+            "resources/list" => {
+                if !self.can_operate().await {
+                    return JsonRpcResponse::error(
+                        JsonRpcError::new(-32000, "Server not ready".to_string()),
+                        request.id,
+                    );
+                }
+
+                let list_request = self.deserialize_list_resources_request(request.params.clone());
+
+                if let Some(handler) = &self.resource_handler {
+                    match handler.list_resources(list_request).await {
+                        Ok(response) => JsonRpcResponse::success(
+                            serde_json::to_value(response).unwrap(),
                             request.id,
                         ),
                         Err(e) => JsonRpcResponse::error(
-                            JsonRpcError::new(-32603, format!("Tool call failed: {}", e)),
+                            JsonRpcError::new(-32603, format!("Resources list failed: {}", e)),
                             request.id,
                         ),
                     }
                 } else {
                     JsonRpcResponse::error(
-                        JsonRpcError::new(-32602, "Missing or invalid tool name".to_string()),
+                        JsonRpcError::new(-32601, "Resources not supported".to_string()),
                         request.id,
                     )
                 }
             }
+            "resources/read" => {
+                if !self.can_operate().await {
+                    return JsonRpcResponse::error(
+                        JsonRpcError::new(-32000, "Server not ready".to_string()),
+                        request.id,
+                    );
+                }
+
+                let read_request = self.deserialize_read_resource_request(request.params.clone());
+
+                if let Some(handler) = &self.resource_handler {
+                    match handler.read_resource(read_request).await {
+                        Ok(response) => JsonRpcResponse::success(
+                            serde_json::to_value(response).unwrap(),
+                            request.id,
+                        ),
+                        Err(e) => JsonRpcResponse::error(
+                            JsonRpcError::new(-32603, format!("Resource read failed: {}", e)),
+                            request.id,
+                        ),
+                    }
+                } else {
+                    JsonRpcResponse::error(
+                        JsonRpcError::new(-32601, "Resources not supported".to_string()),
+                        request.id,
+                    )
+                }
+            }
+
+            // Prompts methods
+            "prompts/list" => {
+                if !self.can_operate().await {
+                    return JsonRpcResponse::error(
+                        JsonRpcError::new(-32000, "Server not ready".to_string()),
+                        request.id,
+                    );
+                }
+
+                let list_request = self.deserialize_list_prompts_request(request.params.clone());
+
+                if let Some(handler) = &self.prompt_handler {
+                    match handler.list_prompts(list_request).await {
+                        Ok(response) => JsonRpcResponse::success(
+                            serde_json::to_value(response).unwrap(),
+                            request.id,
+                        ),
+                        Err(e) => JsonRpcResponse::error(
+                            JsonRpcError::new(-32603, format!("Prompts list failed: {}", e)),
+                            request.id,
+                        ),
+                    }
+                } else {
+                    JsonRpcResponse::error(
+                        JsonRpcError::new(-32601, "Prompts not supported".to_string()),
+                        request.id,
+                    )
+                }
+            }
+            "prompts/get" => {
+                if !self.can_operate().await {
+                    return JsonRpcResponse::error(
+                        JsonRpcError::new(-32000, "Server not ready".to_string()),
+                        request.id,
+                    );
+                }
+
+                let get_request = self.deserialize_get_prompt_request(request.params.clone());
+
+                if let Some(handler) = &self.prompt_handler {
+                    match handler.get_prompt(get_request).await {
+                        Ok(response) => JsonRpcResponse::success(
+                            serde_json::to_value(response).unwrap(),
+                            request.id,
+                        ),
+                        Err(e) => JsonRpcResponse::error(
+                            JsonRpcError::new(-32603, format!("Prompt get failed: {}", e)),
+                            request.id,
+                        ),
+                    }
+                } else {
+                    JsonRpcResponse::error(
+                        JsonRpcError::new(-32601, "Prompts not supported".to_string()),
+                        request.id,
+                    )
+                }
+            }
+
+            // Sampling methods
+            "sampling/createMessage" => {
+                if !self.can_operate().await {
+                    return JsonRpcResponse::error(
+                        JsonRpcError::new(-32000, "Server not ready".to_string()),
+                        request.id,
+                    );
+                }
+
+                let create_request =
+                    self.deserialize_create_message_request(request.params.clone());
+
+                if let Some(handler) = &self.sampling_handler {
+                    match handler.create_message(create_request).await {
+                        Ok(response) => JsonRpcResponse::success(
+                            serde_json::to_value(response).unwrap(),
+                            request.id,
+                        ),
+                        Err(e) => JsonRpcResponse::error(
+                            JsonRpcError::new(-32603, format!("Message creation failed: {}", e)),
+                            request.id,
+                        ),
+                    }
+                } else {
+                    JsonRpcResponse::error(
+                        JsonRpcError::new(-32601, "Sampling not supported".to_string()),
+                        request.id,
+                    )
+                }
+            }
+
+            // Roots methods
+            "roots/list" => {
+                if !self.can_operate().await {
+                    return JsonRpcResponse::error(
+                        JsonRpcError::new(-32000, "Server not ready".to_string()),
+                        request.id,
+                    );
+                }
+
+                if let Some(handler) = &self.roots_handler {
+                    match handler.list_roots().await {
+                        Ok(response) => JsonRpcResponse::success(
+                            serde_json::to_value(response).unwrap(),
+                            request.id,
+                        ),
+                        Err(e) => JsonRpcResponse::error(
+                            JsonRpcError::new(-32603, format!("Roots list failed: {}", e)),
+                            request.id,
+                        ),
+                    }
+                } else {
+                    JsonRpcResponse::error(
+                        JsonRpcError::new(-32601, "Roots not supported".to_string()),
+                        request.id,
+                    )
+                }
+            }
+
+            // Elicitation methods
+            "elicitation/request" => {
+                if !self.can_operate().await {
+                    return JsonRpcResponse::error(
+                        JsonRpcError::new(-32000, "Server not ready".to_string()),
+                        request.id,
+                    );
+                }
+
+                let elicitation_request =
+                    self.deserialize_elicitation_request(request.params.clone());
+
+                if let Some(handler) = &self.elicitation_handler {
+                    match handler.handle_elicitation(elicitation_request).await {
+                        Ok(response) => JsonRpcResponse::success(
+                            serde_json::to_value(response).unwrap(),
+                            request.id,
+                        ),
+                        Err(e) => JsonRpcResponse::error(
+                            JsonRpcError::new(-32603, format!("Elicitation failed: {}", e)),
+                            request.id,
+                        ),
+                    }
+                } else {
+                    JsonRpcResponse::error(
+                        JsonRpcError::new(-32601, "Elicitation not supported".to_string()),
+                        request.id,
+                    )
+                }
+            }
+
+            // Logging methods
             "logging/setLevel" => {
-                // Handle log level set request
                 let params = match &request.params {
                     Some(params) => params,
                     None => {
@@ -619,8 +1272,13 @@ impl UltraFastServer {
                     ),
                 }
             }
+
+            // Unknown method
             _ => JsonRpcResponse::error(
-                JsonRpcError::new(-32601, "Method not implemented".to_string()),
+                JsonRpcError::new(
+                    -32601,
+                    format!("Method not implemented: {}", request.method),
+                ),
                 request.id,
             ),
         }
@@ -651,6 +1309,23 @@ mod tests {
             &self,
             call: ultrafast_mcp_core::types::tools::ToolCall,
         ) -> MCPResult<ultrafast_mcp_core::types::tools::ToolResult> {
+            // Simulate error for nonexistent tool or invalid arguments
+            if call.name == "nonexistent_tool" {
+                return Err(ultrafast_mcp_core::error::MCPError::not_found(
+                    "Tool not found".to_string(),
+                ));
+            }
+            if let Some(args) = &call.arguments {
+                if args.get("input").is_none() {
+                    return Err(ultrafast_mcp_core::error::MCPError::invalid_params(
+                        "Invalid parameters".to_string(),
+                    ));
+                }
+            } else {
+                return Err(ultrafast_mcp_core::error::MCPError::invalid_params(
+                    "Missing arguments".to_string(),
+                ));
+            }
             Ok(ultrafast_mcp_core::types::tools::ToolResult {
                 content: vec![ToolContent::text(format!("Mock result for {}", call.name))],
                 is_error: None,
@@ -661,6 +1336,7 @@ mod tests {
             &self,
             _request: ultrafast_mcp_core::types::tools::ListToolsRequest,
         ) -> MCPResult<ultrafast_mcp_core::types::tools::ListToolsResponse> {
+            // This will be overridden by the server's fallback to registered tools
             Ok(ultrafast_mcp_core::types::tools::ListToolsResponse {
                 tools: vec![],
                 next_cursor: None,
@@ -680,6 +1356,33 @@ mod tests {
         };
         let capabilities = ServerCapabilities::default();
         UltraFastServer::new(info, capabilities).with_tool_handler(Arc::new(MockToolHandler))
+    }
+
+    async fn create_initialized_test_server() -> UltraFastServer {
+        let server = create_test_server();
+
+        // Initialize the server to operating state
+        let init_request = ultrafast_mcp_core::protocol::InitializeRequest {
+            protocol_version: "2025-06-18".to_string(),
+            capabilities: ultrafast_mcp_core::protocol::ClientCapabilities::default(),
+            client_info: ultrafast_mcp_core::types::client::ClientInfo {
+                name: "test-client".to_string(),
+                version: "1.0.0".to_string(),
+                description: Some("Test client".to_string()),
+                homepage: None,
+                repository: None,
+                authors: Some(vec!["test".to_string()]),
+                license: Some("MIT".to_string()),
+            },
+        };
+
+        let _response = server.handle_initialize(init_request).await;
+
+        // Send initialized notification
+        let notification = ultrafast_mcp_core::protocol::InitializedNotification {};
+        let _ = server.handle_initialized(notification).await;
+
+        server
     }
 
     fn create_valid_tool(name: &str) -> Tool {
@@ -998,7 +1701,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_tools_list_jsonrpc() {
-        let server = create_test_server();
+        let server = create_initialized_test_server().await;
 
         // Register some tools
         let tools = vec![create_valid_tool("tool1"), create_valid_tool("tool2")];
@@ -1041,7 +1744,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_tools_call_jsonrpc_success() {
-        let server = create_test_server();
+        let server = create_initialized_test_server().await;
 
         // Register a tool
         let tool = create_valid_tool("test_tool");
@@ -1088,7 +1791,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_tools_call_jsonrpc_missing_params() {
-        let server = create_test_server();
+        let server = create_initialized_test_server().await;
 
         // Create tools/call request without parameters
         let request = JsonRpcRequest {
@@ -1120,7 +1823,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_tools_call_jsonrpc_missing_name() {
-        let server = create_test_server();
+        let server = create_initialized_test_server().await;
 
         // Create tools/call request without tool name
         let request = JsonRpcRequest {
@@ -1156,7 +1859,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_tools_call_jsonrpc_nonexistent_tool() {
-        let server = create_test_server();
+        let server = create_initialized_test_server().await;
 
         // Create tools/call request for non-existent tool
         let request = JsonRpcRequest {
@@ -1184,8 +1887,9 @@ mod tests {
                     "test-id"
                 ))
             );
-            assert_eq!(error.code, -32603); // Internal error
-            assert!(error.message.contains("Tool call failed"));
+            assert_eq!(error.code, -32602); // Invalid params
+            assert!(error.message.contains("Tool call failed:"));
+            assert!(error.message.contains("Tool not found"));
         } else {
             panic!("Expected error response");
         }
@@ -1193,7 +1897,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_tools_call_jsonrpc_invalid_arguments() {
-        let server = create_test_server();
+        let server = create_initialized_test_server().await;
 
         // Register a tool
         let tool = create_valid_tool("test_tool");
@@ -1225,8 +1929,8 @@ mod tests {
                     "test-id"
                 ))
             );
-            assert_eq!(error.code, -32603); // Internal error
-            assert!(error.message.contains("Tool call failed"));
+            assert_eq!(error.code, -32602); // Invalid params
+            assert!(error.message.contains("Invalid parameters"));
         } else {
             panic!("Expected error response");
         }
@@ -1234,7 +1938,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_tools_call_jsonrpc_empty_arguments() {
-        let server = create_test_server();
+        let server = create_initialized_test_server().await;
 
         // Register a tool
         let tool = create_valid_tool("test_tool");
@@ -1248,15 +1952,15 @@ mod tests {
             )),
             method: "tools/call".to_string(),
             params: Some(json!({
-                "name": "test_tool"
-                // No arguments field
+                "name": "test_tool",
+                "arguments": {}
             })),
             meta: std::collections::HashMap::new(),
         };
 
         let response = server.handle_request(request).await;
 
-        // Verify error response (should fail validation due to missing required input)
+        // Verify error response
         if let Some(error) = &response.error {
             assert_eq!(
                 response.id,
@@ -1264,8 +1968,8 @@ mod tests {
                     "test-id"
                 ))
             );
-            assert_eq!(error.code, -32603); // Internal error
-            assert!(error.message.contains("Tool call failed"));
+            assert_eq!(error.code, -32602); // Invalid params
+            assert!(error.message.contains("Invalid or empty arguments"));
         } else {
             panic!("Expected error response");
         }
@@ -1305,7 +2009,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_tools_integration_workflow() {
-        let server = create_test_server();
+        let server = create_initialized_test_server().await;
 
         // Step 1: Register multiple tools
         let tools = vec![

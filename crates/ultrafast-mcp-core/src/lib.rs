@@ -189,9 +189,8 @@ pub use error::{MCPError, MCPResult};
 pub use protocol::{
     ImplementationMetadata, InitializeRequest, InitializeResponse, InitializedNotification,
     JsonRpcError, JsonRpcMessage, JsonRpcRequest, JsonRpcResponse, LifecyclePhase, LogLevel,
-    LogMessage, Message, NewVersionNegotiator as VersionNegotiator, Notification,
-    ProgressNotification, ProtocolMetadata, RequestId, RequestMetadata, ResponseMetadata,
-    ShutdownRequest,
+    LogMessage, Message, Notification, ProgressNotification, ProtocolMetadata, RequestId,
+    RequestMetadata, ResponseMetadata, ShutdownRequest,
 };
 
 // Re-export types items

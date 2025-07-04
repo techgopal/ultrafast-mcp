@@ -512,11 +512,19 @@ pub enum TemplateError {
     ScriptInjection,
 }
 
-/// Read resource request
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ReadResourceRequest {
-    /// Resource URI to read
     pub uri: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ListResourcesRequest {
+    pub cursor: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ListResourceTemplatesRequest {
+    pub cursor: Option<String>,
 }
 
 /// Read resource response
@@ -545,14 +553,6 @@ pub enum ResourceContent {
     },
 }
 
-/// List resources request
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ListResourcesRequest {
-    /// Optional cursor for pagination
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub cursor: Option<String>,
-}
-
 /// List resources response
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ListResourcesResponse {
@@ -562,14 +562,6 @@ pub struct ListResourcesResponse {
     /// Next cursor for pagination
     #[serde(rename = "nextCursor", skip_serializing_if = "Option::is_none")]
     pub next_cursor: Option<String>,
-}
-
-/// List resource templates request
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ListResourceTemplatesRequest {
-    /// Optional cursor for pagination
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub cursor: Option<String>,
 }
 
 /// List resource templates response

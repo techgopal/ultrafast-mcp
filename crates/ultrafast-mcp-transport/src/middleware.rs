@@ -3,9 +3,7 @@ use async_trait::async_trait;
 use serde_json::Value;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tracing::{debug, info, warn};
-use ultrafast_mcp_core::protocol::{
-    JsonRpcMessage, RequestId,
-};
+use ultrafast_mcp_core::protocol::{JsonRpcMessage, RequestId};
 
 /// Middleware trait for HTTP transport
 #[async_trait]

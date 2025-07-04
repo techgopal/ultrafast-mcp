@@ -1,6 +1,5 @@
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 
 /// Prompt definition
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -33,14 +32,13 @@ pub struct PromptArgument {
 }
 
 /// Get prompt request
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct GetPromptRequest {
-    /// Prompt name
+    /// Prompt name to retrieve
     pub name: String,
-
-    /// Prompt arguments
+    /// Optional arguments for prompt template
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub arguments: Option<Value>,
+    pub arguments: Option<serde_json::Value>,
 }
 
 /// Get prompt response
@@ -457,7 +455,7 @@ fn default_max_redirects() -> u32 {
 }
 
 /// List prompts request
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ListPromptsRequest {
     /// Optional cursor for pagination
     #[serde(skip_serializing_if = "Option::is_none")]

@@ -23,7 +23,7 @@
 //! The protocol is built around several core concepts:
 //!
 //! ### Message Flow
-//! 
+//!
 //! ```text
 //! Client                    Server
 //!   |                         |
@@ -193,4 +193,4 @@ pub use jsonrpc::*;
 pub use lifecycle::*;
 pub use messages::*;
 pub use metadata::*;
-pub use version::{constants, ProtocolVersion, VersionNegotiator as NewVersionNegotiator};
+pub use version::*;

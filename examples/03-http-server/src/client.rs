@@ -188,7 +188,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!("Connected! Listing available tools");
 
     // List available tools
-    let tools = client.list_tools().await?;
+    let tools = client.list_tools_default().await?;
     info!("Available tools: {:?}", tools);
 
     // Test HTTP GET
@@ -296,9 +296,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
     }
-
-    info!("Disconnecting from server");
-    client.disconnect().await?;
 
     Ok(())
 }
