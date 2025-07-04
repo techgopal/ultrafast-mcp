@@ -4,6 +4,11 @@ on:
   pull_request:
     branches: [ main, develop ]
 
+# Add explicit permissions for pull request access
+permissions:
+  contents: read
+  pull-requests: read
+
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
@@ -102,8 +107,7 @@ jobs:
     - name: Test minimal features
       run: |
         cargo test --no-default-features --lib
-        cargo test --features stdio-transport --lib
-        cargo test --features http-transport --lib
+        cargo test --features http --lib
         cargo test --features oauth --lib
 
     # Upload documentation artifacts

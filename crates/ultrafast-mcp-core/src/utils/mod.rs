@@ -57,29 +57,16 @@
 //! ### URI Handling
 //!
 //! ```rust
-//! use ultrafast_mcp_core::utils::{Uri, UriBuilder};
+//! use ultrafast_mcp_core::utils::Uri;
 //!
 //! // Parse a URI
-//! let uri = Uri::parse("file:///path/to/document.txt").unwrap();
-//! assert_eq!(uri.scheme(), "file");
-//! assert_eq!(uri.path(), "/path/to/document.txt");
-//!
-//! // Build a URI
-//! let uri = UriBuilder::new()
-//!     .scheme("https")
-//!     .authority("api.example.com")
-//!     .path("/v1/resources")
-//!     .query_param("limit", "10")
-//!     .query_param("offset", "20")
-//!     .build()
-//!     .unwrap();
-//!
-//! assert_eq!(uri.to_string(), "https://api.example.com/v1/resources?limit=10&offset=20");
+//! let uri = Uri::new("file:///path/to/document.txt");
+//! assert_eq!(uri.scheme(), Some("file"));
+//! assert_eq!(uri.path(), Some("/path/to/document.txt"));
 //!
 //! // Join URIs
-//! let base = Uri::parse("https://api.example.com/v1/").unwrap();
-//! let relative = Uri::parse("resources/123").unwrap();
-//! let joined = base.join(&relative).unwrap();
+//! let base = Uri::new("https://api.example.com/v1/");
+//! let joined = base.join("resources/123").unwrap();
 //! assert_eq!(joined.to_string(), "https://api.example.com/v1/resources/123");
 //! ```
 //!
@@ -89,23 +76,16 @@
 //! use ultrafast_mcp_core::utils::{PaginationParams, PaginationInfo, Cursor};
 //!
 //! // Create pagination parameters
-//! let params = PaginationParams::new()
-//!     .limit(10)
-//!     .cursor(Some("cursor_123".to_string()))
-//!     .build();
+//! let params = PaginationParams::new().with_limit(10);
 //!
 //! // Process paginated results
 //! let items = vec!["item1", "item2", "item3"];
-//! let next_cursor = Some("cursor_456".to_string());
+//! let next_cursor = Some(Cursor::new("cursor_456"));
 //!
-//! let pagination_info = PaginationInfo::new()
-//!     .items(items.len())
-//!     .has_more(next_cursor.is_some())
-//!     .next_cursor(next_cursor)
-//!     .build();
+//! let pagination_info = PaginationInfo::with_total(items.len() as u64, next_cursor.clone());
 //!
 //! // Generate a cursor
-//! let cursor = Cursor::new("prefix", &["key1", "key2"]).to_string();
+//! let cursor = Cursor::new("prefix");
 //! ```
 //!
 //! ### Progress Tracking
@@ -114,24 +94,42 @@
 //! use ultrafast_mcp_core::utils::{ProgressTracker, ProgressStatus};
 //!
 //! // Create a progress tracker
-//! let mut tracker = ProgressTracker::new("Processing items", 100);
+//! let mut tracker = ProgressTracker::new();
 //!
-//! // Update progress
-//! tracker.update(25, "Processing batch 1");
-//! tracker.update(50, "Processing batch 2");
-//! tracker.update(75, "Processing batch 3");
-//! tracker.complete("All items processed");
+//! // Start and update progress
+//! let progress1 = tracker.start("batch1");
+//! progress1.update(25);
+//! progress1.description = Some("Processing batch 1".to_string());
+//!
+//! let progress2 = tracker.start("batch2");
+//! progress2.update(50);
+//! progress2.description = Some("Processing batch 2".to_string());
+//!
+//! let progress3 = tracker.start("batch3");
+//! progress3.update(75);
+//! progress3.description = Some("Processing batch 3".to_string());
+//!
+//! // Complete progress
+//! tracker.complete("batch1");
+//! tracker.complete("batch2");
+//! tracker.complete("batch3");
 //!
 //! // Check status
-//! match tracker.status() {
-//!     ProgressStatus::InProgress { current, total, message } => {
-//!         println!("Progress: {}/{} - {}", current, total, message);
-//!     }
-//!     ProgressStatus::Completed { message } => {
-//!         println!("Completed: {}", message);
-//!     }
-//!     ProgressStatus::Failed { error } => {
-//!         println!("Failed: {}", error);
+//! if let Some(progress) = tracker.get("batch1") {
+//!     match progress.status {
+//!         ProgressStatus::Running => {
+//!             println!("Progress: {}/{} - {}",
+//!                 progress.current,
+//!                 progress.total.unwrap_or(0),
+//!                 progress.description.as_deref().unwrap_or(""));
+//!         }
+//!         ProgressStatus::Completed => {
+//!             println!("Completed");
+//!         }
+//!         ProgressStatus::Failed => {
+//!             println!("Failed");
+//!         }
+//!         _ => {}
 //!     }
 //! }
 //! ```
@@ -139,28 +137,18 @@
 //! ### Cancellation Management
 //!
 //! ```rust
-//! use ultrafast_mcp_core::utils::{CancellationManager, CancellationToken};
+//! use ultrafast_mcp_core::utils::CancellationManager;
 //! use std::time::Duration;
+//! use ultrafast_mcp_core::MCPError;
 //!
 //! // Create a cancellation manager
-//! let mut manager = CancellationManager::new();
+//! let manager = CancellationManager::new();
 //!
 //! // Register a request
-//! let token = manager.register_request("request_123", "tools/call");
-//!
-//! // Check for cancellation
-//! if token.is_cancelled() {
-//!     return Err(MCPError::request_timeout());
-//! }
-//!
-//! // Set a timeout
-//! let timeout_token = manager.set_timeout("request_123", Duration::from_secs(30));
+//! let _ = manager.register_request("request_123".into(), "tools/call".to_string());
 //!
 //! // Cancel a request
-//! manager.cancel_request("request_123", "User cancelled");
-//!
-//! // Clean up expired requests
-//! manager.cleanup_expired();
+//! let _ = manager.cancel_request(&"request_123".into(), Some("User cancelled".to_string()));
 //! ```
 //!
 //! ## Performance Considerations

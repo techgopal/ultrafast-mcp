@@ -15,6 +15,7 @@ doc = false
 
 [dependencies]
 ultrafast-mcp = { path = "../../crates/ultrafast-mcp" }
+ultrafast-mcp-transport = { path = "../../crates/ultrafast-mcp-transport" }
 tokio = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

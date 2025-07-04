@@ -495,11 +495,14 @@ default = ["stdio-transport"]
 
 # Transport implementations
 stdio-transport = []
-http-transport = [
-    "dep:axum",
-    "dep:reqwest", 
-    "dep:tower",
-    "dep:tower-http"
+http = [
+    "ultrafast-mcp-transport/http",
+    "ultrafast-mcp-client/http", 
+    "ultrafast-mcp-server/http",
+    "axum",
+    "reqwest",
+    "tower",
+    "tower-http"
 ]
 
 # Authentication and security
@@ -519,9 +522,9 @@ performance = [
 ]
 
 # Convenience feature combinations
-web = ["http-transport", "oauth"]
-enterprise = ["web", "performance"]
-all = ["stdio-transport", "http-transport", "oauth", "performance"]
+web = ["http", "oauth"]
+enterprise = ["http", "oauth", "performance", "monitoring"]
+all = ["stdio-transport", "http", "oauth", "performance"]
 
 # Experimental features (unstable)
 experimental = []
@@ -542,7 +545,7 @@ cargo add ultrafast-mcp
 # HTTP server with OAuth 2.1 support
 cargo new my-http-server
 cd my-http-server
-cargo add ultrafast-mcp --features="http-transport,oauth"
+cargo add ultrafast-mcp --features="http,oauth"
 ```
 
 #### High-Performance Enterprise Server
@@ -558,7 +561,7 @@ cargo add ultrafast-mcp --features="enterprise"
 # MCP client with sampling and roots support
 cargo new my-mcp-client
 cd my-mcp-client
-cargo add ultrafast-mcp --features="http-transport"
+cargo add ultrafast-mcp --features="http"
 cargo add tokio --features="full"
 ```
 

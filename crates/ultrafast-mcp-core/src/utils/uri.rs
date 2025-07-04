@@ -56,7 +56,7 @@ impl Uri {
                     let base = &self.0[..scheme.len() + 3 + authority_end];
                     Ok(Uri::new(format!("{base}{path}")))
                 } else {
-                                          Ok(Uri::new(format!("{}{path}", self.0)))
+                    Ok(Uri::new(format!("{}{path}", self.0)))
                 }
             } else {
                 Err(MCPError::Resource(ResourceError::InvalidUri(format!(
@@ -101,7 +101,7 @@ impl Uri {
                     .chars()
                     .all(|c| c.is_ascii_alphanumeric() || c == '+' || c == '-' || c == '.')
             {
-                                  return Err(MCPError::Resource(ResourceError::InvalidUri(format!(
+                return Err(MCPError::Resource(ResourceError::InvalidUri(format!(
                     "Invalid URI scheme: {scheme}"
                 ))));
             }

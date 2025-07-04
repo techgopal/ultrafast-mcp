@@ -71,14 +71,16 @@
 //! ### Basic Server Setup
 //!
 //! ```rust
-//! use ultrafast_mcp_server::{
-//!     UltraFastServer, ToolHandler, ToolCall, ToolResult, ToolContent,
-//!     ListToolsRequest, ListToolsResponse, ServerInfo, ServerCapabilities,
-//!     ToolsCapability, MCPError, MCPResult
-//! };
+//! use ultrafast_mcp_server::{UltraFastServer, ToolHandler};
+//! use ultrafast_mcp_core::types::tools::{ToolCall, ToolResult, ToolContent, Tool, ListToolsRequest, ListToolsResponse};
+//! use ultrafast_mcp_core::types::server::ServerInfo;
+//! use ultrafast_mcp_core::protocol::capabilities::{ServerCapabilities, ToolsCapability};
+//! use ultrafast_mcp_core::error::{MCPError, MCPResult};
 //! use std::sync::Arc;
+//! // Add anyhow as a dev-dependency for doctests
+//! // [dev-dependencies]
+//! // anyhow = "1"
 //!
-//! // Define your tool handler
 //! struct MyToolHandler;
 //!
 //! #[async_trait::async_trait]
@@ -87,12 +89,11 @@
 //!         match call.name.as_str() {
 //!             "echo" => {
 //!                 let message = call.arguments
-//!                     .and_then(|args| args.get("message"))
-//!                     .and_then(|v| v.as_str())
-//!                     .unwrap_or("Hello, World!");
-//!
+//!                     .and_then(|args| args.get("message").cloned())
+//!                     .and_then(|v| v.as_str().map(|s| s.to_string()))
+//!                     .unwrap_or_else(|| "Hello, World!".to_string());
 //!                 Ok(ToolResult {
-//!                     content: vec![ToolContent::text(message.to_string())],
+//!                     content: vec![ToolContent::text(message)],
 //!                     is_error: Some(false),
 //!                 })
 //!             }
@@ -101,18 +102,24 @@
 //!             )),
 //!         }
 //!     }
-//!
 //!     async fn list_tools(&self, _request: ListToolsRequest) -> MCPResult<ListToolsResponse> {
 //!         Ok(ListToolsResponse {
 //!             tools: vec![Tool {
 //!                 name: "echo".to_string(),
-//!                 description: Some("Echo a message back".to_string()),
+//!                 description: "Echo a message back".to_string(),
 //!                 input_schema: serde_json::json!({
 //!                     "type": "object",
 //!                     "properties": {
 //!                         "message": {"type": "string", "default": "Hello, World!"}
-//!                     }
+//!                     },
+//!                     "required": ["message"]
 //!                 }),
+//!                 output_schema: Some(serde_json::json!({
+//!                     "type": "object",
+//!                     "properties": {
+//!                         "output": {"type": "string"}
+//!                     }
+//!                 })),
 //!             }],
 //!             next_cursor: None,
 //!         })
@@ -121,7 +128,6 @@
 //!
 //! #[tokio::main]
 //! async fn main() -> anyhow::Result<()> {
-//!     // Create server configuration
 //!     let server_info = ServerInfo {
 //!         name: "example-server".to_string(),
 //!         version: "1.0.0".to_string(),
@@ -131,19 +137,14 @@
 //!         license: None,
 //!         repository: None,
 //!     };
-//!
 //!     let capabilities = ServerCapabilities {
 //!         tools: Some(ToolsCapability { list_changed: Some(true) }),
 //!         ..Default::default()
 //!     };
-//!
-//!     // Create and configure the server
 //!     let server = UltraFastServer::new(server_info, capabilities)
 //!         .with_tool_handler(Arc::new(MyToolHandler));
-//!
 //!     // Start the server with STDIO transport
 //!     server.run_stdio().await?;
-//!
 //!     Ok(())
 //! }
 //! ```
@@ -151,65 +152,70 @@
 //! ### Advanced Server with Multiple Handlers
 //!
 //! ```rust
-//! use ultrafast_mcp_server::{
-//!     UltraFastServer, ToolHandler, ResourceHandler, PromptHandler,
-//!     ToolCall, ToolResult, ReadResourceRequest, ReadResourceResponse,
-//!     GetPromptRequest, GetPromptResponse, MCPError, MCPResult
-//! };
+//! use ultrafast_mcp_server::{UltraFastServer, ToolHandler, ResourceHandler, PromptHandler};
+//! use ultrafast_mcp_core::types::tools::{ToolCall, ToolResult, ListToolsRequest, ListToolsResponse};
+//! use ultrafast_mcp_core::types::resources::{ReadResourceRequest, ReadResourceResponse};
+//! use ultrafast_mcp_core::types::prompts::{GetPromptRequest, GetPromptResponse};
+//! use ultrafast_mcp_core::error::{MCPError, MCPResult};
 //! use std::sync::Arc;
 //!
-//! // Tool handler implementation
 //! struct AdvancedToolHandler;
 //!
 //! #[async_trait::async_trait]
 //! impl ToolHandler for AdvancedToolHandler {
-//!     async fn handle_tool_call(&self, call: ToolCall) -> MCPResult<ToolResult> {
-//!         // Implementation details...
+//!     async fn handle_tool_call(&self, _call: ToolCall) -> MCPResult<ToolResult> {
 //!         todo!()
 //!     }
-//!
 //!     async fn list_tools(&self, _request: ListToolsRequest) -> MCPResult<ListToolsResponse> {
-//!         // Implementation details...
 //!         todo!()
 //!     }
 //! }
 //!
-//! // Resource handler implementation
 //! struct FileResourceHandler;
 //!
 //! #[async_trait::async_trait]
 //! impl ResourceHandler for FileResourceHandler {
-//!     async fn read_resource(&self, request: ReadResourceRequest) -> MCPResult<ReadResourceResponse> {
-//!         // Implementation details...
+//!     async fn read_resource(&self, _request: ReadResourceRequest) -> MCPResult<ReadResourceResponse> {
 //!         todo!()
 //!     }
-//!
-//!     // Other resource methods...
+//!     async fn list_resources(&self, _request: ultrafast_mcp_core::types::resources::ListResourcesRequest) -> MCPResult<ultrafast_mcp_core::types::resources::ListResourcesResponse> {
+//!         todo!()
+//!     }
+//!     async fn list_resource_templates(&self, _request: ultrafast_mcp_core::types::resources::ListResourceTemplatesRequest) -> MCPResult<ultrafast_mcp_core::types::resources::ListResourceTemplatesResponse> {
+//!         todo!()
+//!     }
 //! }
 //!
-//! // Prompt handler implementation
 //! struct TemplatePromptHandler;
 //!
 //! #[async_trait::async_trait]
 //! impl PromptHandler for TemplatePromptHandler {
-//!     async fn get_prompt(&self, request: GetPromptRequest) -> MCPResult<GetPromptResponse> {
-//!         // Implementation details...
+//!     async fn get_prompt(&self, _request: GetPromptRequest) -> MCPResult<GetPromptResponse> {
 //!         todo!()
 //!     }
-//!
-//!     // Other prompt methods...
+//!     async fn list_prompts(&self, _request: ultrafast_mcp_core::types::prompts::ListPromptsRequest) -> MCPResult<ultrafast_mcp_core::types::prompts::ListPromptsResponse> {
+//!         todo!()
+//!     }
 //! }
 //!
 //! #[tokio::main]
 //! async fn main() -> anyhow::Result<()> {
+//!     let server_info = ultrafast_mcp_core::types::server::ServerInfo {
+//!         name: "example-server".to_string(),
+//!         version: "1.0.0".to_string(),
+//!         description: Some("An example MCP server".to_string()),
+//!         authors: None,
+//!         homepage: None,
+//!         license: None,
+//!         repository: None,
+//!     };
+//!     let capabilities = ultrafast_mcp_core::protocol::capabilities::ServerCapabilities::default();
 //!     let server = UltraFastServer::new(server_info, capabilities)
 //!         .with_tool_handler(Arc::new(AdvancedToolHandler))
 //!         .with_resource_handler(Arc::new(FileResourceHandler))
 //!         .with_prompt_handler(Arc::new(TemplatePromptHandler));
-//!
-//!     // Start with HTTP transport
-//!     server.run_streamable_http("127.0.0.1", 8080).await?;
-//!
+//!     // Start with STDIO transport (or replace with HTTP if available)
+//!     server.run_stdio().await?;
 //!     Ok(())
 //! }
 //! ```
@@ -217,24 +223,19 @@
 //! ### Context and Progress Tracking
 //!
 //! ```rust
-//! use ultrafast_mcp_server::{Context, ProgressTracker};
+//! use ultrafast_mcp_server::{Context};
+//! use ultrafast_mcp_core::utils::ProgressTracker;
+//! use ultrafast_mcp_core::error::{MCPError, MCPResult};
 //!
 //! async fn long_running_operation(ctx: &Context) -> MCPResult<()> {
-//!     let mut progress = ProgressTracker::new("Processing data", 100);
-//!
+//!     let mut progress = ProgressTracker::new();
 //!     for i in 0..100 {
-//!         // Update progress
-//!         progress.update(i, &format!("Processing item {}", i));
-//!
-//!         // Check for cancellation
+//!         progress.update(&format!("Processing item {}", i), i);
 //!         if ctx.is_cancelled().await {
 //!             return Err(MCPError::request_timeout());
 //!         }
-//!
-//!         // Do work...
 //!         tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
 //!     }
-//!
 //!     progress.complete("All items processed");
 //!     Ok(())
 //! }
@@ -344,17 +345,11 @@ pub mod context;
 pub mod handlers;
 pub mod server;
 
-// Re-export main types
-pub use context::Context;
-pub use server::{ServerState, UltraFastServer};
+pub use context::{Context, ContextLogger, LoggerConfig};
+pub use handlers::*;
+/// All re-exports for convenience
+pub use server::{ServerLoggingConfig, ServerState, ToolRegistrationError, UltraFastServer};
 
-// Re-export handler traits
-pub use handlers::{
-    CompletionHandler, ElicitationHandler, PromptHandler, ResourceHandler,
-    ResourceSubscriptionHandler, RootsHandler, SamplingHandler, ToolHandler,
-};
-
-// Re-export core types for convenience
 pub use ultrafast_mcp_core::{
     error::{MCPError, MCPResult},
     protocol::{

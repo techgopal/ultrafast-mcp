@@ -90,7 +90,7 @@ impl SessionStore {
 pub struct QueuedMessage {
     pub id: String,
     pub message: JsonRpcMessage,
-    pub timestamp: u64,
+    pub timestamp: u128, // milliseconds since UNIX_EPOCH
     pub retry_count: u32,
 }
 
@@ -114,7 +114,7 @@ impl MessageQueue {
             message,
             timestamp: std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
-                .map(|d| d.as_secs())
+                .map(|d| d.as_millis())
                 .unwrap_or(0),
             retry_count: 0,
         };
@@ -155,5 +155,19 @@ impl MessageQueue {
             }
         }
         false
+    }
+
+    pub async fn get_messages_since(&self, session_id: &str, since: u128) -> Vec<QueuedMessage> {
+        self.messages
+            .read()
+            .await
+            .get(session_id)
+            .map(|msgs| {
+                msgs.iter()
+                    .filter(|msg| msg.timestamp > since)
+                    .cloned()
+                    .collect()
+            })
+            .unwrap_or_default()
     }
 }

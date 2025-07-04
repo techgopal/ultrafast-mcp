@@ -382,6 +382,7 @@
 //! - Update documentation for new features
 
 // Re-export core types
+#[cfg(not(doc))]
 pub use ultrafast_mcp_core::{
     error::{MCPError, MCPResult},
     protocol::capabilities::{
@@ -407,23 +408,28 @@ pub use ultrafast_mcp_core::{
 };
 
 // Re-export server types
+#[cfg(not(doc))]
 pub use ultrafast_mcp_server::{
     CompletionHandler, Context, ElicitationHandler, PromptHandler, ResourceHandler,
     ResourceSubscriptionHandler, RootsHandler, SamplingHandler, ToolHandler, UltraFastServer,
 };
 
 // Re-export client types
-pub use ultrafast_mcp_client::{
-    ElicitationHandler as ClientElicitationHandler, ResourceChangeHandler,
-    SamplingHandler as ClientSamplingHandler, UltraFastClient,
+#[cfg(not(doc))]
+pub use ultrafast_mcp_client::UltraFastClient;
+// Use handler traits from server crate
+#[cfg(not(doc))]
+pub use ultrafast_mcp_server::{
+    ElicitationHandler as ClientElicitationHandler, SamplingHandler as ClientSamplingHandler,
 };
 
 // Re-export transport types
+#[cfg(not(doc))]
 pub use ultrafast_mcp_transport::{Transport, TransportConfig};
 
 // Re-export auth types
-#[cfg(feature = "oauth")]
+#[cfg(all(feature = "oauth", not(doc)))]
 pub use ultrafast_mcp_auth::OAuthConfig;
 
-#[cfg(feature = "monitoring")]
+#[cfg(all(feature = "monitoring", not(doc)))]
 pub use ultrafast_mcp_monitoring::{MonitoringConfig, MonitoringSystem};

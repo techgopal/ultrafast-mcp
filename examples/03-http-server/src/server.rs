@@ -5,6 +5,7 @@
 use reqwest::Client as HttpClient;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use std::time::Instant;
 use tracing::info;
 use ultrafast_mcp::{
     ListToolsRequest, ListToolsResponse, MCPError, MCPResult, ServerCapabilities, ServerInfo, Tool,
@@ -337,7 +338,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize tracing
     tracing_subscriber::fmt::init();
 
+    let start_time = Instant::now();
     info!("Starting HTTP Server MCP Server");
+
+    // Set up graceful shutdown
+    let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel();
+
+    // Handle shutdown signals
+    tokio::spawn(async move {
+        tokio::signal::ctrl_c().await.unwrap();
+        info!("Received shutdown signal");
+        let _ = shutdown_tx.send(());
+    });
 
     // Create server capabilities
     let capabilities = ServerCapabilities {
@@ -366,8 +378,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     info!("Server created, starting stdio transport");
 
-    // Run the server
-    server.run_stdio().await?;
+    // Run the server with graceful shutdown
+    tokio::select! {
+        result = server.run_stdio() => {
+            if let Err(e) = result {
+                eprintln!("Server error: {}", e);
+            }
+        }
+        _ = shutdown_rx => {
+            info!("Shutting down server gracefully");
+        }
+    }
+
+    let uptime = start_time.elapsed();
+    info!("Server stopped after {:?}", uptime);
 
     Ok(())
 }

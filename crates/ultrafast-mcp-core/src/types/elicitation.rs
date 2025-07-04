@@ -5,15 +5,36 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-/// Server-initiated request for user input
+/// Server-initiated request for user input (multi-step support)
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ElicitationRequest {
+    /// Unique session ID for multi-step workflows
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub session_id: Option<String>,
+    /// Step number in the workflow
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub step: Option<u32>,
     /// Prompt to show to the user
     pub prompt: String,
     /// Type of input expected (text, choice, etc.)
     pub input_type: ElicitationInputType,
     /// Optional validation rules
     pub validation: Option<ElicitationValidation>,
+}
+
+impl Default for ElicitationRequest {
+    fn default() -> Self {
+        Self {
+            session_id: None,
+            step: None,
+            prompt: String::new(),
+            input_type: ElicitationInputType::Text {
+                placeholder: None,
+                sensitive: None,
+            },
+            validation: None,
+        }
+    }
 }
 
 /// Type of input expected from user
@@ -68,11 +89,91 @@ pub struct ElicitationValidation {
     pub required: Option<bool>,
 }
 
-/// Response to elicitation request
+/// State for multi-step elicitation workflows
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, Default)]
+pub struct MultiStepElicitationState {
+    /// Session ID
+    pub session_id: String,
+    /// Current step
+    pub current_step: u32,
+    /// Collected responses
+    pub responses: Vec<ElicitationResponse>,
+}
+
+/// Response to elicitation request (multi-step support)
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ElicitationResponse {
+    /// Unique session ID for multi-step workflows
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub session_id: Option<String>,
+    /// Step number in the workflow
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub step: Option<u32>,
     /// User's input/choice
     pub value: serde_json::Value,
     /// Whether the user cancelled
     pub cancelled: Option<bool>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_single_step_elicitation() {
+        let req = ElicitationRequest {
+            session_id: None,
+            step: None,
+            prompt: "Enter your name".to_string(),
+            input_type: ElicitationInputType::Text {
+                placeholder: Some("Name".to_string()),
+                sensitive: None,
+            },
+            validation: None,
+        };
+        assert_eq!(req.prompt, "Enter your name");
+    }
+
+    #[test]
+    fn test_multi_step_elicitation_state() {
+        let mut state = MultiStepElicitationState {
+            session_id: "sess-123".to_string(),
+            current_step: 0,
+            responses: vec![],
+        };
+        let resp1 = ElicitationResponse {
+            session_id: Some("sess-123".to_string()),
+            step: Some(1),
+            value: serde_json::json!("Alice"),
+            cancelled: None,
+        };
+        state.current_step = 1;
+        state.responses.push(resp1.clone());
+        assert_eq!(state.responses.len(), 1);
+        assert_eq!(state.responses[0].value, serde_json::json!("Alice"));
+        assert_eq!(state.session_id, "sess-123");
+    }
+
+    #[test]
+    fn test_multi_step_elicitation_request_response() {
+        let req = ElicitationRequest {
+            session_id: Some("sess-abc".to_string()),
+            step: Some(2),
+            prompt: "Enter your age".to_string(),
+            input_type: ElicitationInputType::Text {
+                placeholder: Some("Age".to_string()),
+                sensitive: None,
+            },
+            validation: None,
+        };
+        let resp = ElicitationResponse {
+            session_id: Some("sess-abc".to_string()),
+            step: Some(2),
+            value: serde_json::json!(30),
+            cancelled: None,
+        };
+        assert_eq!(req.session_id, Some("sess-abc".to_string()));
+        assert_eq!(resp.step, Some(2));
+        assert_eq!(resp.value, serde_json::json!(30));
+    }
 }

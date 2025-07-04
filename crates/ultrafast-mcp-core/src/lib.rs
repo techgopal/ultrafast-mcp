@@ -53,24 +53,31 @@
 //!     // Protocol types
 //!     JsonRpcMessage, JsonRpcRequest, RequestId,
 //!     InitializeRequest, InitializeResponse,
-//!     
 //!     // Core types
-//!     Tool, ToolCallRequest, ToolCallResponse,
+//!     Tool, ToolCallRequest, ToolCallResponse, ToolContent,
 //!     Resource, ReadResourceRequest, ReadResourceResponse,
 //!     Prompt, GetPromptRequest, GetPromptResponse,
-//!     
 //!     // Error handling
 //!     MCPError, MCPResult,
-//!     
 //!     // Utilities
 //!     Uri, ProgressTracker, PaginationParams,
 //! };
+//! use ultrafast_mcp_core::types::client::ClientInfo;
+//! use ultrafast_mcp_core::types::server::ServerInfo;
 //!
 //! // Create an initialization request
 //! let init_request = InitializeRequest {
 //!     protocol_version: "2025-06-18".to_string(),
 //!     capabilities: Default::default(),
-//!     client_info: Default::default(),
+//!     client_info: ClientInfo {
+//!         name: "example-client".to_string(),
+//!         version: "1.0.0".to_string(),
+//!         description: Some("Example MCP client".to_string()),
+//!         authors: None,
+//!         homepage: None,
+//!         license: None,
+//!         repository: None,
+//!     },
 //! };
 //!
 //! // Create a tool call request
@@ -111,12 +118,14 @@
 //!
 //! ## Error Handling
 //!
-//! The crate provides a comprehensive error handling system:
-//!
 //! ```rust
 //! use ultrafast_mcp_core::{MCPError, MCPResult};
 //!
-//! fn process_request() -> MCPResult<String> {
+//! fn process_request(
+//!     invalid_protocol: bool,
+//!     method_not_found: bool,
+//!     internal_failure: bool,
+//! ) -> MCPResult<String> {
 //!     // Protocol errors
 //!     if invalid_protocol {
 //!         return Err(MCPError::invalid_request("Invalid protocol version".to_string()));
@@ -181,7 +190,7 @@ pub use protocol::{
     ImplementationMetadata, InitializeRequest, InitializeResponse, InitializedNotification,
     JsonRpcError, JsonRpcMessage, JsonRpcRequest, JsonRpcResponse, LifecyclePhase, LogLevel,
     LogMessage, Message, Notification, ProgressNotification, ProtocolMetadata, RequestId,
-    RequestMetadata, ResponseMetadata, ShutdownRequest, VersionNegotiator,
+    RequestMetadata, ResponseMetadata, ShutdownRequest,
 };
 
 // Re-export types items

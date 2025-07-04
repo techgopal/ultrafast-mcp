@@ -109,13 +109,18 @@
 //!
 //! ```rust
 //! use ultrafast_mcp_core::{MCPError, MCPResult};
+//! use ultrafast_mcp_core::error::{ProtocolError, TransportError};
+//! // Dummy perform_operation for example
+//! fn perform_operation() -> MCPResult<String> {
+//!     Err(MCPError::Transport(TransportError::ConnectionFailed("network error".to_string())))
+//! }
 //!
 //! fn robust_operation() -> MCPResult<String> {
 //!     match perform_operation() {
 //!         Ok(result) => Ok(result),
-//!         Err(MCPError::Transport(transport_err)) => {
+//!         Err(MCPError::Transport(_transport_err)) => {
 //!             // Retry on transport errors
-//!             tracing::warn!("Transport error, retrying: {}", transport_err);
+//!             // tracing::warn!("Transport error, retrying: {}", transport_err);
 //!             perform_operation()
 //!         }
 //!         Err(MCPError::Protocol(ProtocolError::RequestTimeout)) => {

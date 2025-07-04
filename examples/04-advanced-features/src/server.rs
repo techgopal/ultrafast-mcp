@@ -208,7 +208,7 @@ impl ToolHandler for AdvancedFeaturesHandler {
 
 impl AdvancedFeaturesHandler {
     async fn handle_calculator(&self, request: CalculatorRequest) -> MCPResult<ToolResult> {
-        let valid_operations = vec!["add", "subtract", "multiply", "divide", "average"];
+        let valid_operations = ["add", "subtract", "multiply", "divide", "average"];
 
         if !valid_operations.contains(&request.operation.as_str()) {
             return Err(MCPError::invalid_request(format!(
@@ -257,7 +257,7 @@ impl AdvancedFeaturesHandler {
     }
 
     async fn handle_data_processor(&self, request: DataProcessorRequest) -> MCPResult<ToolResult> {
-        let valid_operations = vec!["uppercase", "lowercase", "reverse", "sort", "unique"];
+        let valid_operations = ["uppercase", "lowercase", "reverse", "sort", "unique"];
 
         let invalid_ops: Vec<&String> = request
             .operations

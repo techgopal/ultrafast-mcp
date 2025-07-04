@@ -197,21 +197,12 @@ pub struct RetryConfig {
 }
 
 /// Template configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct TemplateConfig {
     /// Template directory
     pub template_dir: Option<String>,
     /// Available templates
     pub templates: HashMap<String, TemplateInfo>,
-}
-
-impl Default for TemplateConfig {
-    fn default() -> Self {
-        Self {
-            template_dir: None,
-            templates: HashMap::new(),
-        }
-    }
 }
 
 /// Template information
@@ -337,6 +328,7 @@ impl Config {
     }
 
     /// Get default configuration file path
+    #[allow(dead_code)]
     pub fn default_path() -> Result<std::path::PathBuf> {
         let mut path = dirs::config_dir().context("Failed to get config directory")?;
         path.push("ultrafast-mcp");
@@ -345,6 +337,7 @@ impl Config {
     }
 
     /// Create default configuration file
+    #[allow(dead_code)]
     pub fn create_default() -> Result<()> {
         let path = Self::default_path()?;
         if let Some(parent) = path.parent() {

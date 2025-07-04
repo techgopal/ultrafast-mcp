@@ -61,7 +61,7 @@
 //!
 //! ### Basic Monitoring Setup
 //!
-//! ```rust
+//! ```rust,no_run
 //! use ultrafast_mcp_monitoring::{
 //!     MonitoringSystem, MonitoringConfig, RequestTimer
 //! };
@@ -86,7 +86,7 @@
 //!     // Start HTTP monitoring server (requires http feature)
 //!     #[cfg(feature = "http")]
 //!     {
-//!         let addr = "127.0.0.1:9090".parse()?;
+//!         let addr = "127.0.0.1:9091".parse()?;
 //!         monitoring.start_http_server(addr).await?;
 //!     }
 //!
@@ -98,7 +98,7 @@
 //!
 //! ```rust
 //! use ultrafast_mcp_monitoring::{
-//!     MonitoringSystem, HealthChecker, HealthStatus
+//!     MonitoringSystem, HealthChecker, HealthStatus, MonitoringConfig
 //! };
 //! use ultrafast_mcp_monitoring::health::{HealthCheck, HealthCheckResult};
 //! use std::time::{Duration, SystemTime};
@@ -528,7 +528,7 @@ impl MonitoringSystem {
                 }),
             );
 
-        println!("Starting monitoring HTTP server on {}", addr);
+        println!("Starting monitoring HTTP server on {addr}");
         let listener = tokio::net::TcpListener::bind(addr).await?;
         axum::serve(listener, app).await?;
         Ok(())

@@ -53,30 +53,51 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     // Create client with timeout configuration
-    let client = UltraFastClient::new(client_info, client_capabilities)
-        .with_timeout(Duration::from_secs(30));
+    let client = UltraFastClient::new(client_info, client_capabilities);
 
     info!("Connecting to server via Streamable HTTP at http://127.0.0.1:8080");
 
     // Connect to server with retry logic
     let mut retry_count = 0;
-    let connection_result = loop {
-        match client
-            .connect_streamable_http("http://127.0.0.1:8080")
-            .await
-        {
-            Ok(_) => {
-                info!("✅ Connected successfully!");
-                break Ok(());
-            }
+    let connection_result: Result<(), Box<dyn std::error::Error>> = loop {
+        // Use Streamable HTTP transport for connection
+        let config = ultrafast_mcp_transport::http::streamable::StreamableHttpClientConfig {
+            base_url: "http://127.0.0.1:8080".to_string(),
+            ..Default::default()
+        };
+        let mut transport =
+            ultrafast_mcp_transport::http::streamable::StreamableHttpClient::new(config).unwrap();
+        // Connect the transport before passing to client
+        match transport.connect().await {
+            Ok(_) => match client.connect(Box::new(transport)).await {
+                Ok(_) => {
+                    info!("✅ Connected successfully!");
+                    break Ok(());
+                }
+                Err(e) => {
+                    retry_count += 1;
+                    if retry_count >= MAX_RETRIES {
+                        error!("Failed to connect after {} retries: {}", MAX_RETRIES, e);
+                        break Err(e.into());
+                    }
+                    warn!(
+                        "Client connection attempt {} failed: {}. Retrying in {:?}...",
+                        retry_count, e, RETRY_DELAY
+                    );
+                    tokio::time::sleep(RETRY_DELAY).await;
+                }
+            },
             Err(e) => {
                 retry_count += 1;
                 if retry_count >= MAX_RETRIES {
-                    error!("Failed to connect after {} retries: {}", MAX_RETRIES, e);
-                    break Err(e);
+                    error!(
+                        "Failed to connect transport after {} retries: {}",
+                        MAX_RETRIES, e
+                    );
+                    break Err(e.into());
                 }
                 warn!(
-                    "Connection attempt {} failed: {}. Retrying in {:?}...",
+                    "Transport connection attempt {} failed: {}. Retrying in {:?}...",
                     retry_count, e, RETRY_DELAY
                 );
                 tokio::time::sleep(RETRY_DELAY).await;
@@ -89,7 +110,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!("✅ Connected! Listing available tools");
 
     // List available tools with error handling
-    let tools = match client.list_tools().await {
+    let tools = match client.list_tools_default().await {
         Ok(tools) => {
             info!("Available tools: {:?}", tools);
             tools
@@ -100,7 +121,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     };
 
-    if tools.is_empty() {
+    if tools.tools.is_empty() {
         warn!("No tools available on the server");
         return Ok(());
     }
@@ -187,15 +208,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    info!("Disconnecting from server");
-    match client.disconnect().await {
-        Ok(_) => {
-            info!("✅ Disconnected successfully");
-        }
-        Err(e) => {
-            warn!("Warning: Failed to disconnect cleanly: {}", e);
-        }
-    }
+    // info!("Disconnecting from server");
+    // match client.disconnect().await {
+    //     Ok(_) => {
+    //         info!("✅ Disconnected successfully");
+    //     }
+    //     Err(e) => {
+    //         warn!("Warning: Failed to disconnect cleanly: {}", e);
+    //     }
+    // }
 
     info!("✅ Example completed successfully!");
 

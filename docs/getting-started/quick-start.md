@@ -25,7 +25,7 @@ cd my-mcp-server
 cargo add ultrafast-mcp
 
 # Or add with HTTP transport for web services
-cargo add ultrafast-mcp --features="http-transport"
+cargo add ultrafast-mcp --features="http"
 ```
 
 ### 3. Update Cargo.toml

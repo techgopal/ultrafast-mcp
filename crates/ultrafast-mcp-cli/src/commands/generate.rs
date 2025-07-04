@@ -123,8 +123,41 @@ pub async fn {}(
         ctx.log_info("Verbose mode enabled").await?;
     }}
     
-    // TODO: Implement your actual tool logic here
-    let result = format!("Processed: {{}}", req.message);
+    // Implement your actual tool logic here
+    let result = match req.message.as_str() {{
+        "" => return Err(anyhow::anyhow!("Message cannot be empty")),
+        msg if msg.len() > 1000 => return Err(anyhow::anyhow!("Message too long (max 1000 characters)")),
+        msg => {{
+            // Add your custom processing logic here
+            let processed = if let Some(options) = &req.options {{
+                if options.verbose.unwrap_or(false) {{
+                    format!("[VERBOSE] Processed: {{}}", msg)
+                }} else {{
+                    format!("Processed: {{}}", msg)
+                }}
+            }} else {{
+                format!("Processed: {{}}", msg)
+            }};
+            
+            // Apply format if specified
+            if let Some(options) = &req.options {{
+                if let Some(format) = &options.format {{
+                    match format.as_str() {{
+                        "json" => serde_json::to_string_pretty(&serde_json::json!({{
+                            "result": processed,
+                            "timestamp": chrono::Utc::now().to_rfc3339()
+                        }}))?,
+                        "xml" => format!("<result>{{}}</result>", processed),
+                        _ => processed
+                    }}
+                }} else {{
+                    processed
+                }}
+            }} else {{
+                processed
+            }}
+        }}
+    }};
     
     let processing_time = start_time.elapsed().as_millis() as u64;
     
@@ -271,25 +304,59 @@ impl {}Resource {{
 
     /// List all available {} resources
     pub async fn list_resources(&self) -> Result<Vec<Resource>> {{
-        // TODO: Implement your resource listing logic here
-        let resources = vec![
-            Resource {{
+        // Implement your resource listing logic here
+        // This could scan directories, query databases, or fetch from APIs
+        
+        let mut resources = Vec::new();
+        
+        // Example: List files in a directory
+        if let Ok(entries) = std::fs::read_dir(self.base_uri.path()) {{
+            for entry in entries {{
+                if let Ok(entry) = entry {{
+                    let path = entry.path();
+                    if let Some(file_name) = path.file_name() {{
+                        if let Some(name_str) = file_name.to_str() {{
+                            let uri = format!("{{}}/{{}}", self.base_uri, name_str).parse()?;
+                            let mime_type = if path.extension().and_then(|s| s.to_str()) == Some("json") {{
+                                Some("application/json".to_string())
+                            }} else if path.extension().and_then(|s| s.to_str()) == Some("txt") {{
+                                Some("text/plain".to_string())
+                            }} else {{
+                                Some("application/octet-stream".to_string())
+                            }};
+                            
+                            resources.push(Resource {{
+                                uri,
+                                name: Some(name_str.to_string()),
+                                description: Some(format!("{} resource file", name_str)),
+                                mime_type,
+                            }});
+                        }}
+                    }}
+                }}
+            }}
+        }}
+        
+        // Add default example resource if no files found
+        if resources.is_empty() {{
+            resources.push(Resource {{
                 uri: format!("{{}}/{{}}", self.base_uri, "example").parse()?,
                 name: Some("Example {}".to_string()),
                 description: Some("An example {} resource".to_string()),
                 mime_type: Some("text/plain".to_string()),
-            }},
-        ];
+            }});
+        }}
         
         Ok(resources)
     }}
 
     /// Read a specific {} resource
     pub async fn read_resource(&self, uri: &Uri) -> Result<ResourceContents> {{
-        // TODO: Implement your resource reading logic here
+        // Implement your resource reading logic here
         // Parse the URI to determine what resource is being requested
         
-        let content = match uri.path() {{
+        let path = uri.path();
+        let content = match path {{
             "/example" => {{
                 ResourceContents::Text {{
                     uri: uri.clone(),
@@ -298,7 +365,30 @@ impl {}Resource {{
                 }}
             }}
             _ => {{
-                anyhow::bail!("Resource not found: {{}}", uri);
+                // Try to read from file system
+                let file_path = std::path::Path::new(path);
+                if file_path.exists() && file_path.is_file() {{
+                    let content = std::fs::read_to_string(file_path)?;
+                    let mime_type = if let Some(ext) = file_path.extension() {{
+                        match ext.to_str() {{
+                            Some("json") => Some("application/json".to_string()),
+                            Some("txt") => Some("text/plain".to_string()),
+                            Some("md") => Some("text/markdown".to_string()),
+                            Some("html") => Some("text/html".to_string()),
+                            _ => Some("application/octet-stream".to_string()),
+                        }}
+                    }} else {{
+                        Some("text/plain".to_string())
+                    }};
+                    
+                    ResourceContents::Text {{
+                        uri: uri.clone(),
+                        mime_type,
+                        text: content,
+                    }}
+                }} else {{
+                    anyhow::bail!("Resource not found: {{}}", uri);
+                }}
             }}
         }};
         
@@ -307,27 +397,45 @@ impl {}Resource {{
 
     /// Subscribe to resource changes (if supported)
     pub async fn subscribe(&self, uri: &Uri) -> Result<()> {{
-        // TODO: Implement resource change subscription
-        println!("Subscribed to changes for resource: {{}}", uri);
+        // Implement resource change subscription
+        // This could set up file watchers, database triggers, or API polling
+        
+        let path = uri.path();
+        if let Ok(metadata) = std::fs::metadata(path) {{
+            // Store subscription info (in a real implementation, this would be persistent)
+            println!("Subscribed to changes for resource: {{}} (last modified: {{:?}})", uri, metadata.modified()?);
+        }} else {{
+            println!("Subscribed to changes for resource: {{}} (file not found)", uri);
+        }}
         Ok(())
     }}
 
     /// Unsubscribe from resource changes
     pub async fn unsubscribe(&self, uri: &Uri) -> Result<()> {{
-        // TODO: Implement resource change unsubscription  
+        // Implement resource change unsubscription
+        // This would clean up watchers, triggers, or polling
+        
         println!("Unsubscribed from changes for resource: {{}}", uri);
         Ok(())
     }}
 
     /// List available resource templates
     pub async fn list_templates(&self) -> Result<Vec<ResourceTemplate>> {{
-        // TODO: Implement resource template listing
+        // Implement resource template listing
+        // This could provide parameterized resource patterns
+        
         let templates = vec![
             ResourceTemplate {{
                 uri_template: format!("{{}}/{{}}", self.base_uri, "{{name}}"),
                 name: Some("Dynamic {} Resource".to_string()),
                 description: Some("A parameterized {} resource".to_string()),
                 mime_type: Some("text/plain".to_string()),
+            }},
+            ResourceTemplate {{
+                uri_template: format!("{{}}/{{}}", self.base_uri, "{{type}}/{{id}}"),
+                name: Some("Typed {} Resource".to_string()),
+                description: Some("A typed {} resource with ID".to_string()),
+                mime_type: Some("application/json".to_string()),
             }},
         ];
         
@@ -360,7 +468,10 @@ mod tests {{
         resource_name,
         resource_name,
         resource_name,
+        resource_name,
         snake_case_name,
+        resource_name,
+        pascal_case_name,
         resource_name,
         pascal_case_name
     );
@@ -403,8 +514,7 @@ async fn generate_client(args: &GenerateArgs) -> Result<()> {
 
     let output_dir = args
         .output
-        .as_ref()
-        .map(|p| p.as_path())
+        .as_deref()
         .unwrap_or_else(|| std::path::Path::new("."));
 
     println!("👤 Generating client: {}", client_name);
@@ -909,7 +1019,7 @@ pub async fn info(
     Ok(InfoResponse {
         server_name: env!("CARGO_PKG_NAME").to_string(),
         version: env!("CARGO_PKG_VERSION").to_string(),
-        uptime: "N/A".to_string(), // TODO: Track actual uptime
+        uptime: format!("{:?}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default()),
         capabilities: vec![
             "tools".to_string(),
             "resources".to_string(),

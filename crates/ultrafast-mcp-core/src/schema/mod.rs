@@ -52,8 +52,9 @@
 //! ```rust
 //! use ultrafast_mcp_core::schema::{generate_schema_for, SchemaGeneration};
 //! use serde::{Deserialize, Serialize};
+//! use schemars::JsonSchema;
 //!
-//! #[derive(Serialize, Deserialize)]
+//! #[derive(Serialize, Deserialize, JsonSchema)]
 //! struct UserInput {
 //!     name: String,
 //!     age: u32,
@@ -70,15 +71,16 @@
 //! ```rust
 //! use ultrafast_mcp_core::schema::{generate_schema_for, validate_tool_input};
 //! use serde::{Deserialize, Serialize};
+//! use schemars::JsonSchema;
 //!
-//! #[derive(Serialize, Deserialize)]
+//! #[derive(Serialize, Deserialize, JsonSchema)]
 //! struct GreetToolInput {
 //!     name: String,
 //!     greeting: Option<String>,
 //!     formal: Option<bool>,
 //! }
 //!
-//! #[derive(Serialize, Deserialize)]
+//! #[derive(Serialize, Deserialize, JsonSchema)]
 //! struct GreetToolOutput {
 //!     message: String,
 //!     timestamp: String,
@@ -104,17 +106,18 @@
 //! ### Complex Schema Generation
 //!
 //! ```rust
-//! use ultrafast_mcp_core::schema::{generate_schema_for, object_schema, array_schema};
+//! use ultrafast_mcp_core::schema::{generate_schema_for, object_schema, array_schema, basic_schema, enum_schema};
 //! use serde::{Deserialize, Serialize};
+//! use schemars::JsonSchema;
 //!
-//! #[derive(Serialize, Deserialize)]
+//! #[derive(Serialize, Deserialize, JsonSchema)]
 //! enum UserRole {
 //!     Admin,
 //!     User,
 //!     Guest,
 //! }
 //!
-//! #[derive(Serialize, Deserialize)]
+//! #[derive(Serialize, Deserialize, JsonSchema)]
 //! struct User {
 //!     id: u64,
 //!     name: String,
@@ -127,28 +130,36 @@
 //! let schema = generate_schema_for::<User>();
 //!
 //! // Or build schema manually
-//! let manual_schema = object_schema()
-//!     .property("id", basic_schema("integer"))
-//!     .property("name", basic_schema("string"))
-//!     .property("role", enum_schema(&["Admin", "User", "Guest"]))
-//!     .property("permissions", array_schema(basic_schema("string")))
-//!     .required(&["id", "name", "role"])
-//!     .build();
+//! let manual_schema = object_schema(vec![
+//!     ("id", basic_schema("integer"), true),
+//!     ("name", basic_schema("string"), true),
+//!     ("role", enum_schema(vec!["Admin", "User", "Guest"]), true),
+//!     ("permissions", array_schema(basic_schema("string")), false),
+//! ]);
 //! ```
 //!
 //! ### Custom Validation
 //!
 //! ```rust
-//! use ultrafast_mcp_core::schema::{validate_against_schema, SchemaGeneration};
+//! use ultrafast_mcp_core::schema::{validate_against_schema, object_schema, basic_schema};
 //! use serde_json::json;
 //!
 //! // Create a custom schema with validation rules
-//! let schema = object_schema()
-//!     .property("age", basic_schema("integer").minimum(0).maximum(150))
-//!     .property("email", basic_schema("string").format("email"))
-//!     .property("password", basic_schema("string").min_length(8))
-//!     .required(&["age", "email", "password"])
-//!     .build();
+//! let schema = object_schema(vec![
+//!     ("age", serde_json::json!({
+//!         "type": "integer",
+//!         "minimum": 0,
+//!         "maximum": 150
+//!     }), true),
+//!     ("email", serde_json::json!({
+//!         "type": "string",
+//!         "format": "email"
+//!     }), true),
+//!     ("password", serde_json::json!({
+//!         "type": "string",
+//!         "minLength": 8
+//!     }), true),
+//! ]);
 //!
 //! // Validate data
 //! let data = json!({
@@ -159,11 +170,7 @@
 //!
 //! match validate_against_schema(&schema, &data) {
 //!     Ok(()) => println!("Data is valid"),
-//!     Err(errors) => {
-//!         for error in errors {
-//!             println!("Validation error: {}", error);
-//!         }
-//!     }
+//!     Err(errors) => println!("Validation errors: {:?}", errors),
 //! }
 //! ```
 //!
@@ -232,6 +239,12 @@
 //! - Leverage compile-time type checking
 //! - Validate at runtime for external data
 //! - Maintain consistency between types and schemas
+
+/// Trait for types that can provide a JSON schema and schema name
+pub trait McpSchema {
+    fn schema() -> serde_json::Value;
+    fn schema_name() -> String;
+}
 
 pub mod generation;
 pub mod validation;

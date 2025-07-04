@@ -146,14 +146,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     // Create server with error handling
-    let server = match UltraFastServer::new(server_info, capabilities)
-        .with_tool_handler(Arc::new(EchoToolHandler))
-    {
-        server => {
-            info!("✅ Server created successfully");
-            server
-        }
-    };
+    let server = UltraFastServer::new(server_info, capabilities)
+        .with_tool_handler(Arc::new(EchoToolHandler));
+    info!("✅ Server created successfully");
 
     info!("Server created, starting Streamable HTTP transport on 127.0.0.1:8080");
 

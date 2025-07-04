@@ -555,7 +555,7 @@ fn output_json_format(result: &ValidationResult) -> Result<()> {
     Ok(())
 }
 
-async fn apply_fixes(result: &ValidationResult, _path: &Path, args: &ValidateArgs) -> Result<()> {
+async fn apply_fixes(result: &ValidationResult, path: &Path, args: &ValidateArgs) -> Result<()> {
     if args.fix {
         println!("\n🔧 Applying automatic fixes...");
 
@@ -569,10 +569,120 @@ async fn apply_fixes(result: &ValidationResult, _path: &Path, args: &ValidateArg
             println!("   No automatic fixes available");
         } else {
             println!("   {} automatic fix(es) available", fixable_issues.len());
-            // TODO: Implement specific fixes based on issue types
-            println!("   ⚠️  Automatic fixing not yet implemented");
+
+            for issue in fixable_issues {
+                if let Some(file) = &issue.file {
+                    match apply_fix_for_issue(issue, file, path).await {
+                        Ok(true) => println!("   ✅ Fixed: {}", issue.message),
+                        Ok(false) => println!("   ⚠️  Could not auto-fix: {}", issue.message),
+                        Err(e) => println!("   ❌ Error fixing {}: {}", issue.message, e),
+                    }
+                } else {
+                    println!("   ⚠️  No file specified for: {}", issue.message);
+                }
+            }
         }
     }
 
     Ok(())
+}
+
+async fn apply_fix_for_issue(
+    issue: &ValidationIssue,
+    file: &Path,
+    _project_path: &Path,
+) -> Result<bool> {
+    match issue.message.as_str() {
+        msg if msg.contains("Invalid TOML") => {
+            // Try to fix common TOML issues
+            let content = fs::read_to_string(file)?;
+            let fixed_content = fix_toml_syntax(&content)?;
+            if fixed_content != content {
+                fs::write(file, fixed_content)?;
+                return Ok(true);
+            }
+        }
+        msg if msg.contains("Invalid JSON") => {
+            // Try to fix common JSON issues
+            let content = fs::read_to_string(file)?;
+            let fixed_content = fix_json_syntax(&content)?;
+            if fixed_content != content {
+                fs::write(file, fixed_content)?;
+                return Ok(true);
+            }
+        }
+        msg if msg.contains("Wildcard version") => {
+            // Try to fix wildcard versions in Cargo.toml
+            if file.file_name().is_some_and(|name| name == "Cargo.toml") {
+                let content = fs::read_to_string(file)?;
+                let fixed_content = fix_wildcard_versions(&content)?;
+                if fixed_content != content {
+                    fs::write(file, fixed_content)?;
+                    return Ok(true);
+                }
+            }
+        }
+        _ => {}
+    }
+
+    Ok(false)
+}
+
+fn fix_toml_syntax(content: &str) -> Result<String> {
+    // Common TOML fixes
+    let mut fixed = content.to_string();
+
+    // Fix missing quotes around table names
+    let table_pattern = regex::Regex::new(r"\[([a-zA-Z0-9_-]+)\]")?;
+    fixed = table_pattern.replace_all(&fixed, "[$1]").to_string();
+
+    // Fix missing quotes around string values
+    let string_pattern = regex::Regex::new(r"(\w+)\s*=\s*([a-zA-Z][a-zA-Z0-9_-]*)\s*$")?;
+    fixed = string_pattern
+        .replace_all(&fixed, "$1 = \"$2\"")
+        .to_string();
+
+    // Try to parse to validate
+    fixed.parse::<toml::Value>()?;
+
+    Ok(fixed)
+}
+
+fn fix_json_syntax(content: &str) -> Result<String> {
+    // Common JSON fixes
+    let mut fixed = content.to_string();
+
+    // Fix trailing commas
+    let trailing_comma_pattern = regex::Regex::new(r",(\s*[}\]])")?;
+    fixed = trailing_comma_pattern.replace_all(&fixed, "$1").to_string();
+
+    // Fix missing quotes around property names
+    let property_pattern = regex::Regex::new(r"(\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:")?;
+    fixed = property_pattern
+        .replace_all(&fixed, "$1\"$2\":")
+        .to_string();
+
+    // Try to parse to validate
+    serde_json::from_str::<serde_json::Value>(&fixed)?;
+
+    Ok(fixed)
+}
+
+fn fix_wildcard_versions(content: &str) -> Result<String> {
+    // Fix wildcard versions in dependencies
+    let mut fixed = content.to_string();
+
+    // Replace "*" with "^0.1.0" for common dependencies
+    let wildcard_pattern = regex::Regex::new(r#"version\s*=\s*"\*""#)?;
+    fixed = wildcard_pattern
+        .replace_all(&fixed, "version = \"^0.1.0\"")
+        .to_string();
+
+    // Replace "0.1" with "0.1.0"
+    let short_version_pattern = regex::Regex::new(r#"version\s*=\s*"(\d+\.\d+)""#)?;
+    fixed = short_version_pattern
+        .replace_all(&fixed, "version = \"$1.0\"")
+        .to_string();
+
+    Ok(fixed)
 }
