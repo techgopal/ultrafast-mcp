@@ -9,8 +9,8 @@ documentation.workspace = true
 authors.workspace = true
 keywords.workspace = true
 categories.workspace = true
-readme.workspace = true
-description = "Core MCP protocol implementation for ULTRAFAST_MCP"
+readme = "README.md"
+description = "Core protocol implementation for UltraFast MCP"
 
 # docs.rs configuration
 [package.metadata.docs.rs]

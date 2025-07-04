@@ -9,7 +9,7 @@ documentation.workspace = true
 authors.workspace = true
 keywords.workspace = true
 categories.workspace = true
-readme.workspace = true
+readme = "README.md"
 description = "Authentication and authorization for ULTRAFAST MCP"
 
 # docs.rs configuration
@@ -20,7 +20,7 @@ targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
 # Internal dependencies
-ultrafast-mcp-core = { path = "../ultrafast-mcp-core" }
+ultrafast-mcp-core = { path = "../ultrafast-mcp-core", version = "202506018.1.0-rc.1.2" }
 
 # Core runtime dependencies
 tokio = { workspace = true }

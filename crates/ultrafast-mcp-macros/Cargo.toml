@@ -9,8 +9,8 @@ documentation.workspace = true
 authors.workspace = true
 keywords.workspace = true
 categories.workspace = true
-readme.workspace = true
-description = "Procedural macros for the ULTRAFAST MCP implementation"
+readme = "README.md"
+description = "Procedural macros for the ULTRAFAST MCP implementation."
 
 # docs.rs configuration
 [package.metadata.docs.rs]

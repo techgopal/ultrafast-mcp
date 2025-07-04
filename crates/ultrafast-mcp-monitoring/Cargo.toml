@@ -9,8 +9,8 @@ documentation.workspace = true
 authors.workspace = true
 keywords.workspace = true
 categories.workspace = true
-readme.workspace = true
-description = "Monitoring and observability for ULTRAFAST MCP with OpenTelemetry support"
+readme = "README.md"
+description = "Monitoring and observability for ULTRAFAST MCP with OpenTelemetry support."
 
 # docs.rs configuration
 [package.metadata.docs.rs]

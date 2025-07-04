@@ -9,7 +9,7 @@ documentation.workspace = true
 authors.workspace = true
 keywords.workspace = true
 categories.workspace = true
-readme.workspace = true
+readme = "README.md"
 description = "Transport layer implementation for UltraFast MCP"
 
 # docs.rs configuration
@@ -20,8 +20,8 @@ targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
 # Internal dependencies
-ultrafast-mcp-core = { path = "../ultrafast-mcp-core" }
-ultrafast-mcp-auth = { path = "../ultrafast-mcp-auth", optional = true }
+ultrafast-mcp-core = { path = "../ultrafast-mcp-core", version = "202506018.1.0-rc.1.2" }
+ultrafast-mcp-auth = { path = "../ultrafast-mcp-auth", version = "202506018.1.0-rc.1.2", optional = true }
 
 # Core runtime dependencies
 tokio = { workspace = true }
