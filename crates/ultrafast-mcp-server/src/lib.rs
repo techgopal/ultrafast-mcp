@@ -345,10 +345,10 @@ pub mod context;
 pub mod handlers;
 pub mod server;
 
-/// All re-exports for convenience
-pub use server::{UltraFastServer, ServerState, ToolRegistrationError, ServerLoggingConfig};
+pub use context::{Context, ContextLogger, LoggerConfig};
 pub use handlers::*;
-pub use context::{Context, LoggerConfig, ContextLogger};
+/// All re-exports for convenience
+pub use server::{ServerLoggingConfig, ServerState, ToolRegistrationError, UltraFastServer};
 
 pub use ultrafast_mcp_core::{
     error::{MCPError, MCPResult},

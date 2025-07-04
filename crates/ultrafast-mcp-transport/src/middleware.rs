@@ -1,9 +1,11 @@
 use crate::{Result, Transport, TransportError};
 use async_trait::async_trait;
+use serde_json::Value;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tracing::{debug, info, warn};
-use ultrafast_mcp_core::protocol::{JsonRpcMessage, JsonRpcRequest, JsonRpcResponse, JsonRpcError, RequestId};
-use serde_json::Value;
+use ultrafast_mcp_core::protocol::{
+    JsonRpcMessage, RequestId,
+};
 
 /// Middleware trait for HTTP transport
 #[async_trait]
@@ -383,14 +385,18 @@ impl ValidationMiddleware {
     fn sanitize_value(&self, value: &mut Value, depth: usize) -> Result<()> {
         if depth > self.max_params_depth {
             return Err(TransportError::ProtocolError {
-                message: format!("Parameter depth exceeds maximum of {}", self.max_params_depth),
+                message: format!(
+                    "Parameter depth exceeds maximum of {}",
+                    self.max_params_depth
+                ),
             });
         }
 
         match value {
             Value::String(s) => {
                 // Sanitize strings
-                if s.len() > 1024 * 1024 { // 1MB max string length
+                if s.len() > 1024 * 1024 {
+                    // 1MB max string length
                     return Err(TransportError::ProtocolError {
                         message: "String parameter too long".to_string(),
                     });
@@ -402,7 +408,8 @@ impl ValidationMiddleware {
             }
             Value::Array(arr) => {
                 // Sanitize arrays
-                if arr.len() > 10000 { // Max 10k array elements
+                if arr.len() > 10000 {
+                    // Max 10k array elements
                     return Err(TransportError::ProtocolError {
                         message: "Array parameter too large".to_string(),
                     });
@@ -413,7 +420,8 @@ impl ValidationMiddleware {
             }
             Value::Object(obj) => {
                 // Sanitize objects
-                if obj.len() > 1000 { // Max 1k object keys
+                if obj.len() > 1000 {
+                    // Max 1k object keys
                     return Err(TransportError::ProtocolError {
                         message: "Object parameter too large".to_string(),
                     });
@@ -452,8 +460,12 @@ impl ValidationMiddleware {
             });
         }
 
-        // Check for path traversal attempts
-        if uri.contains("..") || uri.contains("//") {
+        // Check for path traversal attempts (only reject actual traversal patterns)
+        if uri.contains("/../")
+            || uri.contains("\\..\\")
+            || uri.ends_with("/..")
+            || uri.ends_with("\\..")
+        {
             return Err(TransportError::ProtocolError {
                 message: "URI contains path traversal attempt".to_string(),
             });
@@ -472,7 +484,10 @@ impl ValidationMiddleware {
                             if let Some(version_str) = version.as_str() {
                                 if version_str != "2025-06-18" && version_str != "2024-11-05" {
                                     return Err(TransportError::ProtocolError {
-                                        message: format!("Unsupported protocol version: {}", version_str),
+                                        message: format!(
+                                            "Unsupported protocol version: {}",
+                                            version_str
+                                        ),
                                     });
                                 }
                             }
@@ -488,7 +503,8 @@ impl ValidationMiddleware {
                             if let Some(name_str) = tool_name.as_str() {
                                 if name_str.starts_with('_') {
                                     return Err(TransportError::ProtocolError {
-                                        message: "Tool name cannot start with underscore".to_string(),
+                                        message: "Tool name cannot start with underscore"
+                                            .to_string(),
                                     });
                                 }
                                 if name_str.len() > 100 {
@@ -519,7 +535,16 @@ impl ValidationMiddleware {
                         // Validate log level
                         if let Some(level) = obj.get("level") {
                             if let Some(level_str) = level.as_str() {
-                                let valid_levels = ["emergency", "alert", "critical", "error", "warning", "notice", "info", "debug"];
+                                let valid_levels = [
+                                    "emergency",
+                                    "alert",
+                                    "critical",
+                                    "error",
+                                    "warning",
+                                    "notice",
+                                    "info",
+                                    "debug",
+                                ];
                                 if !valid_levels.contains(&level_str) {
                                     return Err(TransportError::ProtocolError {
                                         message: format!("Invalid log level: {}", level_str),
@@ -617,7 +642,10 @@ impl TransportMiddleware for ValidationMiddleware {
         let message_size = serde_json::to_string(message).unwrap_or_default().len();
         if message_size > self.max_message_size {
             return Err(TransportError::ProtocolError {
-                message: format!("Message size {} exceeds maximum of {}", message_size, self.max_message_size),
+                message: format!(
+                    "Message size {} exceeds maximum of {}",
+                    message_size, self.max_message_size
+                ),
             });
         }
 

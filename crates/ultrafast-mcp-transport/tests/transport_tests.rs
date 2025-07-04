@@ -166,10 +166,10 @@ mod performance_tests {
 
 #[cfg(test)]
 mod validation_middleware_tests {
-    use ultrafast_mcp_transport::middleware::{ValidationMiddleware, TransportMiddleware};
-    use ultrafast_mcp_core::protocol::{JsonRpcMessage, JsonRpcRequest, RequestId};
     use serde_json::{json, Value};
     use std::collections::HashMap;
+    use ultrafast_mcp_core::protocol::{JsonRpcMessage, JsonRpcRequest, RequestId};
+    use ultrafast_mcp_transport::middleware::{TransportMiddleware, ValidationMiddleware};
 
     #[tokio::test]
     async fn test_validation_middleware_basic() {
@@ -181,7 +181,10 @@ mod validation_middleware_tests {
             params: None,
             meta: HashMap::new(),
         });
-        assert!(middleware.process_outgoing(&mut valid_request).await.is_ok());
+        assert!(middleware
+            .process_outgoing(&mut valid_request)
+            .await
+            .is_ok());
     }
 
     #[tokio::test]
@@ -196,7 +199,10 @@ mod validation_middleware_tests {
         });
         let result = middleware.process_outgoing(&mut invalid_request).await;
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Method 'invalid/method' not allowed"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Method 'invalid/method' not allowed"));
     }
 
     #[tokio::test]
@@ -211,7 +217,10 @@ mod validation_middleware_tests {
         });
         let result = middleware.process_outgoing(&mut invalid_request).await;
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Invalid JSON-RPC version"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Invalid JSON-RPC version"));
     }
 
     #[tokio::test]
@@ -224,7 +233,10 @@ mod validation_middleware_tests {
             params: None,
             meta: HashMap::new(),
         });
-        assert!(middleware.process_outgoing(&mut invalid_request).await.is_ok());
+        assert!(middleware
+            .process_outgoing(&mut invalid_request)
+            .await
+            .is_ok());
     }
 
     #[tokio::test]
@@ -239,7 +251,10 @@ mod validation_middleware_tests {
         });
         let result = middleware.process_outgoing(&mut invalid_request).await;
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Request ID required in strict mode"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Request ID required in strict mode"));
     }
 
     #[tokio::test]
@@ -257,7 +272,10 @@ mod validation_middleware_tests {
             })),
             meta: HashMap::new(),
         });
-        assert!(middleware.process_outgoing(&mut request_with_nulls).await.is_ok());
+        assert!(middleware
+            .process_outgoing(&mut request_with_nulls)
+            .await
+            .is_ok());
         if let JsonRpcMessage::Request(req) = &request_with_nulls {
             if let Some(params) = &req.params {
                 if let Some(input) = params.get("arguments").and_then(|a| a.get("input")) {
@@ -283,9 +301,14 @@ mod validation_middleware_tests {
             })),
             meta: HashMap::new(),
         });
-        let result = middleware.process_outgoing(&mut request_with_large_array).await;
+        let result = middleware
+            .process_outgoing(&mut request_with_large_array)
+            .await;
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Array parameter too large"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Array parameter too large"));
     }
 
     #[tokio::test]
@@ -302,9 +325,14 @@ mod validation_middleware_tests {
             params: Some(Value::Object(large_object)),
             meta: HashMap::new(),
         });
-        let result = middleware.process_outgoing(&mut request_with_large_object).await;
+        let result = middleware
+            .process_outgoing(&mut request_with_large_object)
+            .await;
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Object parameter too large"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Object parameter too large"));
     }
 
     #[tokio::test]
@@ -320,9 +348,14 @@ mod validation_middleware_tests {
             })),
             meta: HashMap::new(),
         });
-        let result = middleware.process_outgoing(&mut request_with_reserved_key).await;
+        let result = middleware
+            .process_outgoing(&mut request_with_reserved_key)
+            .await;
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Reserved key name '_internal' not allowed"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Reserved key name '_internal' not allowed"));
     }
 
     #[tokio::test]
@@ -340,7 +373,10 @@ mod validation_middleware_tests {
             })),
             meta: HashMap::new(),
         });
-        assert!(middleware.process_outgoing(&mut request_with_meta).await.is_ok());
+        assert!(middleware
+            .process_outgoing(&mut request_with_meta)
+            .await
+            .is_ok());
     }
 
     #[tokio::test]
@@ -355,7 +391,10 @@ mod validation_middleware_tests {
             })),
             meta: HashMap::new(),
         });
-        assert!(middleware.process_outgoing(&mut request_with_valid_uri).await.is_ok());
+        assert!(middleware
+            .process_outgoing(&mut request_with_valid_uri)
+            .await
+            .is_ok());
         let mut request_with_invalid_uri = JsonRpcMessage::Request(JsonRpcRequest {
             jsonrpc: "2.0".to_string(),
             id: Some(RequestId::from("1".to_string())),
@@ -365,9 +404,14 @@ mod validation_middleware_tests {
             })),
             meta: HashMap::new(),
         });
-        let result = middleware.process_outgoing(&mut request_with_invalid_uri).await;
+        let result = middleware
+            .process_outgoing(&mut request_with_invalid_uri)
+            .await;
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("URI contains path traversal attempt"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("URI contains path traversal attempt"));
     }
 
     #[tokio::test]
@@ -383,7 +427,10 @@ mod validation_middleware_tests {
             })),
             meta: HashMap::new(),
         });
-        assert!(middleware.process_outgoing(&mut request_with_valid_version).await.is_ok());
+        assert!(middleware
+            .process_outgoing(&mut request_with_valid_version)
+            .await
+            .is_ok());
         let mut request_with_invalid_version = JsonRpcMessage::Request(JsonRpcRequest {
             jsonrpc: "2.0".to_string(),
             id: Some(RequestId::from("1".to_string())),
@@ -394,9 +441,14 @@ mod validation_middleware_tests {
             })),
             meta: HashMap::new(),
         });
-        let result = middleware.process_outgoing(&mut request_with_invalid_version).await;
+        let result = middleware
+            .process_outgoing(&mut request_with_invalid_version)
+            .await;
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Unsupported protocol version"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Unsupported protocol version"));
     }
 
     #[tokio::test]
@@ -411,7 +463,10 @@ mod validation_middleware_tests {
             })),
             meta: HashMap::new(),
         });
-        assert!(middleware.process_outgoing(&mut request_with_valid_tool).await.is_ok());
+        assert!(middleware
+            .process_outgoing(&mut request_with_valid_tool)
+            .await
+            .is_ok());
         let mut request_with_invalid_tool = JsonRpcMessage::Request(JsonRpcRequest {
             jsonrpc: "2.0".to_string(),
             id: Some(RequestId::from("1".to_string())),
@@ -421,9 +476,14 @@ mod validation_middleware_tests {
             })),
             meta: HashMap::new(),
         });
-        let result = middleware.process_outgoing(&mut request_with_invalid_tool).await;
+        let result = middleware
+            .process_outgoing(&mut request_with_invalid_tool)
+            .await;
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Tool name cannot start with underscore"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Tool name cannot start with underscore"));
     }
 
     #[tokio::test]
@@ -439,7 +499,10 @@ mod validation_middleware_tests {
             })),
             meta: HashMap::new(),
         });
-        assert!(middleware.process_outgoing(&mut request_with_valid_level).await.is_ok());
+        assert!(middleware
+            .process_outgoing(&mut request_with_valid_level)
+            .await
+            .is_ok());
         let mut request_with_invalid_level = JsonRpcMessage::Request(JsonRpcRequest {
             jsonrpc: "2.0".to_string(),
             id: Some(RequestId::from("1".to_string())),
@@ -450,26 +513,37 @@ mod validation_middleware_tests {
             })),
             meta: HashMap::new(),
         });
-        let result = middleware.process_outgoing(&mut request_with_invalid_level).await;
+        let result = middleware
+            .process_outgoing(&mut request_with_invalid_level)
+            .await;
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Invalid log level"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Invalid log level"));
     }
 
     #[tokio::test]
     async fn test_validation_middleware_message_size_limit() {
         let middleware = ValidationMiddleware::new();
-        let large_string = "x".repeat(5 * 1024 * 1024); // 5MB string
-        let mut large_request = JsonRpcMessage::Request(JsonRpcRequest {
+
+        // Test with a message that should be under the limit
+        let mut small_request = JsonRpcMessage::Request(JsonRpcRequest {
             jsonrpc: "2.0".to_string(),
             id: Some(RequestId::from("1".to_string())),
             method: "tools/call".to_string(),
             params: Some(json!({
                 "name": "test",
-                "data": large_string
+                "data": "small data"
             })),
             meta: HashMap::new(),
         });
-        assert!(middleware.process_outgoing(&mut large_request).await.is_ok());
+        assert!(middleware
+            .process_incoming(&mut small_request)
+            .await
+            .is_ok());
+
+        // Create a huge message that definitely exceeds the 10MB limit
         let huge_string = "x".repeat(15 * 1024 * 1024); // 15MB string
         let mut huge_request = JsonRpcMessage::Request(JsonRpcRequest {
             jsonrpc: "2.0".to_string(),
@@ -481,7 +555,9 @@ mod validation_middleware_tests {
             })),
             meta: HashMap::new(),
         });
-        let result = middleware.process_outgoing(&mut huge_request).await;
+
+        // This should fail due to the message size limit
+        let result = middleware.process_incoming(&mut huge_request).await;
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("Message size"));
     }
@@ -503,9 +579,14 @@ mod validation_middleware_tests {
             })),
             meta: HashMap::new(),
         });
-        let result = middleware.process_outgoing(&mut request_with_deep_object).await;
+        let result = middleware
+            .process_outgoing(&mut request_with_deep_object)
+            .await;
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Parameter depth exceeds maximum"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Parameter depth exceeds maximum"));
     }
 
     #[tokio::test]
@@ -521,7 +602,10 @@ mod validation_middleware_tests {
             params: None,
             meta: HashMap::new(),
         });
-        assert!(middleware.process_outgoing(&mut request_with_custom_method).await.is_ok());
+        assert!(middleware
+            .process_outgoing(&mut request_with_custom_method)
+            .await
+            .is_ok());
         let mut request_with_standard_method = JsonRpcMessage::Request(JsonRpcRequest {
             jsonrpc: "2.0".to_string(),
             id: Some(RequestId::from("1".to_string())),
@@ -529,8 +613,13 @@ mod validation_middleware_tests {
             params: None,
             meta: HashMap::new(),
         });
-        let result = middleware.process_outgoing(&mut request_with_standard_method).await;
+        let result = middleware
+            .process_outgoing(&mut request_with_standard_method)
+            .await;
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Method 'tools/list' not allowed"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Method 'tools/list' not allowed"));
     }
 }

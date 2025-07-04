@@ -181,4 +181,4 @@ pub use jsonrpc::*;
 pub use lifecycle::*;
 pub use messages::*;
 pub use metadata::*;
-pub use version::{ProtocolVersion, VersionNegotiator as NewVersionNegotiator, constants};
+pub use version::{constants, ProtocolVersion, VersionNegotiator as NewVersionNegotiator};

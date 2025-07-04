@@ -110,7 +110,10 @@ mod tests {
             session_id: None,
             step: None,
             prompt: "Enter your name".to_string(),
-            input_type: ElicitationInputType::Text { placeholder: Some("Name".to_string()), sensitive: None },
+            input_type: ElicitationInputType::Text {
+                placeholder: Some("Name".to_string()),
+                sensitive: None,
+            },
             validation: None,
         };
         assert_eq!(req.prompt, "Enter your name");
@@ -142,7 +145,10 @@ mod tests {
             session_id: Some("sess-abc".to_string()),
             step: Some(2),
             prompt: "Enter your age".to_string(),
-            input_type: ElicitationInputType::Text { placeholder: Some("Age".to_string()), sensitive: None },
+            input_type: ElicitationInputType::Text {
+                placeholder: Some("Age".to_string()),
+                sensitive: None,
+            },
             validation: None,
         };
         let resp = ElicitationResponse {

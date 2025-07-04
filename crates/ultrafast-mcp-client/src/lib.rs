@@ -664,7 +664,8 @@ impl UltraFastClient {
         debug!("Initializing connection");
 
         let request = InitializeRequest {
-            protocol_version: ultrafast_mcp_core::protocol::version::constants::CURRENT_VERSION.to_string(),
+            protocol_version: ultrafast_mcp_core::protocol::version::constants::CURRENT_VERSION
+                .to_string(),
             capabilities: self.capabilities.clone(),
             client_info: self.info.clone(),
         };

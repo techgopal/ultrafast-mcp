@@ -26,8 +26,8 @@ use ultrafast_mcp_core::{
 use ultrafast_mcp_transport::http::server::{HttpTransportConfig, HttpTransportServer};
 use ultrafast_mcp_transport::{create_transport, Transport, TransportConfig};
 
-use crate::handlers::*;
 use crate::context::{Context, LoggerConfig};
+use crate::handlers::*;
 
 /// MCP Server state
 #[derive(Debug, Clone)]
@@ -162,16 +162,16 @@ impl UltraFastServer {
     /// Set the current log level
     pub async fn set_log_level(&self, level: LogLevel) -> MCPResult<()> {
         let mut logging_config = self.logging_config.write().await;
-        
+
         if !logging_config.allow_level_changes {
             return Err(MCPError::invalid_request(
-                "Log level changes are not allowed on this server".to_string()
+                "Log level changes are not allowed on this server".to_string(),
             ));
         }
-        
+
         logging_config.current_level = level.clone();
         logging_config.default_logger_config.min_level = level.clone();
-        
+
         info!("Server log level changed to: {:?}", level);
         Ok(())
     }
@@ -185,23 +185,27 @@ impl UltraFastServer {
     pub async fn create_context(&self) -> Context {
         let logging_config = self.logging_config.read().await;
         let logger_config = logging_config.default_logger_config.clone();
-        
+
         Context::new().with_logger_config(logger_config)
     }
 
     /// Create a context with custom request and session IDs
-    pub async fn create_context_with_ids(&self, request_id: String, session_id: Option<String>) -> Context {
+    pub async fn create_context_with_ids(
+        &self,
+        request_id: String,
+        session_id: Option<String>,
+    ) -> Context {
         let logging_config = self.logging_config.read().await;
         let logger_config = logging_config.default_logger_config.clone();
-        
+
         let mut context = Context::new()
             .with_request_id(request_id)
             .with_logger_config(logger_config);
-            
+
         if let Some(session_id) = session_id {
             context = context.with_session_id(session_id);
         }
-        
+
         context
     }
 
@@ -223,12 +227,18 @@ impl UltraFastServer {
 
         // Validate tool schema
         if let Err(e) = validate_tool_schema(&tool.input_schema) {
-            return Err(ToolRegistrationError::InvalidSchema(format!("Input schema: {}", e)));
+            return Err(ToolRegistrationError::InvalidSchema(format!(
+                "Input schema: {}",
+                e
+            )));
         }
 
         if let Some(output_schema) = &tool.output_schema {
             if let Err(e) = validate_tool_schema(output_schema) {
-                return Err(ToolRegistrationError::InvalidSchema(format!("Output schema: {}", e)));
+                return Err(ToolRegistrationError::InvalidSchema(format!(
+                    "Output schema: {}",
+                    e
+                )));
             }
         } else {
             return Err(ToolRegistrationError::MissingOutputSchema);
@@ -328,9 +338,8 @@ impl UltraFastServer {
         arguments: &serde_json::Value,
     ) -> Result<(), MCPError> {
         let tool = self.get_tool(tool_name).await;
-        let tool = tool.ok_or_else(|| {
-            MCPError::invalid_request(format!("Tool '{}' not found", tool_name))
-        })?;
+        let tool = tool
+            .ok_or_else(|| MCPError::invalid_request(format!("Tool '{}' not found", tool_name)))?;
 
         ultrafast_mcp_core::schema::validation::validate_tool_input(arguments, &tool.input_schema)
             .map_err(|e| {
@@ -353,9 +362,10 @@ impl UltraFastServer {
         self.validate_tool_call(tool_name, &arguments).await?;
 
         // Get the tool handler
-        let tool_handler = self.tool_handler.as_ref().ok_or_else(|| {
-            MCPError::internal_error("No tool handler configured".to_string())
-        })?;
+        let tool_handler = self
+            .tool_handler
+            .as_ref()
+            .ok_or_else(|| MCPError::internal_error("No tool handler configured".to_string()))?;
 
         // Create the tool call
         let tool_call = ultrafast_mcp_core::types::tools::ToolCall {
@@ -364,9 +374,10 @@ impl UltraFastServer {
         };
 
         // Execute the tool call
-        tool_handler.handle_tool_call(tool_call).await.map_err(|e| {
-            MCPError::internal_error(format!("Tool execution failed: {}", e))
-        })
+        tool_handler
+            .handle_tool_call(tool_call)
+            .await
+            .map_err(|e| MCPError::internal_error(format!("Tool execution failed: {}", e)))
     }
 
     /// Add a tool handler to the server
@@ -554,18 +565,20 @@ impl UltraFastServer {
                 };
                 // Expect { name: String, arguments: Object }
                 let tool_name = params.get("name").and_then(|v| v.as_str());
-                let arguments = params.get("arguments").cloned().unwrap_or(serde_json::json!({}));
+                let arguments = params
+                    .get("arguments")
+                    .cloned()
+                    .unwrap_or(serde_json::json!({}));
                 if let Some(tool_name) = tool_name {
                     match self.execute_tool_call(tool_name, arguments).await {
-                        Ok(result) => {
-                            JsonRpcResponse::success(serde_json::to_value(result).unwrap(), request.id)
-                        }
-                        Err(e) => {
-                            JsonRpcResponse::error(
-                                JsonRpcError::new(-32603, format!("Tool call failed: {}", e)),
-                                request.id,
-                            )
-                        }
+                        Ok(result) => JsonRpcResponse::success(
+                            serde_json::to_value(result).unwrap(),
+                            request.id,
+                        ),
+                        Err(e) => JsonRpcResponse::error(
+                            JsonRpcError::new(-32603, format!("Tool call failed: {}", e)),
+                            request.id,
+                        ),
                     }
                 } else {
                     JsonRpcResponse::error(
@@ -587,34 +600,29 @@ impl UltraFastServer {
                 };
 
                 match serde_json::from_value::<LogLevelSetRequest>(params.clone()) {
-                    Ok(set_request) => {
-                        match self.set_log_level(set_request.level).await {
-                            Ok(()) => {
-                                let response = LogLevelSetResponse::new();
-                                JsonRpcResponse::success(serde_json::to_value(response).unwrap(), request.id)
-                            }
-                            Err(e) => {
-                                JsonRpcResponse::error(
-                                    JsonRpcError::new(-32603, format!("Failed to set log level: {}", e)),
-                                    request.id,
-                                )
-                            }
+                    Ok(set_request) => match self.set_log_level(set_request.level).await {
+                        Ok(()) => {
+                            let response = LogLevelSetResponse::new();
+                            JsonRpcResponse::success(
+                                serde_json::to_value(response).unwrap(),
+                                request.id,
+                            )
                         }
-                    }
-                    Err(e) => {
-                        JsonRpcResponse::error(
-                            JsonRpcError::new(-32602, format!("Invalid log level set request: {}", e)),
+                        Err(e) => JsonRpcResponse::error(
+                            JsonRpcError::new(-32603, format!("Failed to set log level: {}", e)),
                             request.id,
-                        )
-                    }
+                        ),
+                    },
+                    Err(e) => JsonRpcResponse::error(
+                        JsonRpcError::new(-32602, format!("Invalid log level set request: {}", e)),
+                        request.id,
+                    ),
                 }
             }
-            _ => {
-                JsonRpcResponse::error(
-                    JsonRpcError::new(-32601, "Method not implemented".to_string()),
-                    request.id,
-                )
-            }
+            _ => JsonRpcResponse::error(
+                JsonRpcError::new(-32601, "Method not implemented".to_string()),
+                request.id,
+            ),
         }
     }
 
@@ -671,8 +679,7 @@ mod tests {
             license: Some("MIT".to_string()),
         };
         let capabilities = ServerCapabilities::default();
-        UltraFastServer::new(info, capabilities)
-            .with_tool_handler(Arc::new(MockToolHandler))
+        UltraFastServer::new(info, capabilities).with_tool_handler(Arc::new(MockToolHandler))
     }
 
     fn create_valid_tool(name: &str) -> Tool {
@@ -716,7 +723,10 @@ mod tests {
         server.register_tool(tool1).await.unwrap();
         let result = server.register_tool(tool2).await;
 
-        assert!(matches!(result, Err(ToolRegistrationError::ToolAlreadyExists(_))));
+        assert!(matches!(
+            result,
+            Err(ToolRegistrationError::ToolAlreadyExists(_))
+        ));
         assert_eq!(server.tool_count().await, 1);
     }
 
@@ -726,7 +736,10 @@ mod tests {
         let tool = create_valid_tool("initialize");
 
         let result = server.register_tool(tool).await;
-        assert!(matches!(result, Err(ToolRegistrationError::ReservedName(_))));
+        assert!(matches!(
+            result,
+            Err(ToolRegistrationError::ReservedName(_))
+        ));
         assert_eq!(server.tool_count().await, 0);
     }
 
@@ -737,7 +750,10 @@ mod tests {
         tool.description = "".to_string();
 
         let result = server.register_tool(tool).await;
-        assert!(matches!(result, Err(ToolRegistrationError::MissingDescription)));
+        assert!(matches!(
+            result,
+            Err(ToolRegistrationError::MissingDescription)
+        ));
     }
 
     #[tokio::test]
@@ -747,7 +763,10 @@ mod tests {
         tool.input_schema = json!("invalid schema");
 
         let result = server.register_tool(tool).await;
-        assert!(matches!(result, Err(ToolRegistrationError::InvalidSchema(_))));
+        assert!(matches!(
+            result,
+            Err(ToolRegistrationError::InvalidSchema(_))
+        ));
     }
 
     #[tokio::test]
@@ -757,7 +776,10 @@ mod tests {
         tool.output_schema = None;
 
         let result = server.register_tool(tool).await;
-        assert!(matches!(result, Err(ToolRegistrationError::MissingOutputSchema)));
+        assert!(matches!(
+            result,
+            Err(ToolRegistrationError::MissingOutputSchema)
+        ));
     }
 
     #[tokio::test]
@@ -767,7 +789,10 @@ mod tests {
         tool.input_schema = json!("invalid schema");
 
         let result = server.register_tool(tool).await;
-        assert!(matches!(result, Err(ToolRegistrationError::InvalidSchema(_))));
+        assert!(matches!(
+            result,
+            Err(ToolRegistrationError::InvalidSchema(_))
+        ));
     }
 
     #[tokio::test]
@@ -818,7 +843,10 @@ mod tests {
         ];
 
         let result = server.register_tools(tools).await;
-        assert!(matches!(result, Err(ToolRegistrationError::ToolAlreadyExists(_))));
+        assert!(matches!(
+            result,
+            Err(ToolRegistrationError::ToolAlreadyExists(_))
+        ));
         assert_eq!(server.tool_count().await, 1); // Only the first one should be registered
     }
 
@@ -844,10 +872,7 @@ mod tests {
     #[tokio::test]
     async fn test_list_tools() {
         let server = create_test_server();
-        let tools = vec![
-            create_valid_tool("tool1"),
-            create_valid_tool("tool2"),
-        ];
+        let tools = vec![create_valid_tool("tool1"), create_valid_tool("tool2")];
 
         server.register_tools(tools).await.unwrap();
 
@@ -860,10 +885,7 @@ mod tests {
     #[tokio::test]
     async fn test_clear_tools() {
         let server = create_test_server();
-        let tools = vec![
-            create_valid_tool("tool1"),
-            create_valid_tool("tool2"),
-        ];
+        let tools = vec![create_valid_tool("tool1"), create_valid_tool("tool2")];
 
         server.register_tools(tools).await.unwrap();
         assert_eq!(server.tool_count().await, 2);
@@ -945,48 +967,67 @@ mod tests {
     async fn test_reserved_names() {
         let server = create_test_server();
         let reserved_names = [
-            "initialize", "initialized", "shutdown", "exit", "ping",
-            "tools/list", "tools/call", "resources/list", "resources/read",
-            "resources/subscribe", "resources/unsubscribe", "prompts/list",
-            "prompts/get", "sampling/create", "completion/complete",
-            "roots/list", "elicitation/request",
+            "initialize",
+            "initialized",
+            "shutdown",
+            "exit",
+            "ping",
+            "tools/list",
+            "tools/call",
+            "resources/list",
+            "resources/read",
+            "resources/subscribe",
+            "resources/unsubscribe",
+            "prompts/list",
+            "prompts/get",
+            "sampling/create",
+            "completion/complete",
+            "roots/list",
+            "elicitation/request",
         ];
 
         for name in &reserved_names {
             let tool = create_valid_tool(name);
             let result = server.register_tool(tool).await;
-            assert!(matches!(result, Err(ToolRegistrationError::ReservedName(_))));
+            assert!(matches!(
+                result,
+                Err(ToolRegistrationError::ReservedName(_))
+            ));
         }
     }
 
     #[tokio::test]
     async fn test_tools_list_jsonrpc() {
         let server = create_test_server();
-        
+
         // Register some tools
-        let tools = vec![
-            create_valid_tool("tool1"),
-            create_valid_tool("tool2"),
-        ];
+        let tools = vec![create_valid_tool("tool1"), create_valid_tool("tool2")];
         server.register_tools(tools).await.unwrap();
 
         // Create tools/list request
         let request = JsonRpcRequest {
             jsonrpc: "2.0".to_string(),
-            id: Some(ultrafast_mcp_core::protocol::jsonrpc::RequestId::string("test-id")),
+            id: Some(ultrafast_mcp_core::protocol::jsonrpc::RequestId::string(
+                "test-id",
+            )),
             method: "tools/list".to_string(),
             params: None,
             meta: std::collections::HashMap::new(),
         };
 
         let response = server.handle_request(request).await;
-        
+
         // Verify response
         if let Some(result) = &response.result {
-            assert_eq!(response.id, Some(ultrafast_mcp_core::protocol::jsonrpc::RequestId::string("test-id")));
+            assert_eq!(
+                response.id,
+                Some(ultrafast_mcp_core::protocol::jsonrpc::RequestId::string(
+                    "test-id"
+                ))
+            );
             let tools_array = result.get("tools").and_then(|t| t.as_array()).unwrap();
             assert_eq!(tools_array.len(), 2);
-            
+
             let tool_names: Vec<&str> = tools_array
                 .iter()
                 .filter_map(|t| t.get("name").and_then(|n| n.as_str()))
@@ -1001,7 +1042,7 @@ mod tests {
     #[tokio::test]
     async fn test_tools_call_jsonrpc_success() {
         let server = create_test_server();
-        
+
         // Register a tool
         let tool = create_valid_tool("test_tool");
         server.register_tool(tool).await.unwrap();
@@ -1009,7 +1050,9 @@ mod tests {
         // Create tools/call request
         let request = JsonRpcRequest {
             jsonrpc: "2.0".to_string(),
-            id: Some(ultrafast_mcp_core::protocol::jsonrpc::RequestId::string("test-id")),
+            id: Some(ultrafast_mcp_core::protocol::jsonrpc::RequestId::string(
+                "test-id",
+            )),
             method: "tools/call".to_string(),
             params: Some(json!({
                 "name": "test_tool",
@@ -1021,15 +1064,20 @@ mod tests {
         };
 
         let response = server.handle_request(request).await;
-        
+
         // Verify response
         if let Some(result) = &response.result {
-            assert_eq!(response.id, Some(ultrafast_mcp_core::protocol::jsonrpc::RequestId::string("test-id")));
-            
+            assert_eq!(
+                response.id,
+                Some(ultrafast_mcp_core::protocol::jsonrpc::RequestId::string(
+                    "test-id"
+                ))
+            );
+
             // Check that result contains content
             let content = result.get("content").and_then(|c| c.as_array()).unwrap();
             assert_eq!(content.len(), 1);
-            
+
             // The ToolContent::text creates a structure with "type": "text" and "text" field
             let text_content = content[0].get("text").and_then(|t| t.as_str()).unwrap();
             assert!(text_content.contains("Mock result for test_tool"));
@@ -1045,17 +1093,24 @@ mod tests {
         // Create tools/call request without parameters
         let request = JsonRpcRequest {
             jsonrpc: "2.0".to_string(),
-            id: Some(ultrafast_mcp_core::protocol::jsonrpc::RequestId::string("test-id")),
+            id: Some(ultrafast_mcp_core::protocol::jsonrpc::RequestId::string(
+                "test-id",
+            )),
             method: "tools/call".to_string(),
             params: None,
             meta: std::collections::HashMap::new(),
         };
 
         let response = server.handle_request(request).await;
-        
+
         // Verify error response
         if let Some(error) = &response.error {
-            assert_eq!(response.id, Some(ultrafast_mcp_core::protocol::jsonrpc::RequestId::string("test-id")));
+            assert_eq!(
+                response.id,
+                Some(ultrafast_mcp_core::protocol::jsonrpc::RequestId::string(
+                    "test-id"
+                ))
+            );
             assert_eq!(error.code, -32602); // Invalid params
             assert!(error.message.contains("Missing parameters"));
         } else {
@@ -1070,7 +1125,9 @@ mod tests {
         // Create tools/call request without tool name
         let request = JsonRpcRequest {
             jsonrpc: "2.0".to_string(),
-            id: Some(ultrafast_mcp_core::protocol::jsonrpc::RequestId::string("test-id")),
+            id: Some(ultrafast_mcp_core::protocol::jsonrpc::RequestId::string(
+                "test-id",
+            )),
             method: "tools/call".to_string(),
             params: Some(json!({
                 "arguments": {
@@ -1081,10 +1138,15 @@ mod tests {
         };
 
         let response = server.handle_request(request).await;
-        
+
         // Verify error response
         if let Some(error) = &response.error {
-            assert_eq!(response.id, Some(ultrafast_mcp_core::protocol::jsonrpc::RequestId::string("test-id")));
+            assert_eq!(
+                response.id,
+                Some(ultrafast_mcp_core::protocol::jsonrpc::RequestId::string(
+                    "test-id"
+                ))
+            );
             assert_eq!(error.code, -32602); // Invalid params
             assert!(error.message.contains("Missing or invalid tool name"));
         } else {
@@ -1099,7 +1161,9 @@ mod tests {
         // Create tools/call request for non-existent tool
         let request = JsonRpcRequest {
             jsonrpc: "2.0".to_string(),
-            id: Some(ultrafast_mcp_core::protocol::jsonrpc::RequestId::string("test-id")),
+            id: Some(ultrafast_mcp_core::protocol::jsonrpc::RequestId::string(
+                "test-id",
+            )),
             method: "tools/call".to_string(),
             params: Some(json!({
                 "name": "nonexistent_tool",
@@ -1111,10 +1175,15 @@ mod tests {
         };
 
         let response = server.handle_request(request).await;
-        
+
         // Verify error response
         if let Some(error) = &response.error {
-            assert_eq!(response.id, Some(ultrafast_mcp_core::protocol::jsonrpc::RequestId::string("test-id")));
+            assert_eq!(
+                response.id,
+                Some(ultrafast_mcp_core::protocol::jsonrpc::RequestId::string(
+                    "test-id"
+                ))
+            );
             assert_eq!(error.code, -32603); // Internal error
             assert!(error.message.contains("Tool call failed"));
         } else {
@@ -1125,7 +1194,7 @@ mod tests {
     #[tokio::test]
     async fn test_tools_call_jsonrpc_invalid_arguments() {
         let server = create_test_server();
-        
+
         // Register a tool
         let tool = create_valid_tool("test_tool");
         server.register_tool(tool).await.unwrap();
@@ -1133,7 +1202,9 @@ mod tests {
         // Create tools/call request with invalid arguments
         let request = JsonRpcRequest {
             jsonrpc: "2.0".to_string(),
-            id: Some(ultrafast_mcp_core::protocol::jsonrpc::RequestId::string("test-id")),
+            id: Some(ultrafast_mcp_core::protocol::jsonrpc::RequestId::string(
+                "test-id",
+            )),
             method: "tools/call".to_string(),
             params: Some(json!({
                 "name": "test_tool",
@@ -1145,10 +1216,15 @@ mod tests {
         };
 
         let response = server.handle_request(request).await;
-        
+
         // Verify error response
         if let Some(error) = &response.error {
-            assert_eq!(response.id, Some(ultrafast_mcp_core::protocol::jsonrpc::RequestId::string("test-id")));
+            assert_eq!(
+                response.id,
+                Some(ultrafast_mcp_core::protocol::jsonrpc::RequestId::string(
+                    "test-id"
+                ))
+            );
             assert_eq!(error.code, -32603); // Internal error
             assert!(error.message.contains("Tool call failed"));
         } else {
@@ -1159,7 +1235,7 @@ mod tests {
     #[tokio::test]
     async fn test_tools_call_jsonrpc_empty_arguments() {
         let server = create_test_server();
-        
+
         // Register a tool
         let tool = create_valid_tool("test_tool");
         server.register_tool(tool).await.unwrap();
@@ -1167,7 +1243,9 @@ mod tests {
         // Create tools/call request with empty arguments
         let request = JsonRpcRequest {
             jsonrpc: "2.0".to_string(),
-            id: Some(ultrafast_mcp_core::protocol::jsonrpc::RequestId::string("test-id")),
+            id: Some(ultrafast_mcp_core::protocol::jsonrpc::RequestId::string(
+                "test-id",
+            )),
             method: "tools/call".to_string(),
             params: Some(json!({
                 "name": "test_tool"
@@ -1177,10 +1255,15 @@ mod tests {
         };
 
         let response = server.handle_request(request).await;
-        
+
         // Verify error response (should fail validation due to missing required input)
         if let Some(error) = &response.error {
-            assert_eq!(response.id, Some(ultrafast_mcp_core::protocol::jsonrpc::RequestId::string("test-id")));
+            assert_eq!(
+                response.id,
+                Some(ultrafast_mcp_core::protocol::jsonrpc::RequestId::string(
+                    "test-id"
+                ))
+            );
             assert_eq!(error.code, -32603); // Internal error
             assert!(error.message.contains("Tool call failed"));
         } else {
@@ -1195,17 +1278,24 @@ mod tests {
         // Create request for unknown method
         let request = JsonRpcRequest {
             jsonrpc: "2.0".to_string(),
-            id: Some(ultrafast_mcp_core::protocol::jsonrpc::RequestId::string("test-id")),
+            id: Some(ultrafast_mcp_core::protocol::jsonrpc::RequestId::string(
+                "test-id",
+            )),
             method: "unknown/method".to_string(),
             params: None,
             meta: std::collections::HashMap::new(),
         };
 
         let response = server.handle_request(request).await;
-        
+
         // Verify error response
         if let Some(error) = &response.error {
-            assert_eq!(response.id, Some(ultrafast_mcp_core::protocol::jsonrpc::RequestId::string("test-id")));
+            assert_eq!(
+                response.id,
+                Some(ultrafast_mcp_core::protocol::jsonrpc::RequestId::string(
+                    "test-id"
+                ))
+            );
             assert_eq!(error.code, -32601); // Method not found
             assert!(error.message.contains("Method not implemented"));
         } else {
@@ -1216,7 +1306,7 @@ mod tests {
     #[tokio::test]
     async fn test_tools_integration_workflow() {
         let server = create_test_server();
-        
+
         // Step 1: Register multiple tools
         let tools = vec![
             create_valid_tool("calculator"),
@@ -1228,7 +1318,9 @@ mod tests {
         // Step 2: List tools via JSON-RPC
         let list_request = JsonRpcRequest {
             jsonrpc: "2.0".to_string(),
-            id: Some(ultrafast_mcp_core::protocol::jsonrpc::RequestId::string("list-id")),
+            id: Some(ultrafast_mcp_core::protocol::jsonrpc::RequestId::string(
+                "list-id",
+            )),
             method: "tools/list".to_string(),
             params: None,
             meta: std::collections::HashMap::new(),
@@ -1236,7 +1328,12 @@ mod tests {
 
         let list_response = server.handle_request(list_request).await;
         if let Some(result) = &list_response.result {
-            assert_eq!(list_response.id, Some(ultrafast_mcp_core::protocol::jsonrpc::RequestId::string("list-id")));
+            assert_eq!(
+                list_response.id,
+                Some(ultrafast_mcp_core::protocol::jsonrpc::RequestId::string(
+                    "list-id"
+                ))
+            );
             let tools_array = result.get("tools").and_then(|t| t.as_array()).unwrap();
             assert_eq!(tools_array.len(), 2);
         } else {
@@ -1246,7 +1343,9 @@ mod tests {
         // Step 3: Call a tool via JSON-RPC
         let call_request = JsonRpcRequest {
             jsonrpc: "2.0".to_string(),
-            id: Some(ultrafast_mcp_core::protocol::jsonrpc::RequestId::string("call-id")),
+            id: Some(ultrafast_mcp_core::protocol::jsonrpc::RequestId::string(
+                "call-id",
+            )),
             method: "tools/call".to_string(),
             params: Some(json!({
                 "name": "calculator",
@@ -1259,7 +1358,12 @@ mod tests {
 
         let call_response = server.handle_request(call_request).await;
         if let Some(result) = &call_response.result {
-            assert_eq!(call_response.id, Some(ultrafast_mcp_core::protocol::jsonrpc::RequestId::string("call-id")));
+            assert_eq!(
+                call_response.id,
+                Some(ultrafast_mcp_core::protocol::jsonrpc::RequestId::string(
+                    "call-id"
+                ))
+            );
             let content = result.get("content").and_then(|c| c.as_array()).unwrap();
             assert_eq!(content.len(), 1);
         } else {

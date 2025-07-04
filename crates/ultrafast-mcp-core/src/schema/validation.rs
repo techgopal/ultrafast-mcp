@@ -9,7 +9,10 @@ pub fn validate_against_schema(data: &Value, schema: &Value) -> MCPResult<()> {
         if let Some(schemas) = all_of.as_array() {
             for schema_item in schemas {
                 if let Err(e) = validate_against_schema(data, schema_item) {
-                    return Err(ToolError::SchemaValidation(format!("allOf validation failed: {e}")).into());
+                    return Err(ToolError::SchemaValidation(format!(
+                        "allOf validation failed: {e}"
+                    ))
+                    .into());
                 }
             }
         }
@@ -108,7 +111,10 @@ pub fn validate_against_schema(data: &Value, schema: &Value) -> MCPResult<()> {
     if data.is_number() {
         let number_value = data.as_f64().unwrap();
         if let Some(minimum) = schema.get("minimum").and_then(|v| v.as_f64()) {
-            let exclusive = schema.get("exclusiveMinimum").and_then(|v| v.as_bool()).unwrap_or(false);
+            let exclusive = schema
+                .get("exclusiveMinimum")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
             if exclusive {
                 if number_value <= minimum {
                     return Err(ToolError::SchemaValidation(format!(
@@ -117,18 +123,19 @@ pub fn validate_against_schema(data: &Value, schema: &Value) -> MCPResult<()> {
                     ))
                     .into());
                 }
-            } else {
-                if number_value < minimum {
-                    return Err(ToolError::SchemaValidation(format!(
-                        "Number {} must be greater than or equal to {}",
-                        number_value, minimum
-                    ))
-                    .into());
-                }
+            } else if number_value < minimum {
+                return Err(ToolError::SchemaValidation(format!(
+                    "Number {} must be greater than or equal to {}",
+                    number_value, minimum
+                ))
+                .into());
             }
         }
         if let Some(maximum) = schema.get("maximum").and_then(|v| v.as_f64()) {
-            let exclusive = schema.get("exclusiveMaximum").and_then(|v| v.as_bool()).unwrap_or(false);
+            let exclusive = schema
+                .get("exclusiveMaximum")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
             if exclusive {
                 if number_value >= maximum {
                     return Err(ToolError::SchemaValidation(format!(
@@ -137,14 +144,12 @@ pub fn validate_against_schema(data: &Value, schema: &Value) -> MCPResult<()> {
                     ))
                     .into());
                 }
-            } else {
-                if number_value > maximum {
-                    return Err(ToolError::SchemaValidation(format!(
-                        "Number {} must be less than or equal to {}",
-                        number_value, maximum
-                    ))
-                    .into());
-                }
+            } else if number_value > maximum {
+                return Err(ToolError::SchemaValidation(format!(
+                    "Number {} must be less than or equal to {}",
+                    number_value, maximum
+                ))
+                .into());
             }
         }
         if let Some(multiple_of) = schema.get("multipleOf").and_then(|v| v.as_f64()) {
@@ -159,9 +164,14 @@ pub fn validate_against_schema(data: &Value, schema: &Value) -> MCPResult<()> {
     }
     // Integer constraints
     if data.is_i64() || data.is_u64() {
-        let integer_value = data.as_i64().unwrap_or_else(|| data.as_u64().unwrap() as i64);
+        let integer_value = data
+            .as_i64()
+            .unwrap_or_else(|| data.as_u64().unwrap() as i64);
         if let Some(minimum) = schema.get("minimum").and_then(|v| v.as_i64()) {
-            let exclusive = schema.get("exclusiveMinimum").and_then(|v| v.as_bool()).unwrap_or(false);
+            let exclusive = schema
+                .get("exclusiveMinimum")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
             if exclusive {
                 if integer_value <= minimum {
                     return Err(ToolError::SchemaValidation(format!(
@@ -170,18 +180,19 @@ pub fn validate_against_schema(data: &Value, schema: &Value) -> MCPResult<()> {
                     ))
                     .into());
                 }
-            } else {
-                if integer_value < minimum {
-                    return Err(ToolError::SchemaValidation(format!(
-                        "Integer {} must be greater than or equal to {}",
-                        integer_value, minimum
-                    ))
-                    .into());
-                }
+            } else if integer_value < minimum {
+                return Err(ToolError::SchemaValidation(format!(
+                    "Integer {} must be greater than or equal to {}",
+                    integer_value, minimum
+                ))
+                .into());
             }
         }
         if let Some(maximum) = schema.get("maximum").and_then(|v| v.as_i64()) {
-            let exclusive = schema.get("exclusiveMaximum").and_then(|v| v.as_bool()).unwrap_or(false);
+            let exclusive = schema
+                .get("exclusiveMaximum")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
             if exclusive {
                 if integer_value >= maximum {
                     return Err(ToolError::SchemaValidation(format!(
@@ -190,14 +201,12 @@ pub fn validate_against_schema(data: &Value, schema: &Value) -> MCPResult<()> {
                     ))
                     .into());
                 }
-            } else {
-                if integer_value > maximum {
-                    return Err(ToolError::SchemaValidation(format!(
-                        "Integer {} must be less than or equal to {}",
-                        integer_value, maximum
-                    ))
-                    .into());
-                }
+            } else if integer_value > maximum {
+                return Err(ToolError::SchemaValidation(format!(
+                    "Integer {} must be less than or equal to {}",
+                    integer_value, maximum
+                ))
+                .into());
             }
         }
         if let Some(multiple_of) = schema.get("multipleOf").and_then(|v| v.as_i64()) {
@@ -304,7 +313,10 @@ fn validate_number(data: &Value, schema: &Value) -> MCPResult<()> {
 
     // Validate minimum/maximum
     if let Some(minimum) = schema.get("minimum").and_then(|v| v.as_f64()) {
-        let exclusive = schema.get("exclusiveMinimum").and_then(|v| v.as_bool()).unwrap_or(false);
+        let exclusive = schema
+            .get("exclusiveMinimum")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
         if exclusive {
             if number_value <= minimum {
                 return Err(ToolError::SchemaValidation(format!(
@@ -313,19 +325,20 @@ fn validate_number(data: &Value, schema: &Value) -> MCPResult<()> {
                 ))
                 .into());
             }
-        } else {
-            if number_value < minimum {
-                return Err(ToolError::SchemaValidation(format!(
-                    "Number {} must be greater than or equal to {}",
-                    number_value, minimum
-                ))
-                .into());
-            }
+        } else if number_value < minimum {
+            return Err(ToolError::SchemaValidation(format!(
+                "Number {} must be greater than or equal to {}",
+                number_value, minimum
+            ))
+            .into());
         }
     }
 
     if let Some(maximum) = schema.get("maximum").and_then(|v| v.as_f64()) {
-        let exclusive = schema.get("exclusiveMaximum").and_then(|v| v.as_bool()).unwrap_or(false);
+        let exclusive = schema
+            .get("exclusiveMaximum")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
         if exclusive {
             if number_value >= maximum {
                 return Err(ToolError::SchemaValidation(format!(
@@ -334,14 +347,12 @@ fn validate_number(data: &Value, schema: &Value) -> MCPResult<()> {
                 ))
                 .into());
             }
-        } else {
-            if number_value > maximum {
-                return Err(ToolError::SchemaValidation(format!(
-                    "Number {} must be less than or equal to {}",
-                    number_value, maximum
-                ))
-                .into());
-            }
+        } else if number_value > maximum {
+            return Err(ToolError::SchemaValidation(format!(
+                "Number {} must be less than or equal to {}",
+                number_value, maximum
+            ))
+            .into());
         }
     }
 
@@ -368,11 +379,16 @@ fn validate_integer(data: &Value, schema: &Value) -> MCPResult<()> {
         .into());
     }
 
-    let integer_value = data.as_i64().unwrap_or_else(|| data.as_u64().unwrap() as i64);
+    let integer_value = data
+        .as_i64()
+        .unwrap_or_else(|| data.as_u64().unwrap() as i64);
 
     // Validate minimum/maximum
     if let Some(minimum) = schema.get("minimum").and_then(|v| v.as_i64()) {
-        let exclusive = schema.get("exclusiveMinimum").and_then(|v| v.as_bool()).unwrap_or(false);
+        let exclusive = schema
+            .get("exclusiveMinimum")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
         if exclusive {
             if integer_value <= minimum {
                 return Err(ToolError::SchemaValidation(format!(
@@ -381,19 +397,20 @@ fn validate_integer(data: &Value, schema: &Value) -> MCPResult<()> {
                 ))
                 .into());
             }
-        } else {
-            if integer_value < minimum {
-                return Err(ToolError::SchemaValidation(format!(
-                    "Integer {} must be greater than or equal to {}",
-                    integer_value, minimum
-                ))
-                .into());
-            }
+        } else if integer_value < minimum {
+            return Err(ToolError::SchemaValidation(format!(
+                "Integer {} must be greater than or equal to {}",
+                integer_value, minimum
+            ))
+            .into());
         }
     }
 
     if let Some(maximum) = schema.get("maximum").and_then(|v| v.as_i64()) {
-        let exclusive = schema.get("exclusiveMaximum").and_then(|v| v.as_bool()).unwrap_or(false);
+        let exclusive = schema
+            .get("exclusiveMaximum")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
         if exclusive {
             if integer_value >= maximum {
                 return Err(ToolError::SchemaValidation(format!(
@@ -402,14 +419,12 @@ fn validate_integer(data: &Value, schema: &Value) -> MCPResult<()> {
                 ))
                 .into());
             }
-        } else {
-            if integer_value > maximum {
-                return Err(ToolError::SchemaValidation(format!(
-                    "Integer {} must be less than or equal to {}",
-                    integer_value, maximum
-                ))
-                .into());
-            }
+        } else if integer_value > maximum {
+            return Err(ToolError::SchemaValidation(format!(
+                "Integer {} must be less than or equal to {}",
+                integer_value, maximum
+            ))
+            .into());
         }
     }
 
@@ -491,9 +506,7 @@ fn validate_array(data: &Value, schema: &Value) -> MCPResult<()> {
     if let Some(items_schema) = schema.get("items") {
         for (i, item) in array.iter().enumerate() {
             validate_against_schema(item, items_schema).map_err(|e| {
-                ToolError::SchemaValidation(format!(
-                    "Array item {i} validation failed: {e}"
-                ))
+                ToolError::SchemaValidation(format!("Array item {i} validation failed: {e}"))
             })?;
         }
     }
@@ -712,7 +725,10 @@ fn validate_combined_schemas(data: &Value, schema: &Value) -> MCPResult<()> {
         if let Some(schemas) = all_of.as_array() {
             for schema_item in schemas {
                 if let Err(e) = validate_against_schema(data, schema_item) {
-                    return Err(ToolError::SchemaValidation(format!("allOf validation failed: {e}")).into());
+                    return Err(ToolError::SchemaValidation(format!(
+                        "allOf validation failed: {e}"
+                    ))
+                    .into());
                 }
             }
         }
@@ -726,21 +742,20 @@ fn validate_string_format(value: &str, format: &str) -> MCPResult<()> {
         "date-time" => {
             // Basic ISO 8601 date-time validation
             if !value.contains('T') && !value.contains(' ') {
-                return Err(ToolError::SchemaValidation(
-                    "Invalid date-time format".to_string(),
-                )
-                .into());
+                return Err(
+                    ToolError::SchemaValidation("Invalid date-time format".to_string()).into(),
+                );
             }
         }
         "date" => {
             // Basic date validation (YYYY-MM-DD)
-            if !value.matches(r"^\d{4}-\d{2}-\d{2}$").next().is_some() {
+            if value.matches(r"^\d{4}-\d{2}-\d{2}$").next().is_none() {
                 return Err(ToolError::SchemaValidation("Invalid date format".to_string()).into());
             }
         }
         "time" => {
             // Basic time validation (HH:MM:SS)
-            if !value.matches(r"^\d{2}:\d{2}:\d{2}").next().is_some() {
+            if value.matches(r"^\d{2}:\d{2}:\d{2}").next().is_none() {
                 return Err(ToolError::SchemaValidation("Invalid time format".to_string()).into());
             }
         }
@@ -758,7 +773,11 @@ fn validate_string_format(value: &str, format: &str) -> MCPResult<()> {
         }
         "uuid" => {
             // Basic UUID validation
-            if !value.matches(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$").next().is_some() {
+            if value
+                .matches(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
+                .next()
+                .is_none()
+            {
                 return Err(ToolError::SchemaValidation("Invalid UUID format".to_string()).into());
             }
         }
@@ -795,14 +814,19 @@ pub fn validate_tool_output(data: &Value, schema: &Value) -> MCPResult<()> {
 pub fn validate_tool_schema(schema: &Value) -> MCPResult<()> {
     // Check if schema is an object
     if !schema.is_object() {
-        return Err(ToolError::SchemaValidation("Tool schema must be an object".to_string()).into());
+        return Err(
+            ToolError::SchemaValidation("Tool schema must be an object".to_string()).into(),
+        );
     }
 
     // Validate required top-level properties for tool schemas
     if let Some(obj) = schema.as_object() {
         // Check for required properties
         if !obj.contains_key("type") {
-            return Err(ToolError::SchemaValidation("Tool schema must have 'type' property".to_string()).into());
+            return Err(ToolError::SchemaValidation(
+                "Tool schema must have 'type' property".to_string(),
+            )
+            .into());
         }
 
         // Validate type
@@ -844,37 +868,47 @@ pub fn validate_tool_schema(schema: &Value) -> MCPResult<()> {
 }
 
 /// Validate tool input with detailed error context and path information
-pub fn validate_tool_input_with_context(data: &Value, schema: &Value, tool_name: &str) -> MCPResult<ValidationContext> {
+pub fn validate_tool_input_with_context(
+    data: &Value,
+    schema: &Value,
+    tool_name: &str,
+) -> MCPResult<ValidationContext> {
     let mut context = ValidationContext::new(tool_name.to_string());
-    
+
     // First validate the schema itself
     validate_tool_schema(schema)?;
-    
+
     // Then validate the data against the schema with context tracking
     validate_with_context(data, schema, &mut context, "".to_string())?;
-    
+
     Ok(context)
 }
 
 /// Validate tool output with detailed error context and path information  
-pub fn validate_tool_output_with_context(data: &Value, schema: &Value, tool_name: &str) -> MCPResult<ValidationContext> {
+pub fn validate_tool_output_with_context(
+    data: &Value,
+    schema: &Value,
+    tool_name: &str,
+) -> MCPResult<ValidationContext> {
     let mut context = ValidationContext::new(tool_name.to_string());
-    
+
     // Validate output schema if present
     if schema.as_object().is_some() {
         validate_tool_schema(schema)?;
     }
-    
+
     // Validate the output data
     validate_with_context(data, schema, &mut context, "".to_string())?;
-    
+
     Ok(context)
 }
 
 /// Comprehensive tool definition validation with security checks
-pub fn validate_tool_definition_comprehensive(tool: &crate::types::tools::Tool) -> MCPResult<ValidationReport> {
+pub fn validate_tool_definition_comprehensive(
+    tool: &crate::types::tools::Tool,
+) -> MCPResult<ValidationReport> {
     let mut report = ValidationReport::new(tool.name.clone());
-    
+
     // Basic validation
     if let Err(e) = tool.validate() {
         report.add_error(ValidationError::new(
@@ -884,64 +918,78 @@ pub fn validate_tool_definition_comprehensive(tool: &crate::types::tools::Tool) 
         ));
         return Ok(report);
     }
-    
+
     // Schema complexity validation
     validate_schema_complexity(&tool.input_schema, &mut report, "input_schema")?;
-    
+
     if let Some(ref output_schema) = tool.output_schema {
         validate_schema_complexity(output_schema, &mut report, "output_schema")?;
     }
-    
+
     // Security validation
-    validate_tool_security(&tool, &mut report)?;
-    
+    validate_tool_security(tool, &mut report)?;
+
     // Performance validation
-    validate_tool_performance(&tool, &mut report)?;
-    
+    validate_tool_performance(tool, &mut report)?;
+
     Ok(report)
 }
 
 /// Validate schema complexity to prevent DoS attacks
-fn validate_schema_complexity(schema: &Value, report: &mut ValidationReport, context: &str) -> MCPResult<()> {
+fn validate_schema_complexity(
+    schema: &Value,
+    report: &mut ValidationReport,
+    context: &str,
+) -> MCPResult<()> {
     let complexity = calculate_schema_complexity(schema, 0);
-    
+
     // Check maximum complexity
     if complexity > MAX_SCHEMA_COMPLEXITY {
         report.add_error(ValidationError::new(
             format!("{}_complexity", context),
-            format!("Schema complexity {} exceeds maximum {}", complexity, MAX_SCHEMA_COMPLEXITY),
+            format!(
+                "Schema complexity {} exceeds maximum {}",
+                complexity, MAX_SCHEMA_COMPLEXITY
+            ),
             ErrorSeverity::High,
         ));
     } else if complexity > WARN_SCHEMA_COMPLEXITY {
         report.add_warning(ValidationWarning::new(
             format!("{}_complexity", context),
-            format!("Schema complexity {} is high, consider simplifying", complexity),
+            format!(
+                "Schema complexity {} is high, consider simplifying",
+                complexity
+            ),
         ));
     }
-    
+
     // Check nesting depth
     let depth = calculate_schema_depth(schema, 0);
     if depth > MAX_SCHEMA_DEPTH {
         report.add_error(ValidationError::new(
             format!("{}_depth", context),
-            format!("Schema nesting depth {} exceeds maximum {}", depth, MAX_SCHEMA_DEPTH),
+            format!(
+                "Schema nesting depth {} exceeds maximum {}",
+                depth, MAX_SCHEMA_DEPTH
+            ),
             ErrorSeverity::High,
         ));
     }
-    
+
     Ok(())
 }
 
 /// Calculate schema complexity score
 fn calculate_schema_complexity(schema: &Value, current_depth: usize) -> usize {
-    if current_depth > 20 { // Prevent infinite recursion
+    if current_depth > 20 {
+        // Prevent infinite recursion
         return 1000; // High penalty for excessive depth
     }
-    
+
     match schema {
         Value::Object(obj) => {
             let mut complexity = 1;
-            
+
             // Add complexity for each property
             if let Some(properties) = obj.get("properties").and_then(|p| p.as_object()) {
                 complexity += properties.len();
@@ -949,12 +997,12 @@ fn calculate_schema_complexity(schema: &Value, current_depth: usize) -> usize {
                     complexity += calculate_schema_complexity(prop_schema, current_depth + 1);
                 }
             }
-            
+
             // Add complexity for array items
             if let Some(items) = obj.get("items") {
                 complexity += calculate_schema_complexity(items, current_depth + 1);
             }
-            
+
             // Add complexity for combined schemas
             for key in &["allOf", "anyOf", "oneOf"] {
                 if let Some(schemas) = obj.get(*key).and_then(|s| s.as_array()) {
@@ -964,13 +1012,14 @@ fn calculate_schema_complexity(schema: &Value, current_depth: usize) -> usize {
                     }
                 }
             }
-            
+
             complexity
         }
-        Value::Array(arr) => {
-            arr.iter().map(|item| calculate_schema_complexity(item, current_depth + 1)).sum()
-        }
-        _ => 1
+        Value::Array(arr) => arr
+            .iter()
+            .map(|item| calculate_schema_complexity(item, current_depth + 1))
+            .sum(),
+        _ => 1,
     }
 }
 
@@ -979,7 +1028,7 @@ fn calculate_schema_depth(schema: &Value, current_depth: usize) -> usize {
     match schema {
         Value::Object(obj) => {
             let mut max_depth = current_depth;
-            
+
             // Check properties
             if let Some(properties) = obj.get("properties").and_then(|p| p.as_object()) {
                 for prop_schema in properties.values() {
@@ -987,13 +1036,13 @@ fn calculate_schema_depth(schema: &Value, current_depth: usize) -> usize {
                     max_depth = max_depth.max(prop_depth);
                 }
             }
-            
+
             // Check array items
             if let Some(items) = obj.get("items") {
                 let items_depth = calculate_schema_depth(items, current_depth + 1);
                 max_depth = max_depth.max(items_depth);
             }
-            
+
             // Check combined schemas
             for key in &["allOf", "anyOf", "oneOf"] {
                 if let Some(schemas) = obj.get(*key).and_then(|s| s.as_array()) {
@@ -1003,15 +1052,18 @@ fn calculate_schema_depth(schema: &Value, current_depth: usize) -> usize {
                     }
                 }
             }
-            
+
             max_depth
         }
-        _ => current_depth
+        _ => current_depth,
     }
 }
 
 /// Validate tool security considerations
-fn validate_tool_security(tool: &crate::types::tools::Tool, report: &mut ValidationReport) -> MCPResult<()> {
+fn validate_tool_security(
+    tool: &crate::types::tools::Tool,
+    report: &mut ValidationReport,
+) -> MCPResult<()> {
     // Check for potential security risks in tool name
     if tool.name.contains("..") || tool.name.contains("/") || tool.name.contains("\\") {
         report.add_error(ValidationError::new(
@@ -1020,19 +1072,26 @@ fn validate_tool_security(tool: &crate::types::tools::Tool, report: &mut Validat
             ErrorSeverity::High,
         ));
     }
-    
+
     // Check for sensitive parameter names
-    if let Some(properties) = tool.input_schema.get("properties").and_then(|p| p.as_object()) {
+    if let Some(properties) = tool
+        .input_schema
+        .get("properties")
+        .and_then(|p| p.as_object())
+    {
         for prop_name in properties.keys() {
             if is_sensitive_parameter_name(prop_name) {
                 report.add_warning(ValidationWarning::new(
                     "sensitive_parameter".to_string(),
-                    format!("Parameter '{}' may contain sensitive data, ensure proper handling", prop_name),
+                    format!(
+                        "Parameter '{}' may contain sensitive data, ensure proper handling",
+                        prop_name
+                    ),
                 ));
             }
         }
     }
-    
+
     // Check for overly permissive schemas
     if is_overly_permissive_schema(&tool.input_schema) {
         report.add_warning(ValidationWarning::new(
@@ -1040,12 +1099,15 @@ fn validate_tool_security(tool: &crate::types::tools::Tool, report: &mut Validat
             "Input schema is very permissive, consider adding more constraints".to_string(),
         ));
     }
-    
+
     Ok(())
 }
 
 /// Validate tool performance characteristics
-fn validate_tool_performance(tool: &crate::types::tools::Tool, report: &mut ValidationReport) -> MCPResult<()> {
+fn validate_tool_performance(
+    tool: &crate::types::tools::Tool,
+    report: &mut ValidationReport,
+) -> MCPResult<()> {
     // Check for performance anti-patterns in schema
     if has_performance_antipatterns(&tool.input_schema) {
         report.add_warning(ValidationWarning::new(
@@ -1053,27 +1115,41 @@ fn validate_tool_performance(tool: &crate::types::tools::Tool, report: &mut Vali
             "Schema contains patterns that may impact validation performance".to_string(),
         ));
     }
-    
+
     // Check description length (very long descriptions may impact UI performance)
     if tool.description.len() > 1000 {
         report.add_warning(ValidationWarning::new(
             "long_description".to_string(),
-            format!("Tool description is {} characters, consider shortening for better UX", tool.description.len()),
+            format!(
+                "Tool description is {} characters, consider shortening for better UX",
+                tool.description.len()
+            ),
         ));
     }
-    
+
     Ok(())
 }
 
 /// Check if parameter name suggests sensitive data
 fn is_sensitive_parameter_name(name: &str) -> bool {
     let sensitive_patterns = [
-        "password", "passwd", "secret", "key", "token", "credential",
-        "auth", "api_key", "private", "confidential", "sensitive"
+        "password",
+        "passwd",
+        "secret",
+        "key",
+        "token",
+        "credential",
+        "auth",
+        "api_key",
+        "private",
+        "confidential",
+        "sensitive",
     ];
-    
+
     let name_lower = name.to_lowercase();
-    sensitive_patterns.iter().any(|pattern| name_lower.contains(pattern))
+    sensitive_patterns
+        .iter()
+        .any(|pattern| name_lower.contains(pattern))
 }
 
 /// Check if schema is overly permissive
@@ -1081,21 +1157,23 @@ fn is_overly_permissive_schema(schema: &Value) -> bool {
     // Check for schemas that accept any type without constraints
     if let Some(obj) = schema.as_object() {
         // No type specified and no constraints
-        if !obj.contains_key("type") && 
-           !obj.contains_key("properties") && 
-           !obj.contains_key("enum") && 
-           !obj.contains_key("const") &&
-           !obj.contains_key("pattern") {
+        if !obj.contains_key("type")
+            && !obj.contains_key("properties")
+            && !obj.contains_key("enum")
+            && !obj.contains_key("const")
+            && !obj.contains_key("pattern")
+        {
             return true;
         }
-        
+
         // Object type with additionalProperties: true and no defined properties
-        if obj.get("type").and_then(|t| t.as_str()) == Some("object") &&
-           obj.get("additionalProperties").and_then(|ap| ap.as_bool()) == Some(true) &&
-           !obj.contains_key("properties") {
+        if obj.get("type").and_then(|t| t.as_str()) == Some("object")
+            && obj.get("additionalProperties").and_then(|ap| ap.as_bool()) == Some(true)
+            && !obj.contains_key("properties")
+        {
             return true;
         }
-        
+
         // Check for properties with empty schema objects (no constraints)
         if let Some(properties) = obj.get("properties").and_then(|p| p.as_object()) {
             for (_, prop_schema) in properties {
@@ -1106,10 +1184,10 @@ fn is_overly_permissive_schema(schema: &Value) -> bool {
                 }
             }
         }
-    } else if schema.as_object().map_or(false, |o| o.is_empty()) {
+    } else if schema.as_object().is_some_and(|o| o.is_empty()) {
         return true; // Empty schema object
     }
-    
+
     false
 }
 
@@ -1121,22 +1199,27 @@ fn has_performance_antipatterns(schema: &Value) -> bool {
             return true;
         }
     }
-    
+
     // Very large enum lists
     if let Some(enum_values) = schema.get("enum").and_then(|e| e.as_array()) {
         if enum_values.len() > 100 {
             return true;
         }
     }
-    
+
     false
 }
 
 /// Validate data against schema with detailed context tracking
-fn validate_with_context(data: &Value, schema: &Value, context: &mut ValidationContext, path: String) -> MCPResult<()> {
+fn validate_with_context(
+    data: &Value,
+    schema: &Value,
+    context: &mut ValidationContext,
+    path: String,
+) -> MCPResult<()> {
     // Track validation path
     context.push_path(path.clone());
-    
+
     // Perform validation with enhanced error reporting
     if let Err(e) = validate_against_schema(data, schema) {
         context.add_error(ValidationError::new(
@@ -1146,23 +1229,31 @@ fn validate_with_context(data: &Value, schema: &Value, context: &mut ValidationC
         ));
         return Err(e);
     }
-    
+
     // Additional context-specific validations
     validate_data_size_limits(data, context, &path)?;
     validate_data_security(data, context, &path)?;
-    
+
     context.pop_path();
     Ok(())
 }
 
 /// Validate data size limits to prevent DoS
-fn validate_data_size_limits(data: &Value, context: &mut ValidationContext, path: &str) -> MCPResult<()> {
+fn validate_data_size_limits(
+    data: &Value,
+    context: &mut ValidationContext,
+    path: &str,
+) -> MCPResult<()> {
     match data {
         Value::String(s) => {
             if s.len() > MAX_STRING_LENGTH {
                 context.add_warning(ValidationWarning::new(
                     path.to_string(),
-                    format!("String length {} exceeds recommended maximum {}", s.len(), MAX_STRING_LENGTH),
+                    format!(
+                        "String length {} exceeds recommended maximum {}",
+                        s.len(),
+                        MAX_STRING_LENGTH
+                    ),
                 ));
             }
         }
@@ -1170,7 +1261,11 @@ fn validate_data_size_limits(data: &Value, context: &mut ValidationContext, path
             if arr.len() > MAX_ARRAY_LENGTH {
                 context.add_warning(ValidationWarning::new(
                     path.to_string(),
-                    format!("Array length {} exceeds recommended maximum {}", arr.len(), MAX_ARRAY_LENGTH),
+                    format!(
+                        "Array length {} exceeds recommended maximum {}",
+                        arr.len(),
+                        MAX_ARRAY_LENGTH
+                    ),
                 ));
             }
         }
@@ -1178,7 +1273,11 @@ fn validate_data_size_limits(data: &Value, context: &mut ValidationContext, path
             if obj.len() > MAX_OBJECT_PROPERTIES {
                 context.add_warning(ValidationWarning::new(
                     path.to_string(),
-                    format!("Object has {} properties, exceeds recommended maximum {}", obj.len(), MAX_OBJECT_PROPERTIES),
+                    format!(
+                        "Object has {} properties, exceeds recommended maximum {}",
+                        obj.len(),
+                        MAX_OBJECT_PROPERTIES
+                    ),
                 ));
             }
         }
@@ -1188,7 +1287,11 @@ fn validate_data_size_limits(data: &Value, context: &mut ValidationContext, path
 }
 
 /// Validate data for potential security issues
-fn validate_data_security(data: &Value, context: &mut ValidationContext, path: &str) -> MCPResult<()> {
+fn validate_data_security(
+    data: &Value,
+    context: &mut ValidationContext,
+    path: &str,
+) -> MCPResult<()> {
     if let Value::String(s) = data {
         // Check for potential script injection
         if contains_script_patterns(s) {
@@ -1197,7 +1300,7 @@ fn validate_data_security(data: &Value, context: &mut ValidationContext, path: &
                 "String contains potential script injection patterns".to_string(),
             ));
         }
-        
+
         // Check for path traversal attempts
         if s.contains("../") || s.contains("..\\") {
             context.add_warning(ValidationWarning::new(
@@ -1205,7 +1308,7 @@ fn validate_data_security(data: &Value, context: &mut ValidationContext, path: &
                 "String contains potential path traversal patterns".to_string(),
             ));
         }
-        
+
         // Check for very long strings that might be malicious
         if s.len() > SECURITY_STRING_LENGTH_LIMIT {
             context.add_warning(ValidationWarning::new(
@@ -1219,7 +1322,14 @@ fn validate_data_security(data: &Value, context: &mut ValidationContext, path: &
 
 /// Check if string contains script injection patterns
 fn contains_script_patterns(s: &str) -> bool {
-    let patterns = ["<script", "javascript:", "data:text/html", "eval(", "setTimeout(", "setInterval("];
+    let patterns = [
+        "<script",
+        "javascript:",
+        "data:text/html",
+        "eval(",
+        "setTimeout(",
+        "setInterval(",
+    ];
     let s_lower = s.to_lowercase();
     patterns.iter().any(|pattern| s_lower.contains(pattern))
 }
@@ -1251,27 +1361,27 @@ impl ValidationContext {
             warnings: Vec::new(),
         }
     }
-    
+
     pub fn push_path(&mut self, path: String) {
         self.path_stack.push(path);
     }
-    
+
     pub fn pop_path(&mut self) {
         self.path_stack.pop();
     }
-    
+
     pub fn add_error(&mut self, error: ValidationError) {
         self.errors.push(error);
     }
-    
+
     pub fn add_warning(&mut self, warning: ValidationWarning) {
         self.warnings.push(warning);
     }
-    
+
     pub fn has_errors(&self) -> bool {
         !self.errors.is_empty()
     }
-    
+
     pub fn has_warnings(&self) -> bool {
         !self.warnings.is_empty()
     }
@@ -1295,21 +1405,22 @@ impl ValidationReport {
             performance_metrics: PerformanceMetrics::default(),
         }
     }
-    
+
     pub fn add_error(&mut self, error: ValidationError) {
         self.errors.push(error);
     }
-    
+
     pub fn add_warning(&mut self, warning: ValidationWarning) {
         self.warnings.push(warning);
     }
-    
+
     pub fn is_valid(&self) -> bool {
         self.errors.is_empty()
     }
-    
+
     pub fn severity_level(&self) -> ErrorSeverity {
-        self.errors.iter()
+        self.errors
+            .iter()
             .map(|e| &e.severity)
             .max()
             .cloned()
@@ -1327,7 +1438,11 @@ pub struct ValidationError {
 
 impl ValidationError {
     pub fn new(path: String, message: String, severity: ErrorSeverity) -> Self {
-        Self { path, message, severity }
+        Self {
+            path,
+            message,
+            severity,
+        }
     }
 }
 
@@ -1386,7 +1501,8 @@ impl Default for MCPMessageValidator {
             regex::Regex::new(r"(?i)data:text/html").unwrap(),
             regex::Regex::new(r"(?i)eval\s*\(").unwrap(),
             // SQL injection patterns
-            regex::Regex::new(r"(?i)(union|select|insert|update|delete|drop|create|alter)\s+").unwrap(),
+            regex::Regex::new(r"(?i)(union|select|insert|update|delete|drop|create|alter)\s+")
+                .unwrap(),
             regex::Regex::new(r"(?i)(or|and)\s+\d+\s*=\s*\d+").unwrap(),
             // Command injection patterns
             regex::Regex::new(r"[;&|`$(){}\[\]\\]").unwrap(),
@@ -1396,9 +1512,9 @@ impl Default for MCPMessageValidator {
             regex::Regex::new(r"(?i)<!entity").unwrap(),
             regex::Regex::new(r"(?i)<!doctype").unwrap(),
         ];
-        
+
         Self {
-            max_string_length: 1_000_000,  // 1MB
+            max_string_length: 1_000_000, // 1MB
             max_array_length: 50_000,
             max_object_properties: 5_000,
             max_depth: 50,
@@ -1416,31 +1532,35 @@ impl MCPMessageValidator {
         max_object_properties: usize,
         max_depth: usize,
     ) -> Self {
-        let mut validator = Self::default();
-        validator.max_string_length = max_string_length;
-        validator.max_array_length = max_array_length;
-        validator.max_object_properties = max_object_properties;
-        validator.max_depth = max_depth;
-        validator
+        Self {
+            max_string_length,
+            max_array_length,
+            max_object_properties,
+            max_depth,
+            ..Default::default()
+        }
     }
-    
+
     /// Enable/disable dangerous content
     pub fn with_dangerous_content(mut self, allow: bool) -> Self {
         self.allow_dangerous_content = allow;
         self
     }
-    
+
     /// Add custom blocked pattern
     pub fn add_blocked_pattern(&mut self, pattern: &str) -> Result<(), regex::Error> {
         let regex = regex::Regex::new(pattern)?;
         self.blocked_patterns.push(regex);
         Ok(())
     }
-    
+
     /// Validate complete JSON-RPC message
-    pub fn validate_message(&self, message: &crate::protocol::jsonrpc::JsonRpcMessage) -> MCPResult<ValidationReport> {
+    pub fn validate_message(
+        &self,
+        message: &crate::protocol::jsonrpc::JsonRpcMessage,
+    ) -> MCPResult<ValidationReport> {
         let mut report = ValidationReport::new("message".to_string());
-        
+
         match message {
             crate::protocol::jsonrpc::JsonRpcMessage::Request(req) => {
                 self.validate_request(req, &mut report)?;
@@ -1452,12 +1572,16 @@ impl MCPMessageValidator {
                 self.validate_notification(notif, &mut report)?;
             }
         }
-        
+
         Ok(report)
     }
-    
+
     /// Validate JSON-RPC request
-    fn validate_request(&self, request: &crate::protocol::jsonrpc::JsonRpcRequest, report: &mut ValidationReport) -> MCPResult<()> {
+    fn validate_request(
+        &self,
+        request: &crate::protocol::jsonrpc::JsonRpcRequest,
+        report: &mut ValidationReport,
+    ) -> MCPResult<()> {
         // Validate JSON-RPC version
         if request.jsonrpc != "2.0" {
             report.add_error(ValidationError::new(
@@ -1466,26 +1590,30 @@ impl MCPMessageValidator {
                 ErrorSeverity::High,
             ));
         }
-        
+
         // Validate method name
         self.validate_method_name(&request.method, report)?;
-        
+
         // Validate request ID
         if let Some(ref id) = request.id {
             self.validate_request_id(id, report)?;
         }
-        
+
         // Validate parameters
         if let Some(ref params) = request.params {
             self.validate_value(params, report, "params".to_string(), 0)?;
             self.validate_method_specific_params(&request.method, params, report)?;
         }
-        
+
         Ok(())
     }
-    
+
     /// Validate JSON-RPC response
-    fn validate_response(&self, response: &crate::protocol::jsonrpc::JsonRpcResponse, report: &mut ValidationReport) -> MCPResult<()> {
+    fn validate_response(
+        &self,
+        response: &crate::protocol::jsonrpc::JsonRpcResponse,
+        report: &mut ValidationReport,
+    ) -> MCPResult<()> {
         // Validate JSON-RPC version
         if response.jsonrpc != "2.0" {
             report.add_error(ValidationError::new(
@@ -1494,12 +1622,12 @@ impl MCPMessageValidator {
                 ErrorSeverity::High,
             ));
         }
-        
+
         // Validate response ID
         if let Some(ref id) = response.id {
             self.validate_request_id(id, report)?;
         }
-        
+
         // Validate that response has either result or error, but not both
         match (&response.result, &response.error) {
             (Some(_), Some(_)) => {
@@ -1518,22 +1646,26 @@ impl MCPMessageValidator {
             }
             _ => {}
         }
-        
+
         // Validate result if present
         if let Some(ref result) = response.result {
             self.validate_value(result, report, "result".to_string(), 0)?;
         }
-        
+
         // Validate error if present
         if let Some(ref error) = response.error {
             self.validate_error(error, report)?;
         }
-        
+
         Ok(())
     }
-    
+
     /// Validate JSON-RPC notification (request without ID)
-    fn validate_notification(&self, notification: &crate::protocol::jsonrpc::JsonRpcRequest, report: &mut ValidationReport) -> MCPResult<()> {
+    fn validate_notification(
+        &self,
+        notification: &crate::protocol::jsonrpc::JsonRpcRequest,
+        report: &mut ValidationReport,
+    ) -> MCPResult<()> {
         // Validate JSON-RPC version
         if notification.jsonrpc != "2.0" {
             report.add_error(ValidationError::new(
@@ -1542,19 +1674,19 @@ impl MCPMessageValidator {
                 ErrorSeverity::High,
             ));
         }
-        
+
         // Validate method name
         self.validate_method_name(&notification.method, report)?;
-        
+
         // Validate parameters
         if let Some(ref params) = notification.params {
             self.validate_value(params, report, "params".to_string(), 0)?;
             self.validate_method_specific_params(&notification.method, params, report)?;
         }
-        
+
         Ok(())
     }
-    
+
     /// Validate method name format and security
     fn validate_method_name(&self, method: &str, report: &mut ValidationReport) -> MCPResult<()> {
         // Check for empty method
@@ -1566,25 +1698,31 @@ impl MCPMessageValidator {
             ));
             return Ok(());
         }
-        
+
         // Check method name length
         if method.len() > 100 {
             report.add_error(ValidationError::new(
                 "method".to_string(),
-                format!("Method name too long: {} characters (max 100)", method.len()),
+                format!(
+                    "Method name too long: {} characters (max 100)",
+                    method.len()
+                ),
                 ErrorSeverity::High,
             ));
         }
-        
+
         // Check for invalid characters
-        if !method.chars().all(|c| c.is_alphanumeric() || c == '/' || c == '_' || c == '-' || c == '.') {
+        if !method
+            .chars()
+            .all(|c| c.is_alphanumeric() || c == '/' || c == '_' || c == '-' || c == '.')
+        {
             report.add_error(ValidationError::new(
                 "method".to_string(),
                 "Method name contains invalid characters".to_string(),
                 ErrorSeverity::High,
             ));
         }
-        
+
         // Check for security patterns
         if method.contains("..") || method.starts_with('/') || method.ends_with('/') {
             report.add_error(ValidationError::new(
@@ -1593,7 +1731,7 @@ impl MCPMessageValidator {
                 ErrorSeverity::High,
             ));
         }
-        
+
         // Check for private/internal methods
         if method.starts_with('_') || method.contains("internal") || method.contains("private") {
             report.add_warning(ValidationWarning::new(
@@ -1601,12 +1739,16 @@ impl MCPMessageValidator {
                 "Method name suggests internal/private usage".to_string(),
             ));
         }
-        
+
         Ok(())
     }
-    
+
     /// Validate request ID format and security
-    fn validate_request_id(&self, id: &crate::protocol::jsonrpc::RequestId, report: &mut ValidationReport) -> MCPResult<()> {
+    fn validate_request_id(
+        &self,
+        id: &crate::protocol::jsonrpc::RequestId,
+        report: &mut ValidationReport,
+    ) -> MCPResult<()> {
         match id {
             crate::protocol::jsonrpc::RequestId::String(s) => {
                 if s.is_empty() {
@@ -1616,15 +1758,18 @@ impl MCPMessageValidator {
                         ErrorSeverity::Medium,
                     ));
                 }
-                
+
                 if s.len() > 200 {
                     report.add_error(ValidationError::new(
                         "id".to_string(),
-                        format!("Request ID string too long: {} characters (max 200)", s.len()),
+                        format!(
+                            "Request ID string too long: {} characters (max 200)",
+                            s.len()
+                        ),
                         ErrorSeverity::Medium,
                     ));
                 }
-                
+
                 // Check for dangerous characters
                 if s.contains('\0') || s.contains('\n') || s.contains('\r') || s.contains('\t') {
                     report.add_error(ValidationError::new(
@@ -1633,13 +1778,13 @@ impl MCPMessageValidator {
                         ErrorSeverity::Medium,
                     ));
                 }
-                
+
                 // Check for potential injection
                 self.validate_string_security(s, report, "id".to_string())?;
             }
             crate::protocol::jsonrpc::RequestId::Number(n) => {
                 // Check for reasonable numeric range
-                if *n < -9_223_372_036_854_775_807 || *n > 9_223_372_036_854_775_807 {
+                if *n < -9_223_372_036_854_775_807 {
                     report.add_error(ValidationError::new(
                         "id".to_string(),
                         "Request ID number out of reasonable range".to_string(),
@@ -1648,22 +1793,29 @@ impl MCPMessageValidator {
                 }
             }
         }
-        
+
         Ok(())
     }
-    
+
     /// Validate JSON-RPC error object
-    fn validate_error(&self, error: &crate::protocol::jsonrpc::JsonRpcError, report: &mut ValidationReport) -> MCPResult<()> {
+    fn validate_error(
+        &self,
+        error: &crate::protocol::jsonrpc::JsonRpcError,
+        report: &mut ValidationReport,
+    ) -> MCPResult<()> {
         // Validate error code is in valid range
-        if error.code < -32999 || error.code > -32000 {
-            if error.code < -32700 || error.code > -32600 {
-                report.add_warning(ValidationWarning::new(
-                    "error.code".to_string(),
-                    format!("Error code {} is outside standard JSON-RPC ranges", error.code),
-                ));
-            }
+        if (error.code < -32999 || error.code > -32000)
+            && (error.code < -32700 || error.code > -32600)
+        {
+            report.add_warning(ValidationWarning::new(
+                "error.code".to_string(),
+                format!(
+                    "Error code {} is outside standard JSON-RPC ranges",
+                    error.code
+                ),
+            ));
         }
-        
+
         // Validate error message
         if error.message.is_empty() {
             report.add_error(ValidationError::new(
@@ -1672,26 +1824,34 @@ impl MCPMessageValidator {
                 ErrorSeverity::Medium,
             ));
         }
-        
+
         if error.message.len() > 1000 {
             report.add_warning(ValidationWarning::new(
                 "error.message".to_string(),
-                format!("Error message very long: {} characters", error.message.len()),
+                format!(
+                    "Error message very long: {} characters",
+                    error.message.len()
+                ),
             ));
         }
-        
+
         self.validate_string_security(&error.message, report, "error.message".to_string())?;
-        
+
         // Validate error data if present
         if let Some(ref data) = error.data {
             self.validate_value(data, report, "error.data".to_string(), 0)?;
         }
-        
+
         Ok(())
     }
-    
+
     /// Validate method-specific parameters
-    fn validate_method_specific_params(&self, method: &str, params: &serde_json::Value, report: &mut ValidationReport) -> MCPResult<()> {
+    fn validate_method_specific_params(
+        &self,
+        method: &str,
+        params: &serde_json::Value,
+        report: &mut ValidationReport,
+    ) -> MCPResult<()> {
         match method {
             "initialize" => self.validate_initialize_params(params, report)?,
             "tools/call" => self.validate_tool_call_params(params, report)?,
@@ -1707,18 +1867,26 @@ impl MCPMessageValidator {
                     if obj.len() > 50 {
                         report.add_warning(ValidationWarning::new(
                             "params".to_string(),
-                            format!("Large parameter object for method '{}': {} properties", method, obj.len()),
+                            format!(
+                                "Large parameter object for method '{}': {} properties",
+                                method,
+                                obj.len()
+                            ),
                         ));
                     }
                 }
             }
         }
-        
+
         Ok(())
     }
-    
+
     /// Validate initialize method parameters
-    fn validate_initialize_params(&self, params: &serde_json::Value, report: &mut ValidationReport) -> MCPResult<()> {
+    fn validate_initialize_params(
+        &self,
+        params: &serde_json::Value,
+        report: &mut ValidationReport,
+    ) -> MCPResult<()> {
         let obj = match params.as_object() {
             Some(obj) => obj,
             None => {
@@ -1730,7 +1898,7 @@ impl MCPMessageValidator {
                 return Ok(());
             }
         };
-        
+
         // Validate protocol version
         if let Some(version) = obj.get("protocolVersion") {
             if let Some(version_str) = version.as_str() {
@@ -1749,22 +1917,30 @@ impl MCPMessageValidator {
                 ));
             }
         }
-        
+
         // Validate client info
         if let Some(client_info) = obj.get("clientInfo") {
             self.validate_client_info(client_info, report)?;
         }
-        
+
         // Validate capabilities
         if let Some(capabilities) = obj.get("capabilities") {
-            self.validate_capabilities(capabilities, report, "initialize.capabilities".to_string())?;
+            self.validate_capabilities(
+                capabilities,
+                report,
+                "initialize.capabilities".to_string(),
+            )?;
         }
-        
+
         Ok(())
     }
-    
+
     /// Validate tool call parameters
-    fn validate_tool_call_params(&self, params: &serde_json::Value, report: &mut ValidationReport) -> MCPResult<()> {
+    fn validate_tool_call_params(
+        &self,
+        params: &serde_json::Value,
+        report: &mut ValidationReport,
+    ) -> MCPResult<()> {
         let obj = match params.as_object() {
             Some(obj) => obj,
             None => {
@@ -1776,7 +1952,7 @@ impl MCPMessageValidator {
                 return Ok(());
             }
         };
-        
+
         // Validate tool name
         if let Some(name) = obj.get("name") {
             if let Some(name_str) = name.as_str() {
@@ -1787,15 +1963,18 @@ impl MCPMessageValidator {
                         ErrorSeverity::High,
                     ));
                 }
-                
+
                 if name_str.len() > 200 {
                     report.add_error(ValidationError::new(
                         "tools/call.name".to_string(),
-                        format!("Tool name too long: {} characters (max 200)", name_str.len()),
+                        format!(
+                            "Tool name too long: {} characters (max 200)",
+                            name_str.len()
+                        ),
                         ErrorSeverity::High,
                     ));
                 }
-                
+
                 // Check for dangerous tool names
                 if name_str.starts_with('_') || name_str.contains("..") || name_str.contains('/') {
                     report.add_error(ValidationError::new(
@@ -1804,7 +1983,7 @@ impl MCPMessageValidator {
                         ErrorSeverity::High,
                     ));
                 }
-                
+
                 self.validate_string_security(name_str, report, "tools/call.name".to_string())?;
             } else {
                 report.add_error(ValidationError::new(
@@ -1820,17 +1999,21 @@ impl MCPMessageValidator {
                 ErrorSeverity::High,
             ));
         }
-        
+
         // Validate arguments if present
         if let Some(arguments) = obj.get("arguments") {
             self.validate_value(arguments, report, "tools/call.arguments".to_string(), 0)?;
         }
-        
+
         Ok(())
     }
-    
+
     /// Validate resource read parameters
-    fn validate_resource_read_params(&self, params: &serde_json::Value, report: &mut ValidationReport) -> MCPResult<()> {
+    fn validate_resource_read_params(
+        &self,
+        params: &serde_json::Value,
+        report: &mut ValidationReport,
+    ) -> MCPResult<()> {
         let obj = match params.as_object() {
             Some(obj) => obj,
             None => {
@@ -1842,7 +2025,7 @@ impl MCPMessageValidator {
                 return Ok(());
             }
         };
-        
+
         // Validate URI
         if let Some(uri) = obj.get("uri") {
             if let Some(uri_str) = uri.as_str() {
@@ -1861,12 +2044,16 @@ impl MCPMessageValidator {
                 ErrorSeverity::High,
             ));
         }
-        
+
         Ok(())
     }
-    
+
     /// Validate resource subscribe parameters
-    fn validate_resource_subscribe_params(&self, params: &serde_json::Value, report: &mut ValidationReport) -> MCPResult<()> {
+    fn validate_resource_subscribe_params(
+        &self,
+        params: &serde_json::Value,
+        report: &mut ValidationReport,
+    ) -> MCPResult<()> {
         let obj = match params.as_object() {
             Some(obj) => obj,
             None => {
@@ -1878,7 +2065,7 @@ impl MCPMessageValidator {
                 return Ok(());
             }
         };
-        
+
         // Validate URI
         if let Some(uri) = obj.get("uri") {
             if let Some(uri_str) = uri.as_str() {
@@ -1897,12 +2084,16 @@ impl MCPMessageValidator {
                 ErrorSeverity::High,
             ));
         }
-        
+
         Ok(())
     }
-    
+
     /// Validate prompt get parameters
-    fn validate_prompt_get_params(&self, params: &serde_json::Value, report: &mut ValidationReport) -> MCPResult<()> {
+    fn validate_prompt_get_params(
+        &self,
+        params: &serde_json::Value,
+        report: &mut ValidationReport,
+    ) -> MCPResult<()> {
         let obj = match params.as_object() {
             Some(obj) => obj,
             None => {
@@ -1914,7 +2105,7 @@ impl MCPMessageValidator {
                 return Ok(());
             }
         };
-        
+
         // Validate prompt name
         if let Some(name) = obj.get("name") {
             if let Some(name_str) = name.as_str() {
@@ -1925,15 +2116,18 @@ impl MCPMessageValidator {
                         ErrorSeverity::High,
                     ));
                 }
-                
+
                 if name_str.len() > 200 {
                     report.add_error(ValidationError::new(
                         "prompts/get.name".to_string(),
-                        format!("Prompt name too long: {} characters (max 200)", name_str.len()),
+                        format!(
+                            "Prompt name too long: {} characters (max 200)",
+                            name_str.len()
+                        ),
                         ErrorSeverity::High,
                     ));
                 }
-                
+
                 self.validate_string_security(name_str, report, "prompts/get.name".to_string())?;
             } else {
                 report.add_error(ValidationError::new(
@@ -1949,17 +2143,21 @@ impl MCPMessageValidator {
                 ErrorSeverity::High,
             ));
         }
-        
+
         // Validate arguments if present
         if let Some(arguments) = obj.get("arguments") {
             self.validate_value(arguments, report, "prompts/get.arguments".to_string(), 0)?;
         }
-        
+
         Ok(())
     }
-    
+
     /// Validate sampling parameters
-    fn validate_sampling_params(&self, params: &serde_json::Value, report: &mut ValidationReport) -> MCPResult<()> {
+    fn validate_sampling_params(
+        &self,
+        params: &serde_json::Value,
+        report: &mut ValidationReport,
+    ) -> MCPResult<()> {
         let obj = match params.as_object() {
             Some(obj) => obj,
             None => {
@@ -1971,7 +2169,7 @@ impl MCPMessageValidator {
                 return Ok(());
             }
         };
-        
+
         // Validate messages array if present
         if let Some(messages) = obj.get("messages") {
             if let Some(messages_array) = messages.as_array() {
@@ -1982,9 +2180,14 @@ impl MCPMessageValidator {
                         ErrorSeverity::High,
                     ));
                 }
-                
+
                 for (i, message) in messages_array.iter().enumerate() {
-                    self.validate_value(message, report, format!("sampling/createMessage.messages[{}]", i), 0)?;
+                    self.validate_value(
+                        message,
+                        report,
+                        format!("sampling/createMessage.messages[{}]", i),
+                        0,
+                    )?;
                 }
             } else {
                 report.add_error(ValidationError::new(
@@ -1994,17 +2197,26 @@ impl MCPMessageValidator {
                 ));
             }
         }
-        
+
         // Validate model preferences if present
         if let Some(model_prefs) = obj.get("modelPreferences") {
-            self.validate_value(model_prefs, report, "sampling/createMessage.modelPreferences".to_string(), 0)?;
+            self.validate_value(
+                model_prefs,
+                report,
+                "sampling/createMessage.modelPreferences".to_string(),
+                0,
+            )?;
         }
-        
+
         Ok(())
     }
-    
+
     /// Validate elicitation parameters
-    fn validate_elicitation_params(&self, params: &serde_json::Value, report: &mut ValidationReport) -> MCPResult<()> {
+    fn validate_elicitation_params(
+        &self,
+        params: &serde_json::Value,
+        report: &mut ValidationReport,
+    ) -> MCPResult<()> {
         let obj = match params.as_object() {
             Some(obj) => obj,
             None => {
@@ -2016,7 +2228,7 @@ impl MCPMessageValidator {
                 return Ok(());
             }
         };
-        
+
         // Validate prompt if present
         if let Some(prompt) = obj.get("prompt") {
             if let Some(prompt_str) = prompt.as_str() {
@@ -2026,16 +2238,24 @@ impl MCPMessageValidator {
                         format!("Very long prompt: {} characters", prompt_str.len()),
                     ));
                 }
-                
-                self.validate_string_security(prompt_str, report, "elicitation/request.prompt".to_string())?;
+
+                self.validate_string_security(
+                    prompt_str,
+                    report,
+                    "elicitation/request.prompt".to_string(),
+                )?;
             }
         }
-        
+
         Ok(())
     }
-    
+
     /// Validate logging parameters
-    fn validate_logging_params(&self, params: &serde_json::Value, report: &mut ValidationReport) -> MCPResult<()> {
+    fn validate_logging_params(
+        &self,
+        params: &serde_json::Value,
+        report: &mut ValidationReport,
+    ) -> MCPResult<()> {
         let obj = match params.as_object() {
             Some(obj) => obj,
             None => {
@@ -2047,7 +2267,7 @@ impl MCPMessageValidator {
                 return Ok(());
             }
         };
-        
+
         // Validate log level if present
         if let Some(level) = obj.get("level") {
             if let Some(level_str) = level.as_str() {
@@ -2055,7 +2275,10 @@ impl MCPMessageValidator {
                 if !valid_levels.contains(&level_str) {
                     report.add_error(ValidationError::new(
                         "logging/log.level".to_string(),
-                        format!("Invalid log level: {} (must be one of: {:?})", level_str, valid_levels),
+                        format!(
+                            "Invalid log level: {} (must be one of: {:?})",
+                            level_str, valid_levels
+                        ),
                         ErrorSeverity::Medium,
                     ));
                 }
@@ -2067,7 +2290,7 @@ impl MCPMessageValidator {
                 ));
             }
         }
-        
+
         // Validate message if present
         if let Some(message) = obj.get("message") {
             if let Some(message_str) = message.as_str() {
@@ -2077,16 +2300,24 @@ impl MCPMessageValidator {
                         format!("Very long log message: {} characters", message_str.len()),
                     ));
                 }
-                
-                self.validate_string_security(message_str, report, "logging/log.message".to_string())?;
+
+                self.validate_string_security(
+                    message_str,
+                    report,
+                    "logging/log.message".to_string(),
+                )?;
             }
         }
-        
+
         Ok(())
     }
-    
+
     /// Validate client info object
-    fn validate_client_info(&self, client_info: &serde_json::Value, report: &mut ValidationReport) -> MCPResult<()> {
+    fn validate_client_info(
+        &self,
+        client_info: &serde_json::Value,
+        report: &mut ValidationReport,
+    ) -> MCPResult<()> {
         if let Some(obj) = client_info.as_object() {
             // Validate name
             if let Some(name) = obj.get("name") {
@@ -2098,26 +2329,32 @@ impl MCPMessageValidator {
                             ErrorSeverity::Medium,
                         ));
                     }
-                    
+
                     if name_str.len() > 200 {
                         report.add_error(ValidationError::new(
                             "clientInfo.name".to_string(),
-                            format!("Client name too long: {} characters (max 200)", name_str.len()),
+                            format!(
+                                "Client name too long: {} characters (max 200)",
+                                name_str.len()
+                            ),
                             ErrorSeverity::Medium,
                         ));
                     }
-                    
+
                     self.validate_string_security(name_str, report, "clientInfo.name".to_string())?;
                 }
             }
-            
+
             // Validate version
             if let Some(version) = obj.get("version") {
                 if let Some(version_str) = version.as_str() {
                     if version_str.len() > 100 {
                         report.add_warning(ValidationWarning::new(
                             "clientInfo.version".to_string(),
-                            format!("Client version string very long: {} characters", version_str.len()),
+                            format!(
+                                "Client version string very long: {} characters",
+                                version_str.len()
+                            ),
                         ));
                     }
                 }
@@ -2129,12 +2366,17 @@ impl MCPMessageValidator {
                 ErrorSeverity::Medium,
             ));
         }
-        
+
         Ok(())
     }
-    
+
     /// Validate capabilities object
-    fn validate_capabilities(&self, capabilities: &serde_json::Value, report: &mut ValidationReport, path: String) -> MCPResult<()> {
+    fn validate_capabilities(
+        &self,
+        capabilities: &serde_json::Value,
+        report: &mut ValidationReport,
+        path: String,
+    ) -> MCPResult<()> {
         if let Some(obj) = capabilities.as_object() {
             // Check for excessively large capabilities
             if obj.len() > 100 {
@@ -2143,7 +2385,7 @@ impl MCPMessageValidator {
                     format!("Large capabilities object: {} properties", obj.len()),
                 ));
             }
-            
+
             // Validate each capability
             for (key, value) in obj {
                 self.validate_value(value, report, format!("{}.{}", path, key), 0)?;
@@ -2155,10 +2397,10 @@ impl MCPMessageValidator {
                 ErrorSeverity::Medium,
             ));
         }
-        
+
         Ok(())
     }
-    
+
     /// Validate URI format and security
     fn validate_uri(&self, uri: &str, report: &mut ValidationReport) -> MCPResult<()> {
         // Check URI length
@@ -2169,7 +2411,7 @@ impl MCPMessageValidator {
                 ErrorSeverity::High,
             ));
         }
-        
+
         // Check for basic URI format
         if !uri.contains("://") && !uri.starts_with("file://") && !uri.starts_with("data:") {
             report.add_error(ValidationError::new(
@@ -2178,11 +2420,17 @@ impl MCPMessageValidator {
                 ErrorSeverity::High,
             ));
         }
-        
+
         // Check for dangerous URI schemes
-        let dangerous_schemes = ["javascript:", "data:text/html", "vbscript:", "file:///proc", "file:///sys"];
+        let dangerous_schemes = [
+            "javascript:",
+            "data:text/html",
+            "vbscript:",
+            "file:///proc",
+            "file:///sys",
+        ];
         let uri_lower = uri.to_lowercase();
-        
+
         for scheme in &dangerous_schemes {
             if uri_lower.starts_with(scheme) {
                 if !self.allow_dangerous_content {
@@ -2199,7 +2447,7 @@ impl MCPMessageValidator {
                 }
             }
         }
-        
+
         // Check for path traversal in URI
         if uri.contains("../") || uri.contains("..\\") {
             report.add_error(ValidationError::new(
@@ -2208,15 +2456,21 @@ impl MCPMessageValidator {
                 ErrorSeverity::High,
             ));
         }
-        
+
         // Additional security validation
         self.validate_string_security(uri, report, "uri".to_string())?;
-        
+
         Ok(())
     }
-    
+
     /// Validate any JSON value recursively
-    fn validate_value(&self, value: &serde_json::Value, report: &mut ValidationReport, path: String, depth: usize) -> MCPResult<()> {
+    fn validate_value(
+        &self,
+        value: &serde_json::Value,
+        report: &mut ValidationReport,
+        path: String,
+        depth: usize,
+    ) -> MCPResult<()> {
         // Check depth limit
         if depth > self.max_depth {
             report.add_error(ValidationError::new(
@@ -2226,7 +2480,7 @@ impl MCPMessageValidator {
             ));
             return Ok(());
         }
-        
+
         match value {
             serde_json::Value::String(s) => {
                 self.validate_string_value(s, report, path)?;
@@ -2243,21 +2497,30 @@ impl MCPMessageValidator {
             // Bool and Null are generally safe
             _ => {}
         }
-        
+
         Ok(())
     }
-    
+
     /// Validate string value for size and security
-    fn validate_string_value(&self, s: &str, report: &mut ValidationReport, path: String) -> MCPResult<()> {
+    fn validate_string_value(
+        &self,
+        s: &str,
+        report: &mut ValidationReport,
+        path: String,
+    ) -> MCPResult<()> {
         // Check string length
         if s.len() > self.max_string_length {
             report.add_error(ValidationError::new(
                 path.clone(),
-                format!("String too long: {} characters (max {})", s.len(), self.max_string_length),
+                format!(
+                    "String too long: {} characters (max {})",
+                    s.len(),
+                    self.max_string_length
+                ),
                 ErrorSeverity::High,
             ));
         }
-        
+
         // Check for extremely large strings that might be DoS attempts
         if s.len() > 100_000 {
             report.add_warning(ValidationWarning::new(
@@ -2265,15 +2528,20 @@ impl MCPMessageValidator {
                 format!("Very large string: {} characters", s.len()),
             ));
         }
-        
+
         // Security validation
         self.validate_string_security(s, report, path)?;
-        
+
         Ok(())
     }
-    
+
     /// Validate string for security issues
-    fn validate_string_security(&self, s: &str, report: &mut ValidationReport, path: String) -> MCPResult<()> {
+    fn validate_string_security(
+        &self,
+        s: &str,
+        report: &mut ValidationReport,
+        path: String,
+    ) -> MCPResult<()> {
         // Check for null bytes
         if s.contains('\0') {
             report.add_error(ValidationError::new(
@@ -2282,7 +2550,7 @@ impl MCPMessageValidator {
                 ErrorSeverity::High,
             ));
         }
-        
+
         // Check against blocked patterns
         for pattern in &self.blocked_patterns {
             if pattern.is_match(s) {
@@ -2295,12 +2563,15 @@ impl MCPMessageValidator {
                 } else {
                     report.add_warning(ValidationWarning::new(
                         path.clone(),
-                        format!("String matches potentially dangerous pattern: {}", pattern.as_str()),
+                        format!(
+                            "String matches potentially dangerous pattern: {}",
+                            pattern.as_str()
+                        ),
                     ));
                 }
             }
         }
-        
+
         // Check for suspicious character sequences
         let suspicious_patterns = [
             ("\r\n\r\n", "HTTP header injection"),
@@ -2310,49 +2581,72 @@ impl MCPMessageValidator {
             ("${", "Variable substitution attack"),
             ("#{", "Expression language injection"),
         ];
-        
+
         for (pattern, description) in &suspicious_patterns {
             if s.contains(pattern) {
                 report.add_warning(ValidationWarning::new(
                     path.clone(),
-                    format!("String contains suspicious pattern '{}': {}", pattern, description),
+                    format!(
+                        "String contains suspicious pattern '{}': {}",
+                        pattern, description
+                    ),
                 ));
             }
         }
-        
+
         Ok(())
     }
-    
+
     /// Validate array value
-    fn validate_array_value(&self, arr: &[serde_json::Value], report: &mut ValidationReport, path: String, depth: usize) -> MCPResult<()> {
+    fn validate_array_value(
+        &self,
+        arr: &[serde_json::Value],
+        report: &mut ValidationReport,
+        path: String,
+        depth: usize,
+    ) -> MCPResult<()> {
         // Check array length
         if arr.len() > self.max_array_length {
             report.add_error(ValidationError::new(
                 path.clone(),
-                format!("Array too large: {} elements (max {})", arr.len(), self.max_array_length),
+                format!(
+                    "Array too large: {} elements (max {})",
+                    arr.len(),
+                    self.max_array_length
+                ),
                 ErrorSeverity::High,
             ));
         }
-        
+
         // Validate each element
         for (i, item) in arr.iter().enumerate() {
             self.validate_value(item, report, format!("{}[{}]", path, i), depth + 1)?;
         }
-        
+
         Ok(())
     }
-    
+
     /// Validate object value
-    fn validate_object_value(&self, obj: &serde_json::Map<String, serde_json::Value>, report: &mut ValidationReport, path: String, depth: usize) -> MCPResult<()> {
+    fn validate_object_value(
+        &self,
+        obj: &serde_json::Map<String, serde_json::Value>,
+        report: &mut ValidationReport,
+        path: String,
+        depth: usize,
+    ) -> MCPResult<()> {
         // Check object size
         if obj.len() > self.max_object_properties {
             report.add_error(ValidationError::new(
                 path.clone(),
-                format!("Object too large: {} properties (max {})", obj.len(), self.max_object_properties),
+                format!(
+                    "Object too large: {} properties (max {})",
+                    obj.len(),
+                    self.max_object_properties
+                ),
                 ErrorSeverity::High,
             ));
         }
-        
+
         // Validate each property
         for (key, value) in obj {
             // Validate key
@@ -2363,7 +2657,7 @@ impl MCPMessageValidator {
                     ErrorSeverity::Medium,
                 ));
             }
-            
+
             if key.len() > 200 {
                 report.add_error(ValidationError::new(
                     path.clone(),
@@ -2371,7 +2665,7 @@ impl MCPMessageValidator {
                     ErrorSeverity::Medium,
                 ));
             }
-            
+
             // Check for potentially dangerous keys
             if key.starts_with('_') && key != "_meta" {
                 report.add_warning(ValidationWarning::new(
@@ -2379,19 +2673,24 @@ impl MCPMessageValidator {
                     format!("Private key detected: {}", key),
                 ));
             }
-            
+
             // Validate key security
             self.validate_string_security(key, report, format!("{}.{}", path, key))?;
-            
+
             // Validate value
             self.validate_value(value, report, format!("{}.{}", path, key), depth + 1)?;
         }
-        
+
         Ok(())
     }
-    
+
     /// Validate number value
-    fn validate_number_value(&self, n: &serde_json::Number, report: &mut ValidationReport, path: String) -> MCPResult<()> {
+    fn validate_number_value(
+        &self,
+        n: &serde_json::Number,
+        report: &mut ValidationReport,
+        path: String,
+    ) -> MCPResult<()> {
         // Check for special float values
         if let Some(f) = n.as_f64() {
             if f.is_infinite() || f.is_nan() {
@@ -2402,7 +2701,7 @@ impl MCPMessageValidator {
                 ));
             }
         }
-        
+
         Ok(())
     }
 }
@@ -2410,7 +2709,9 @@ impl MCPMessageValidator {
 #[cfg(test)]
 mod mcp_message_validator_tests {
     use super::*;
-    use crate::protocol::jsonrpc::{JsonRpcMessage, JsonRpcRequest, JsonRpcResponse, JsonRpcError, RequestId};
+    use crate::protocol::jsonrpc::{
+        JsonRpcError, JsonRpcMessage, JsonRpcRequest, JsonRpcResponse, RequestId,
+    };
     use serde_json::json;
 
     fn create_test_validator() -> MCPMessageValidator {
@@ -2431,17 +2732,21 @@ mod mcp_message_validator_tests {
             meta: std::collections::HashMap::new(),
         };
         let message = JsonRpcMessage::Request(request);
-        
+
         let result = validator.validate_message(&message);
         assert!(result.is_ok());
         let report = result.unwrap();
-        assert!(report.is_valid(), "Expected no validation errors: {:?}", report.errors);
+        assert!(
+            report.is_valid(),
+            "Expected no validation errors: {:?}",
+            report.errors
+        );
     }
 
     #[test]
     fn test_validate_invalid_jsonrpc_version() {
         let validator = create_test_validator();
-        let mut request = JsonRpcRequest {
+        let request = JsonRpcRequest {
             jsonrpc: "1.0".to_string(),
             method: "test".to_string(),
             params: None,
@@ -2449,13 +2754,15 @@ mod mcp_message_validator_tests {
             meta: std::collections::HashMap::new(),
         };
         let message = JsonRpcMessage::Request(request);
-        
+
         let result = validator.validate_message(&message);
         assert!(result.is_ok());
         let report = result.unwrap();
         assert!(!report.is_valid());
         assert_eq!(report.errors.len(), 1);
-        assert!(report.errors[0].message.contains("Invalid JSON-RPC version"));
+        assert!(report.errors[0]
+            .message
+            .contains("Invalid JSON-RPC version"));
     }
 
     #[test]
@@ -2469,12 +2776,15 @@ mod mcp_message_validator_tests {
             meta: std::collections::HashMap::new(),
         };
         let message = JsonRpcMessage::Request(request);
-        
+
         let result = validator.validate_message(&message);
         assert!(result.is_ok());
         let report = result.unwrap();
         assert!(!report.is_valid());
-        assert!(report.errors.iter().any(|e| e.message.contains("unsafe patterns")));
+        assert!(report
+            .errors
+            .iter()
+            .any(|e| e.message.contains("unsafe patterns")));
     }
 
     #[test]
@@ -2491,12 +2801,15 @@ mod mcp_message_validator_tests {
             meta: std::collections::HashMap::new(),
         };
         let message = JsonRpcMessage::Request(request);
-        
+
         let result = validator.validate_message(&message);
         assert!(result.is_ok());
         let report = result.unwrap();
         assert!(!report.is_valid());
-        assert!(report.errors.iter().any(|e| e.message.contains("blocked pattern")));
+        assert!(report
+            .errors
+            .iter()
+            .any(|e| e.message.contains("blocked pattern")));
     }
 
     #[test]
@@ -2513,12 +2826,15 @@ mod mcp_message_validator_tests {
             meta: std::collections::HashMap::new(),
         };
         let message = JsonRpcMessage::Request(request);
-        
+
         let result = validator.validate_message(&message);
         assert!(result.is_ok());
         let report = result.unwrap();
         assert!(!report.is_valid());
-        assert!(report.errors.iter().any(|e| e.message.contains("unsafe characters")));
+        assert!(report
+            .errors
+            .iter()
+            .any(|e| e.message.contains("unsafe characters")));
     }
 
     #[test]
@@ -2535,12 +2851,15 @@ mod mcp_message_validator_tests {
             meta: std::collections::HashMap::new(),
         };
         let message = JsonRpcMessage::Request(request);
-        
+
         let result = validator.validate_message(&message);
         assert!(result.is_ok());
         let report = result.unwrap();
         assert!(!report.is_valid());
-        assert!(report.errors.iter().any(|e| e.message.contains("Unsupported protocol version")));
+        assert!(report
+            .errors
+            .iter()
+            .any(|e| e.message.contains("Unsupported protocol version")));
     }
 
     #[test]
@@ -2554,12 +2873,15 @@ mod mcp_message_validator_tests {
             meta: std::collections::HashMap::new(),
         };
         let message = JsonRpcMessage::Response(response);
-        
+
         let result = validator.validate_message(&message);
         assert!(result.is_ok());
         let report = result.unwrap();
         assert!(!report.is_valid());
-        assert!(report.errors.iter().any(|e| e.message.contains("cannot have both result and error")));
+        assert!(report
+            .errors
+            .iter()
+            .any(|e| e.message.contains("cannot have both result and error")));
     }
 
     #[test]
@@ -2574,24 +2896,27 @@ mod mcp_message_validator_tests {
             meta: std::collections::HashMap::new(),
         };
         let message = JsonRpcMessage::Request(request);
-        
+
         let result = validator.validate_message(&message);
         assert!(result.is_ok());
         let report = result.unwrap();
         assert!(!report.is_valid());
-        assert!(report.errors.iter().any(|e| e.message.contains("Array too large")));
+        assert!(report
+            .errors
+            .iter()
+            .any(|e| e.message.contains("Array too large")));
     }
 
     #[test]
     fn test_validate_deep_nested_object() {
         let validator = create_test_validator();
-        
+
         // Create deeply nested object
         let mut nested = json!("deep_value");
         for _ in 0..60 {
             nested = json!({"nested": nested});
         }
-        
+
         let request = JsonRpcRequest {
             jsonrpc: "2.0".to_string(),
             method: "test".to_string(),
@@ -2600,12 +2925,15 @@ mod mcp_message_validator_tests {
             meta: std::collections::HashMap::new(),
         };
         let message = JsonRpcMessage::Request(request);
-        
+
         let result = validator.validate_message(&message);
         assert!(result.is_ok());
         let report = result.unwrap();
         assert!(!report.is_valid());
-        assert!(report.errors.iter().any(|e| e.message.contains("depth") && e.message.contains("exceeds maximum")));
+        assert!(report
+            .errors
+            .iter()
+            .any(|e| e.message.contains("depth") && e.message.contains("exceeds maximum")));
     }
 
     #[test]
@@ -2621,12 +2949,15 @@ mod mcp_message_validator_tests {
             meta: std::collections::HashMap::new(),
         };
         let message = JsonRpcMessage::Request(request);
-        
+
         let result = validator.validate_message(&message);
         assert!(result.is_ok());
         let report = result.unwrap();
         assert!(!report.is_valid());
-        assert!(report.errors.iter().any(|e| e.message.contains("path traversal")));
+        assert!(report
+            .errors
+            .iter()
+            .any(|e| e.message.contains("path traversal")));
     }
 
     #[test]
@@ -2641,19 +2972,22 @@ mod mcp_message_validator_tests {
             meta: std::collections::HashMap::new(),
         };
         let message = JsonRpcMessage::Request(request);
-        
+
         let result = validator.validate_message(&message);
         assert!(result.is_ok());
         let report = result.unwrap();
         assert!(!report.is_valid());
-        assert!(report.errors.iter().any(|e| e.message.contains("String too long")));
+        assert!(report
+            .errors
+            .iter()
+            .any(|e| e.message.contains("String too long")));
     }
 
     #[test]
     fn test_validate_custom_blocked_pattern() {
         let mut validator = create_test_validator();
         validator.add_blocked_pattern(r"SECRET_\w+").unwrap();
-        
+
         let request = JsonRpcRequest {
             jsonrpc: "2.0".to_string(),
             method: "test".to_string(),
@@ -2662,12 +2996,15 @@ mod mcp_message_validator_tests {
             meta: std::collections::HashMap::new(),
         };
         let message = JsonRpcMessage::Request(request);
-        
+
         let result = validator.validate_message(&message);
         assert!(result.is_ok());
         let report = result.unwrap();
         assert!(!report.is_valid());
-        assert!(report.errors.iter().any(|e| e.message.contains("blocked pattern")));
+        assert!(report
+            .errors
+            .iter()
+            .any(|e| e.message.contains("blocked pattern")));
     }
 
     #[test]
@@ -2681,7 +3018,7 @@ mod mcp_message_validator_tests {
             meta: std::collections::HashMap::new(),
         };
         let message = JsonRpcMessage::Request(request);
-        
+
         let result = validator.validate_message(&message);
         assert!(result.is_ok());
         let report = result.unwrap();
@@ -2704,10 +3041,14 @@ mod mcp_message_validator_tests {
             meta: std::collections::HashMap::new(),
         };
         let message = JsonRpcMessage::Notification(notification);
-        
+
         let result = validator.validate_message(&message);
         assert!(result.is_ok());
         let report = result.unwrap();
-        assert!(report.is_valid(), "Expected valid notification: {:?}", report.errors);
+        assert!(
+            report.is_valid(),
+            "Expected valid notification: {:?}",
+            report.errors
+        );
     }
 }

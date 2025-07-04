@@ -8,12 +8,12 @@
 
 use crate::{Result, TransportError};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime};
 use tokio::sync::{mpsc, RwLock};
 use ultrafast_mcp_core::protocol::JsonRpcMessage;
-use serde_json::Value;
 
 /// Performance optimization configuration
 #[derive(Debug, Clone)]
@@ -46,6 +46,7 @@ pub struct RequestBatcher {
     batch_sender: mpsc::Sender<BatchRequest>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug)]
 struct BatchRequest {
     session_id: String,
@@ -62,8 +63,9 @@ impl RequestBatcher {
         let pending_clone = pending_requests.clone();
         let config_clone = config.clone();
         tokio::spawn(async move {
-            let mut batch_timer = tokio::time::interval(Duration::from_millis(config_clone.batch_timeout_ms));
-            
+            let mut batch_timer =
+                tokio::time::interval(Duration::from_millis(config_clone.batch_timeout_ms));
+
             loop {
                 tokio::select! {
                     _ = batch_timer.tick() => {
@@ -88,7 +90,7 @@ impl RequestBatcher {
     /// Add a message to the batch for the given session
     pub async fn add_message(&self, session_id: String, message: JsonRpcMessage) -> Result<()> {
         let mut pending = self.pending_requests.write().await;
-        
+
         let session_batch = pending.entry(session_id.clone()).or_insert_with(Vec::new);
         session_batch.push(message);
 
@@ -100,12 +102,13 @@ impl RequestBatcher {
                 messages,
                 timestamp: Instant::now(),
             };
-            
-            self.batch_sender.send(batch).await.map_err(|e| {
-                TransportError::NetworkError {
+
+            self.batch_sender
+                .send(batch)
+                .await
+                .map_err(|e| TransportError::NetworkError {
                     message: format!("Failed to send batch: {}", e),
-                }
-            })?;
+                })?;
         }
 
         Ok(())
@@ -121,7 +124,7 @@ impl RequestBatcher {
         let _timeout = Duration::from_millis(config.batch_timeout_ms);
 
         let mut to_process = Vec::new();
-        
+
         for (session_id, messages) in pending_guard.iter_mut() {
             if !messages.is_empty() {
                 to_process.push((session_id.clone(), std::mem::take(messages)));
@@ -158,6 +161,7 @@ impl RequestBatcher {
 }
 
 /// Response optimizer for efficient response handling
+#[allow(dead_code)]
 pub struct ResponseOptimizer {
     config: OptimizationConfig,
 }
@@ -188,7 +192,10 @@ impl ResponseOptimizer {
     }
 
     /// Determine if a response should be streamed
-    fn should_stream_response(&self, response: &ultrafast_mcp_core::protocol::jsonrpc::JsonRpcResponse) -> bool {
+    fn should_stream_response(
+        &self,
+        response: &ultrafast_mcp_core::protocol::jsonrpc::JsonRpcResponse,
+    ) -> bool {
         // Stream large responses or responses with streaming content
         if let Some(result) = &response.result {
             let size = serde_json::to_string(result).map(|s| s.len()).unwrap_or(0);
@@ -232,7 +239,7 @@ impl ResponseCache {
     pub async fn get(&self, key: &str) -> Option<Value> {
         let mut cache = self.cache.write().await;
         let now = SystemTime::now();
-        
+
         if let Some(cached) = cache.get(key) {
             if cached.expires_at > now {
                 return Some(cached.data.clone());
@@ -241,14 +248,14 @@ impl ResponseCache {
                 cache.remove(key);
             }
         }
-        
+
         None
     }
 
     /// Store a response in the cache
     pub async fn set(&self, key: String, data: Value) {
         let mut cache = self.cache.write().await;
-        
+
         // Evict oldest entries if cache is full
         if cache.len() >= self.max_size {
             let oldest_key = cache.keys().next().cloned();
@@ -256,7 +263,7 @@ impl ResponseCache {
                 cache.remove(&key);
             }
         }
-        
+
         let expires_at = SystemTime::now() + self.ttl;
         cache.insert(key, CachedResponse { data, expires_at });
     }
@@ -286,7 +293,7 @@ impl MemoryPool {
     /// Get a buffer from the pool
     pub async fn get_buffer(&self, size: usize) -> Vec<u8> {
         let mut chunks = self.available_chunks.write().await;
-        
+
         // Try to find a suitable chunk
         if let Some(index) = chunks.iter().position(|chunk| chunk.len() >= size) {
             chunks.swap_remove(index)
@@ -299,7 +306,7 @@ impl MemoryPool {
     /// Return a buffer to the pool
     pub async fn return_buffer(&self, mut buffer: Vec<u8>) {
         let mut chunks = self.available_chunks.write().await;
-        
+
         // Only keep buffers up to pool size
         if chunks.len() < self.pool_size {
             buffer.clear();
@@ -337,6 +344,12 @@ pub struct PerformanceMonitor {
     metrics: Arc<RwLock<PerformanceMetrics>>,
 }
 
+impl Default for PerformanceMonitor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PerformanceMonitor {
     pub fn new() -> Self {
         Self {
@@ -348,16 +361,19 @@ impl PerformanceMonitor {
     pub async fn record_request(&self, batched: bool, batch_size: usize, response_time_ms: f64) {
         let mut metrics = self.metrics.write().await;
         metrics.total_requests += 1;
-        
+
         if batched {
             metrics.batched_requests += 1;
             // Update average batch size only for batched requests
-            let total_batch_size = metrics.average_batch_size * (metrics.batched_requests - 1) as f64 + batch_size as f64;
+            let total_batch_size = metrics.average_batch_size
+                * (metrics.batched_requests - 1) as f64
+                + batch_size as f64;
             metrics.average_batch_size = total_batch_size / metrics.batched_requests as f64;
         }
-        
+
         // Update average response time
-        let total_time = metrics.average_response_time_ms * (metrics.total_requests - 1) as f64 + response_time_ms;
+        let total_time = metrics.average_response_time_ms * (metrics.total_requests - 1) as f64
+            + response_time_ms;
         metrics.average_response_time_ms = total_time / metrics.total_requests as f64;
     }
 
@@ -365,4 +381,4 @@ impl PerformanceMonitor {
     pub async fn get_metrics(&self) -> PerformanceMetrics {
         self.metrics.read().await.clone()
     }
-} 
+}

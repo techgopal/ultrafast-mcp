@@ -1,5 +1,7 @@
 use crate::http::{
-    optimization::{OptimizationConfig, PerformanceMonitor, RequestBatcher, ResponseCache, ResponseOptimizer},
+    optimization::{
+        OptimizationConfig, PerformanceMonitor, RequestBatcher, ResponseCache, ResponseOptimizer,
+    },
     pool::{ConnectionPool, PoolConfig},
     rate_limit::{RateLimitConfig, RateLimiter},
 };
@@ -23,10 +25,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::broadcast;
 use tokio_stream::wrappers::BroadcastStream;
-use tower_http::{
-    cors::CorsLayer,
-    compression::CompressionLayer,
-};
+use tower_http::{compression::CompressionLayer, cors::CorsLayer};
 use tracing::info;
 use ultrafast_mcp_core::protocol::JsonRpcMessage;
 
@@ -76,7 +75,7 @@ impl Default for HttpTransportConfig {
             max_request_size: 1024 * 1024, // 1MB
             enable_compression: true,
             enable_caching: true,
-            compression_level: 6, // Balanced compression level
+            compression_level: 6,   // Balanced compression level
             cache_ttl_seconds: 300, // 5 minutes cache TTL
             optimization_config: OptimizationConfig::default(),
         }
@@ -114,7 +113,8 @@ impl HttpTransportServer {
         let connection_pool = Arc::new(ConnectionPool::new(config.connection_pool_config.clone()));
         let performance_monitor = Arc::new(PerformanceMonitor::new());
         let request_batcher = Arc::new(RequestBatcher::new(config.optimization_config.clone()));
-        let response_optimizer = Arc::new(ResponseOptimizer::new(config.optimization_config.clone()));
+        let response_optimizer =
+            Arc::new(ResponseOptimizer::new(config.optimization_config.clone()));
         let response_cache = Arc::new(ResponseCache::new(config.cache_ttl_seconds, 1000));
 
         let state = HttpTransportState {
@@ -284,8 +284,7 @@ impl HttpTransportServer {
         // Add compression layer if enabled
         if state.config.enable_compression {
             router = router.layer(
-                CompressionLayer::new()
-                    .quality(tower_http::compression::CompressionLevel::Default)
+                CompressionLayer::new().quality(tower_http::compression::CompressionLevel::Default),
             );
         }
 

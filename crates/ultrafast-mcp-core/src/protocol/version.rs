@@ -53,10 +53,8 @@ impl ProtocolVersion {
         Ok(Self { year, month, day })
     }
 
-    /// Convert to string representation
-    pub fn to_string(&self) -> String {
-        format!("{:04}-{:02}-{:02}", self.year, self.month, self.day)
-    }
+    // Convert to string representation
+    // Removed to_string method to avoid shadowing Display trait
 
     /// Check if this version is compatible with another version
     pub fn is_compatible_with(&self, other: &ProtocolVersion) -> bool {
@@ -81,7 +79,7 @@ impl ProtocolVersion {
 
 impl std::fmt::Display for ProtocolVersion {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.to_string())
+        write!(f, "{:04}-{:02}-{:02}", self.year, self.month, self.day)
     }
 }
 
@@ -122,7 +120,7 @@ impl VersionNegotiator {
     }
 
     /// Create a version negotiator with default supported versions
-    pub fn default() -> Self {
+    pub fn new_default() -> Self {
         Self::new(ProtocolVersion::supported_versions())
     }
 
@@ -186,7 +184,7 @@ pub mod constants {
 
     /// Current MCP protocol version (2025-06-18)
     pub const CURRENT_VERSION: &str = "2025-06-18";
-    
+
     /// Previous MCP protocol version (2024-11-05)
     pub const PREVIOUS_VERSION: &str = "2024-11-05";
 
@@ -211,7 +209,7 @@ mod tests {
         assert_eq!(version.year, 2025);
         assert_eq!(version.month, 6);
         assert_eq!(version.day, 18);
-        assert_eq!(version.to_string(), "2025-06-18");
+        assert_eq!(format!("{}", version), "2025-06-18");
     }
 
     #[test]
@@ -225,7 +223,7 @@ mod tests {
     fn test_version_comparison() {
         let v1 = ProtocolVersion::new(2025, 6, 18);
         let v2 = ProtocolVersion::new(2024, 11, 5);
-        
+
         assert!(v1 > v2);
         assert!(v2 < v1);
         assert_eq!(v1, v1);
@@ -233,12 +231,12 @@ mod tests {
 
     #[test]
     fn test_version_negotiation() {
-        let negotiator = VersionNegotiator::default();
-        
+        let negotiator = VersionNegotiator::new_default();
+
         // Exact match should work
         let negotiated = negotiator.negotiate("2025-06-18").unwrap();
         assert_eq!(negotiated, ProtocolVersion::new(2025, 6, 18));
-        
+
         // Unsupported version should fallback to latest (2025-06-18)
         let negotiated = negotiator.negotiate("2026-01-01").unwrap();
         assert_eq!(negotiated, ProtocolVersion::new(2025, 6, 18));
@@ -250,11 +248,11 @@ mod tests {
             ProtocolVersion::new(2024, 11, 5),
             ProtocolVersion::new(2025, 6, 18),
         ]);
-        
+
         // Exact match should work
         let negotiated = negotiator.negotiate("2025-06-18").unwrap();
         assert_eq!(negotiated, ProtocolVersion::new(2025, 6, 18));
-        
+
         // Unsupported version should fallback to latest (2025-06-18)
         let negotiated = negotiator.negotiate("2026-01-01").unwrap();
         assert_eq!(negotiated, ProtocolVersion::new(2025, 6, 18));
@@ -271,7 +269,6 @@ mod tests {
     #[test]
     fn test_version_display() {
         let version = ProtocolVersion::new(2025, 6, 18);
-        assert_eq!(version.to_string(), "2025-06-18");
         assert_eq!(format!("{}", version), "2025-06-18");
     }
 
@@ -279,8 +276,8 @@ mod tests {
     fn test_version_from_string() {
         let version: ProtocolVersion = "2025-06-18".into();
         assert_eq!(version, ProtocolVersion::new(2025, 6, 18));
-        
+
         let version: ProtocolVersion = "invalid".into();
         assert_eq!(version, ProtocolVersion::latest());
     }
-} 
+}

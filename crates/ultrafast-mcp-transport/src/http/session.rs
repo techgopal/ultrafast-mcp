@@ -162,7 +162,12 @@ impl MessageQueue {
             .read()
             .await
             .get(session_id)
-            .map(|msgs| msgs.iter().filter(|msg| msg.timestamp > since).cloned().collect())
+            .map(|msgs| {
+                msgs.iter()
+                    .filter(|msg| msg.timestamp > since)
+                    .cloned()
+                    .collect()
+            })
             .unwrap_or_default()
     }
 }

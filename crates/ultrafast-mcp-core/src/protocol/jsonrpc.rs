@@ -85,12 +85,13 @@ impl RequestId {
         }
         Ok(())
     }
+}
 
-    /// Get the request ID as a string representation
-    pub fn to_string(&self) -> String {
+impl std::fmt::Display for RequestId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            RequestId::String(s) => s.clone(),
-            RequestId::Number(n) => n.to_string(),
+            RequestId::String(s) => write!(f, "{}", s),
+            RequestId::Number(n) => write!(f, "{}", n),
         }
     }
 }
@@ -417,11 +418,8 @@ mod tests {
         assert!(validate_jsonrpc_message(&JsonRpcMessage::Request(invalid_req)).is_err());
 
         // Invalid request with empty method name
-        let empty_method_req = JsonRpcRequest::new(
-            "".to_string(),
-            None,
-            Some(RequestId::string("valid_id")),
-        );
+        let empty_method_req =
+            JsonRpcRequest::new("".to_string(), None, Some(RequestId::string("valid_id")));
         assert!(validate_jsonrpc_message(&JsonRpcMessage::Request(empty_method_req)).is_err());
     }
 }

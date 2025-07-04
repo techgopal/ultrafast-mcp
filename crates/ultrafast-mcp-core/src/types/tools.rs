@@ -119,15 +119,21 @@ impl Tool {
 
         // Check for reserved names
         if self.name.starts_with("rpc.") {
-            return Err(crate::error::ToolError::InvalidInput(
-                format!("Tool name '{}' is reserved", self.name),
-            ));
+            return Err(crate::error::ToolError::InvalidInput(format!(
+                "Tool name '{}' is reserved",
+                self.name
+            )));
         }
 
         // Validate name format (alphanumeric, hyphens, underscores only)
-        if !self.name.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_') {
+        if !self
+            .name
+            .chars()
+            .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
+        {
             return Err(crate::error::ToolError::InvalidInput(
-                "Tool name can only contain alphanumeric characters, hyphens, and underscores".to_string(),
+                "Tool name can only contain alphanumeric characters, hyphens, and underscores"
+                    .to_string(),
             ));
         }
 
@@ -160,11 +166,13 @@ impl Tool {
     /// Validate tool call arguments against input schema
     pub fn validate_arguments(&self, arguments: &Value) -> Result<(), crate::error::ToolError> {
         use crate::schema::validation::validate_against_schema;
-        
-        validate_against_schema(arguments, &self.input_schema)
-            .map_err(|e| crate::error::ToolError::SchemaValidation(format!(
-                "Tool argument validation failed: {}", e
-            )))
+
+        validate_against_schema(arguments, &self.input_schema).map_err(|e| {
+            crate::error::ToolError::SchemaValidation(format!(
+                "Tool argument validation failed: {}",
+                e
+            ))
+        })
     }
 }
 

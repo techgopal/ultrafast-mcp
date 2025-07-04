@@ -3,15 +3,15 @@
 //! This module provides the Context type that allows tools and handlers to interact
 //! with the server for progress tracking, logging, and other operations.
 
+use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Arc;
-use tracing::{error, info, warn, debug};
-use serde_json::Value;
+use tracing::{debug, error, info, warn};
 
 use ultrafast_mcp_core::{
     error::MCPResult,
-    types::notifications::{LoggingMessageNotification, LogLevel, ProgressNotification},
     protocol::jsonrpc::{JsonRpcMessage, JsonRpcRequest},
+    types::notifications::{LogLevel, LoggingMessageNotification, ProgressNotification},
 };
 
 /// Logger configuration for the context
@@ -48,7 +48,13 @@ impl Default for LoggerConfig {
 }
 
 /// Notification sender for sending messages to the client
-type NotificationSender = Arc<dyn Fn(JsonRpcMessage) -> std::pin::Pin<Box<dyn std::future::Future<Output = MCPResult<()>> + Send>> + Send + Sync>;
+type NotificationSender = Arc<
+    dyn Fn(
+            JsonRpcMessage,
+        ) -> std::pin::Pin<Box<dyn std::future::Future<Output = MCPResult<()>> + Send>>
+        + Send
+        + Sync,
+>;
 
 /// Context for tool and handler execution
 ///
@@ -176,7 +182,8 @@ impl Context {
 
         // Send progress notification if sender is available
         if let Some(sender) = &self.notification_sender {
-            let progress_token = self.request_id()
+            let progress_token = self
+                .request_id()
                 .map(|id| serde_json::Value::String(id.to_string()))
                 .unwrap_or(serde_json::Value::Null);
 
@@ -215,7 +222,8 @@ impl Context {
         message: &str,
         data: Value,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        self.log_with_level(LogLevel::Debug, message, Some(data)).await
+        self.log_with_level(LogLevel::Debug, message, Some(data))
+            .await
     }
 
     /// Log an info message
@@ -232,7 +240,8 @@ impl Context {
         message: &str,
         data: Value,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        self.log_with_level(LogLevel::Info, message, Some(data)).await
+        self.log_with_level(LogLevel::Info, message, Some(data))
+            .await
     }
 
     /// Log a notice message
@@ -249,7 +258,8 @@ impl Context {
         message: &str,
         data: Value,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        self.log_with_level(LogLevel::Notice, message, Some(data)).await
+        self.log_with_level(LogLevel::Notice, message, Some(data))
+            .await
     }
 
     /// Log a warning message
@@ -266,7 +276,8 @@ impl Context {
         message: &str,
         data: Value,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        self.log_with_level(LogLevel::Warning, message, Some(data)).await
+        self.log_with_level(LogLevel::Warning, message, Some(data))
+            .await
     }
 
     /// Log an error message
@@ -283,7 +294,8 @@ impl Context {
         message: &str,
         data: Value,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        self.log_with_level(LogLevel::Error, message, Some(data)).await
+        self.log_with_level(LogLevel::Error, message, Some(data))
+            .await
     }
 
     /// Log a critical message
@@ -300,7 +312,8 @@ impl Context {
         message: &str,
         data: Value,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        self.log_with_level(LogLevel::Critical, message, Some(data)).await
+        self.log_with_level(LogLevel::Critical, message, Some(data))
+            .await
     }
 
     /// Log an alert message
@@ -317,7 +330,8 @@ impl Context {
         message: &str,
         data: Value,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        self.log_with_level(LogLevel::Alert, message, Some(data)).await
+        self.log_with_level(LogLevel::Alert, message, Some(data))
+            .await
     }
 
     /// Log an emergency message
@@ -325,7 +339,8 @@ impl Context {
         &self,
         message: &str,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        self.log_with_level(LogLevel::Emergency, message, None).await
+        self.log_with_level(LogLevel::Emergency, message, None)
+            .await
     }
 
     /// Log an emergency message with structured data
@@ -334,7 +349,8 @@ impl Context {
         message: &str,
         data: Value,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        self.log_with_level(LogLevel::Emergency, message, Some(data)).await
+        self.log_with_level(LogLevel::Emergency, message, Some(data))
+            .await
     }
 
     /// Internal method to log with a specific level
@@ -361,50 +377,62 @@ impl Context {
         // Create structured log data
         let log_data = if self.logger_config.structured_output {
             let mut data_obj = serde_json::Map::new();
-            
+
             // Add basic message
-            data_obj.insert("message".to_string(), Value::String(truncated_message.clone()));
-            
+            data_obj.insert(
+                "message".to_string(),
+                Value::String(truncated_message.clone()),
+            );
+
             // Add request context
             if let Some(request_id) = &self.request_id {
                 data_obj.insert("request_id".to_string(), Value::String(request_id.clone()));
             }
-            
+
             if let Some(session_id) = &self.session_id {
                 data_obj.insert("session_id".to_string(), Value::String(session_id.clone()));
             }
-            
+
             // Add timestamp if configured
             if self.logger_config.include_timestamps {
                 let timestamp = chrono::Utc::now().to_rfc3339();
                 data_obj.insert("timestamp".to_string(), Value::String(timestamp));
             }
-            
+
             // Add logger name if configured
             if self.logger_config.include_logger_name {
-                let logger_name = self.logger_config.logger_name
+                let logger_name = self
+                    .logger_config
+                    .logger_name
                     .as_deref()
                     .unwrap_or("ultrafast-mcp-server");
                 data_obj.insert("logger".to_string(), Value::String(logger_name.to_string()));
             }
-            
+
             // Add level
-            data_obj.insert("level".to_string(), Value::String(format!("{:?}", level).to_lowercase()));
-            
+            data_obj.insert(
+                "level".to_string(),
+                Value::String(format!("{:?}", level).to_lowercase()),
+            );
+
             // Add any structured data
             if let Some(data) = structured_data {
                 data_obj.insert("data".to_string(), data);
             }
-            
+
             // Add metadata
             if !self.metadata.is_empty() {
-                data_obj.insert("metadata".to_string(), Value::Object(
-                    self.metadata.iter()
-                        .map(|(k, v)| (k.clone(), v.clone()))
-                        .collect()
-                ));
+                data_obj.insert(
+                    "metadata".to_string(),
+                    Value::Object(
+                        self.metadata
+                            .iter()
+                            .map(|(k, v)| (k.clone(), v.clone()))
+                            .collect(),
+                    ),
+                );
             }
-            
+
             Value::Object(data_obj)
         } else {
             // Simple string message
@@ -427,7 +455,10 @@ impl Context {
         // Send logging notification to client if configured and sender is available
         if self.logger_config.send_notifications {
             if let Some(sender) = &self.notification_sender {
-                let logger_name = self.logger_config.logger_name.as_deref()
+                let logger_name = self
+                    .logger_config
+                    .logger_name
+                    .as_deref()
                     .unwrap_or("ultrafast-mcp-server");
 
                 let notification = LoggingMessageNotification::new(level, log_data)

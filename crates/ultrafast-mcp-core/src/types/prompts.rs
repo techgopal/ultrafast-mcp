@@ -1,6 +1,6 @@
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use regex::Regex;
 
 /// Prompt definition
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -88,9 +88,7 @@ pub enum PromptContent {
     },
 
     #[serde(rename = "resource")]
-    Resource {
-        resource: EmbeddedResourceReference,
-    },
+    Resource { resource: EmbeddedResourceReference },
 }
 
 /// Enhanced embedded resource reference for prompts
@@ -173,18 +171,14 @@ pub struct ResourceSecurityPolicy {
 impl Default for ResourceSecurityPolicy {
     fn default() -> Self {
         Self {
-            allowed_schemes: vec![
-                "https".to_string(),
-                "http".to_string(),
-                "file".to_string(),
-            ],
+            allowed_schemes: vec!["https".to_string(), "http".to_string(), "file".to_string()],
             blocked_patterns: vec![
-                r".*\.\..*".to_string(),              // Path traversal
-                r".*localhost.*".to_string(),          // Local access
-                r".*127\.0\.0\.1.*".to_string(),       // Local access
-                r".*0\.0\.0\.0.*".to_string(),         // Local access
-                r".*192\.168\..*".to_string(),         // Private networks
-                r".*10\..*".to_string(),               // Private networks
+                r".*\.\..*".to_string(),                          // Path traversal
+                r".*localhost.*".to_string(),                     // Local access
+                r".*127\.0\.0\.1.*".to_string(),                  // Local access
+                r".*0\.0\.0\.0.*".to_string(),                    // Local access
+                r".*192\.168\..*".to_string(),                    // Private networks
+                r".*10\..*".to_string(),                          // Private networks
                 r".*172\.(1[6-9]|2[0-9]|3[0-1])\..*".to_string(), // Private networks
             ],
             allow_external: false,
@@ -317,14 +311,11 @@ impl EmbeddedResourceValidator {
         Self { security_policy }
     }
 
-    pub fn default() -> Self {
-        Self {
-            security_policy: ResourceSecurityPolicy::default(),
-        }
-    }
-
     /// Validate an embedded resource reference
-    pub fn validate_reference(&self, resource: &EmbeddedResourceReference) -> Result<(), ResourceResolutionError> {
+    pub fn validate_reference(
+        &self,
+        resource: &EmbeddedResourceReference,
+    ) -> Result<(), ResourceResolutionError> {
         // Validate URI format
         self.validate_uri_format(&resource.uri)?;
 
@@ -348,21 +339,29 @@ impl EmbeddedResourceValidator {
     /// Validate URI format
     fn validate_uri_format(&self, uri: &str) -> Result<(), ResourceResolutionError> {
         if uri.is_empty() {
-            return Err(ResourceResolutionError::InvalidUri("URI cannot be empty".to_string()));
+            return Err(ResourceResolutionError::InvalidUri(
+                "URI cannot be empty".to_string(),
+            ));
         }
 
         // Basic URI format validation
         if !uri.contains(':') {
-            return Err(ResourceResolutionError::InvalidUri("URI must contain a scheme".to_string()));
+            return Err(ResourceResolutionError::InvalidUri(
+                "URI must contain a scheme".to_string(),
+            ));
         }
 
         // Check for obviously malformed URIs
         if uri.contains("..") {
-            return Err(ResourceResolutionError::SecurityViolation("Path traversal detected".to_string()));
+            return Err(ResourceResolutionError::SecurityViolation(
+                "Path traversal detected".to_string(),
+            ));
         }
 
         if uri.to_lowercase().contains("<script") {
-            return Err(ResourceResolutionError::SecurityViolation("Script injection detected".to_string()));
+            return Err(ResourceResolutionError::SecurityViolation(
+                "Script injection detected".to_string(),
+            ));
         }
 
         Ok(())
@@ -372,8 +371,15 @@ impl EmbeddedResourceValidator {
     fn validate_uri_scheme(&self, uri: &str) -> Result<(), ResourceResolutionError> {
         if let Some(colon_pos) = uri.find(':') {
             let scheme = &uri[..colon_pos].to_lowercase();
-            if !self.security_policy.allowed_schemes.iter().any(|s| s.to_lowercase() == *scheme) {
-                return Err(ResourceResolutionError::DisallowedScheme(scheme.to_string()));
+            if !self
+                .security_policy
+                .allowed_schemes
+                .iter()
+                .any(|s| s.to_lowercase() == *scheme)
+            {
+                return Err(ResourceResolutionError::DisallowedScheme(
+                    scheme.to_string(),
+                ));
             }
         }
         Ok(())
@@ -396,35 +402,42 @@ impl EmbeddedResourceValidator {
         let uri_lower = uri.to_lowercase();
 
         // Check for local file access first (since file:// is not external)
-        if !self.security_policy.allow_local_files {
-            if uri_lower.starts_with("file://") {
-                return Err(ResourceResolutionError::LocalFilesNotAllowed);
-            }
+        if !self.security_policy.allow_local_files && uri_lower.starts_with("file://") {
+            return Err(ResourceResolutionError::LocalFilesNotAllowed);
         }
 
         // Check for external resources
-        if !self.security_policy.allow_external {
-            if uri_lower.starts_with("http://") || uri_lower.starts_with("https://") {
-                return Err(ResourceResolutionError::ExternalResourcesNotAllowed);
-            }
+        if !self.security_policy.allow_external
+            && (uri_lower.starts_with("http://") || uri_lower.starts_with("https://"))
+        {
+            return Err(ResourceResolutionError::ExternalResourcesNotAllowed);
         }
 
         Ok(())
     }
 
     /// Validate inclusion options
-    fn validate_inclusion_options(&self, options: &ResourceInclusionOptions) -> Result<(), ResourceResolutionError> {
+    fn validate_inclusion_options(
+        &self,
+        options: &ResourceInclusionOptions,
+    ) -> Result<(), ResourceResolutionError> {
         // Validate max size
         if let Some(max_size) = options.max_size {
-            if max_size > 100 * 1024 * 1024 { // 100MB absolute limit
-                return Err(ResourceResolutionError::SecurityViolation("Max size too large".to_string()));
+            if max_size > 100 * 1024 * 1024 {
+                // 100MB absolute limit
+                return Err(ResourceResolutionError::SecurityViolation(
+                    "Max size too large".to_string(),
+                ));
             }
         }
 
         // Validate timeout
         if let Some(timeout) = options.timeout_seconds {
-            if timeout > 300 { // 5 minutes absolute limit
-                return Err(ResourceResolutionError::SecurityViolation("Timeout too large".to_string()));
+            if timeout > 300 {
+                // 5 minutes absolute limit
+                return Err(ResourceResolutionError::SecurityViolation(
+                    "Timeout too large".to_string(),
+                ));
             }
         }
 
@@ -433,9 +446,15 @@ impl EmbeddedResourceValidator {
 }
 
 // Helper functions for default values
-fn default_true() -> bool { true }
-fn default_false() -> bool { false }
-fn default_max_redirects() -> u32 { 3 }
+fn default_true() -> bool {
+    true
+}
+fn default_false() -> bool {
+    false
+}
+fn default_max_redirects() -> u32 {
+    3
+}
 
 /// List prompts request
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -539,7 +558,11 @@ impl PromptContent {
         }
     }
 
-    pub fn resource_with_options(uri: String, description: Option<String>, options: ResourceInclusionOptions) -> Self {
+    pub fn resource_with_options(
+        uri: String,
+        description: Option<String>,
+        options: ResourceInclusionOptions,
+    ) -> Self {
         Self::Resource {
             resource: EmbeddedResourceReference {
                 uri,
@@ -589,12 +612,15 @@ impl EmbeddedResourceReference {
 
     /// Validate the embedded resource reference
     pub fn validate(&self) -> Result<(), ResourceResolutionError> {
-        let validator = EmbeddedResourceValidator::default();
+        let validator = EmbeddedResourceValidator::new(ResourceSecurityPolicy::default());
         validator.validate_reference(self)
     }
 
     /// Validate with custom security policy
-    pub fn validate_with_policy(&self, policy: &ResourceSecurityPolicy) -> Result<(), ResourceResolutionError> {
+    pub fn validate_with_policy(
+        &self,
+        policy: &ResourceSecurityPolicy,
+    ) -> Result<(), ResourceResolutionError> {
         let validator = EmbeddedResourceValidator::new(policy.clone());
         validator.validate_reference(self)
     }
@@ -648,7 +674,11 @@ impl PromptMessages {
         self
     }
 
-    pub fn with_embedded_resource(mut self, role: PromptRole, resource: EmbeddedResourceReference) -> Self {
+    pub fn with_embedded_resource(
+        mut self,
+        role: PromptRole,
+        resource: EmbeddedResourceReference,
+    ) -> Self {
         self.messages.push(PromptMessage {
             role,
             content: PromptContent::Resource { resource },
@@ -718,122 +748,132 @@ mod tests {
 
     #[test]
     fn test_embedded_resource_validator_valid_uri() {
-        let validator = EmbeddedResourceValidator::default();
+        let validator = EmbeddedResourceValidator::new(ResourceSecurityPolicy::default());
         let resource = EmbeddedResourceReference::new("https://example.com/data.json".to_string());
-        
+
         // Should fail because external resources are not allowed by default
         let result = validator.validate_reference(&resource);
         assert!(result.is_err());
         match result {
-            Err(ResourceResolutionError::ExternalResourcesNotAllowed) => {},
+            Err(ResourceResolutionError::ExternalResourcesNotAllowed) => {}
             _ => panic!("Expected ExternalResourcesNotAllowed error"),
         }
     }
 
     #[test]
     fn test_embedded_resource_validator_with_external_allowed() {
-        let mut policy = ResourceSecurityPolicy::default();
-        policy.allow_external = true;
+        let policy = ResourceSecurityPolicy {
+            allow_external: true,
+            ..Default::default()
+        };
         let validator = EmbeddedResourceValidator::new(policy);
         let resource = EmbeddedResourceReference::new("https://example.com/data.json".to_string());
-        
+
         let result = validator.validate_reference(&resource);
         assert!(result.is_ok());
     }
 
     #[test]
     fn test_embedded_resource_validator_invalid_uri() {
-        let validator = EmbeddedResourceValidator::default();
+        let validator = EmbeddedResourceValidator::new(ResourceSecurityPolicy::default());
         let resource = EmbeddedResourceReference::new("".to_string());
-        
+
         let result = validator.validate_reference(&resource);
         assert!(result.is_err());
         match result {
-            Err(ResourceResolutionError::InvalidUri(_)) => {},
+            Err(ResourceResolutionError::InvalidUri(_)) => {}
             _ => panic!("Expected InvalidUri error"),
         }
     }
 
     #[test]
     fn test_embedded_resource_validator_disallowed_scheme() {
-        let validator = EmbeddedResourceValidator::default();
+        let validator = EmbeddedResourceValidator::new(ResourceSecurityPolicy::default());
         let resource = EmbeddedResourceReference::new("javascript:alert('xss')".to_string());
-        
+
         let result = validator.validate_reference(&resource);
         assert!(result.is_err());
         match result {
-            Err(ResourceResolutionError::DisallowedScheme(scheme)) => assert_eq!(scheme, "javascript"),
+            Err(ResourceResolutionError::DisallowedScheme(scheme)) => {
+                assert_eq!(scheme, "javascript")
+            }
             _ => panic!("Expected DisallowedScheme error"),
         }
     }
 
     #[test]
     fn test_embedded_resource_validator_blocked_pattern() {
-        let validator = EmbeddedResourceValidator::default();
+        let validator = EmbeddedResourceValidator::new(ResourceSecurityPolicy::default());
         let resource = EmbeddedResourceReference::new("https://localhost/data.json".to_string());
-        
+
         let result = validator.validate_reference(&resource);
         assert!(result.is_err());
         match result {
-            Err(ResourceResolutionError::BlockedPattern(_)) => {},
+            Err(ResourceResolutionError::BlockedPattern(_)) => {}
             _ => panic!("Expected BlockedPattern error"),
         }
     }
 
     #[test]
     fn test_embedded_resource_validator_path_traversal() {
-        let validator = EmbeddedResourceValidator::default();
+        let validator = EmbeddedResourceValidator::new(ResourceSecurityPolicy::default());
         let resource = EmbeddedResourceReference::new("https://example.com/../secret".to_string());
-        
+
         let result = validator.validate_reference(&resource);
         assert!(result.is_err());
         match result {
-            Err(ResourceResolutionError::SecurityViolation(_)) => {},
+            Err(ResourceResolutionError::SecurityViolation(_)) => {}
             _ => panic!("Expected SecurityViolation error"),
         }
     }
 
     #[test]
     fn test_embedded_resource_validator_script_injection() {
-        let validator = EmbeddedResourceValidator::default();
-        let resource = EmbeddedResourceReference::new("https://example.com/<script>alert('xss')</script>".to_string());
-        
+        let validator = EmbeddedResourceValidator::new(ResourceSecurityPolicy::default());
+        let resource = EmbeddedResourceReference::new(
+            "https://example.com/<script>alert('xss')</script>".to_string(),
+        );
+
         let result = validator.validate_reference(&resource);
         assert!(result.is_err());
         match result {
-            Err(ResourceResolutionError::SecurityViolation(_)) => {},
+            Err(ResourceResolutionError::SecurityViolation(_)) => {}
             _ => panic!("Expected SecurityViolation error"),
         }
     }
 
     #[test]
     fn test_embedded_resource_validator_local_file_blocked() {
-        let validator = EmbeddedResourceValidator::default();
+        let validator = EmbeddedResourceValidator::new(ResourceSecurityPolicy::default());
         let resource = EmbeddedResourceReference::new("file:///etc/passwd".to_string());
-        
+
         let result = validator.validate_reference(&resource);
         assert!(result.is_err());
         match result {
-            Err(ResourceResolutionError::LocalFilesNotAllowed) => {},
+            Err(ResourceResolutionError::LocalFilesNotAllowed) => {}
             _ => panic!("Expected LocalFilesNotAllowed error, got: {:?}", result),
         }
     }
 
     #[test]
     fn test_embedded_resource_validator_with_local_files_allowed() {
-        let mut policy = ResourceSecurityPolicy::default();
-        policy.allow_local_files = true;
+        let policy = ResourceSecurityPolicy {
+            allow_local_files: true,
+            ..Default::default()
+        };
         let validator = EmbeddedResourceValidator::new(policy);
         let resource = EmbeddedResourceReference::new("file:///tmp/data.json".to_string());
-        
+
         let result = validator.validate_reference(&resource);
         assert!(result.is_ok());
     }
 
     #[test]
     fn test_inclusion_options_validation_max_size_too_large() {
-        let mut policy = ResourceSecurityPolicy::default();
-        policy.allow_external = true; // Allow external to test max size validation
+        let policy = ResourceSecurityPolicy {
+            allow_external: true, // Allow external to test max size validation
+            ..Default::default()
+        };
         let validator = EmbeddedResourceValidator::new(policy);
         let options = ResourceInclusionOptions {
             max_size: Some(200 * 1024 * 1024), // 200MB
@@ -841,19 +881,21 @@ mod tests {
         };
         let resource = EmbeddedResourceReference::new("https://example.com/data.json".to_string())
             .with_options(options);
-        
+
         let result = validator.validate_reference(&resource);
         assert!(result.is_err());
         match result {
-            Err(ResourceResolutionError::SecurityViolation(_)) => {},
+            Err(ResourceResolutionError::SecurityViolation(_)) => {}
             _ => panic!("Expected SecurityViolation error"),
         }
     }
 
     #[test]
     fn test_inclusion_options_validation_timeout_too_large() {
-        let mut policy = ResourceSecurityPolicy::default();
-        policy.allow_external = true; // Allow external to test timeout validation
+        let policy = ResourceSecurityPolicy {
+            allow_external: true, // Allow external to test timeout validation
+            ..Default::default()
+        };
         let validator = EmbeddedResourceValidator::new(policy);
         let options = ResourceInclusionOptions {
             timeout_seconds: Some(400), // 400 seconds
@@ -861,11 +903,11 @@ mod tests {
         };
         let resource = EmbeddedResourceReference::new("https://example.com/data.json".to_string())
             .with_options(options);
-        
+
         let result = validator.validate_reference(&resource);
         assert!(result.is_err());
         match result {
-            Err(ResourceResolutionError::SecurityViolation(_)) => {},
+            Err(ResourceResolutionError::SecurityViolation(_)) => {}
             _ => panic!("Expected SecurityViolation error"),
         }
     }
@@ -892,7 +934,7 @@ mod tests {
             Some("Test resource".to_string()),
             options,
         );
-        
+
         match content {
             PromptContent::Resource { resource } => {
                 assert_eq!(resource.uri, "https://example.com/data.json");
@@ -909,7 +951,7 @@ mod tests {
             "https://example.com/data.json".to_string(),
             "fallback content".to_string(),
         );
-        
+
         match content {
             PromptContent::Resource { resource } => {
                 assert_eq!(resource.uri, "https://example.com/data.json");
@@ -926,9 +968,9 @@ mod tests {
             .with_resource(PromptRole::System, "https://example.com/context.json")
             .assistant("World")
             .build();
-        
+
         assert_eq!(messages.len(), 3);
-        
+
         match &messages[1].content {
             PromptContent::Resource { resource } => {
                 assert_eq!(resource.uri, "https://example.com/context.json");
@@ -942,15 +984,15 @@ mod tests {
         let resource = EmbeddedResourceReference::new("https://example.com/data.json".to_string())
             .with_description("Test data".to_string())
             .with_fallback("fallback data".to_string());
-        
+
         let messages = PromptMessages::new()
             .user("Hello")
             .with_embedded_resource(PromptRole::System, resource)
             .assistant("World")
             .build();
-        
+
         assert_eq!(messages.len(), 3);
-        
+
         match &messages[1].content {
             PromptContent::Resource { resource } => {
                 assert_eq!(resource.uri, "https://example.com/data.json");
@@ -963,15 +1005,18 @@ mod tests {
 
     #[test]
     fn test_embedded_resource_validation_with_custom_policy() {
-        let mut policy = ResourceSecurityPolicy::default();
-        policy.allowed_schemes = vec!["https".to_string()];
-        policy.allow_external = true;
-        
+        let policy = ResourceSecurityPolicy {
+            allowed_schemes: vec!["https".to_string()],
+            allow_external: true,
+            ..Default::default()
+        };
+
         let resource = EmbeddedResourceReference::new("https://example.com/data.json".to_string());
         let result = resource.validate_with_policy(&policy);
         assert!(result.is_ok());
-        
-        let resource_http = EmbeddedResourceReference::new("http://example.com/data.json".to_string());
+
+        let resource_http =
+            EmbeddedResourceReference::new("http://example.com/data.json".to_string());
         let result = resource_http.validate_with_policy(&policy);
         assert!(result.is_err());
         match result {
@@ -989,20 +1034,20 @@ mod tests {
 
     #[test]
     fn test_resource_security_policy_private_networks() {
-        let validator = EmbeddedResourceValidator::default();
-        
+        let validator = EmbeddedResourceValidator::new(ResourceSecurityPolicy::default());
+
         let private_uris = vec![
             "https://192.168.1.1/data.json",
             "https://10.0.0.1/data.json",
             "https://172.16.0.1/data.json",
         ];
-        
+
         for uri in private_uris {
             let resource = EmbeddedResourceReference::new(uri.to_string());
             let result = validator.validate_reference(&resource);
             assert!(result.is_err());
             match result {
-                Err(ResourceResolutionError::BlockedPattern(_)) => {},
+                Err(ResourceResolutionError::BlockedPattern(_)) => {}
                 _ => panic!("Expected BlockedPattern error for {}", uri),
             }
         }
@@ -1012,16 +1057,14 @@ mod tests {
     fn test_prompt_creation_and_validation() {
         let prompt = Prompt::new("test_prompt".to_string())
             .with_description("A test prompt".to_string())
-            .with_arguments(vec![
-                PromptArgument::new("context".to_string())
-                    .with_description("Context data".to_string())
-                    .required(true),
-            ]);
-        
+            .with_arguments(vec![PromptArgument::new("context".to_string())
+                .with_description("Context data".to_string())
+                .required(true)]);
+
         assert_eq!(prompt.name, "test_prompt");
         assert_eq!(prompt.description, Some("A test prompt".to_string()));
         assert!(prompt.arguments.is_some());
-        
+
         let args = prompt.arguments.unwrap();
         assert_eq!(args.len(), 1);
         assert_eq!(args[0].name, "context");
@@ -1030,18 +1073,19 @@ mod tests {
 
     #[test]
     fn test_complex_prompt_with_multiple_content_types() {
-        let resource = EmbeddedResourceReference::new("https://example.com/context.json".to_string())
-            .with_description("Context data".to_string())
-            .with_fallback("default context".to_string());
-        
+        let resource =
+            EmbeddedResourceReference::new("https://example.com/context.json".to_string())
+                .with_description("Context data".to_string())
+                .with_fallback("default context".to_string());
+
         let messages = PromptMessages::new()
             .system("You are a helpful assistant.")
             .with_embedded_resource(PromptRole::System, resource)
             .user("Please analyze the data")
             .build();
-        
+
         assert_eq!(messages.len(), 3);
-        
+
         // Check system message
         match &messages[0].content {
             PromptContent::Text { text } => {
@@ -1049,7 +1093,7 @@ mod tests {
             }
             _ => panic!("Expected Text content"),
         }
-        
+
         // Check embedded resource
         match &messages[1].content {
             PromptContent::Resource { resource } => {
@@ -1059,7 +1103,7 @@ mod tests {
             }
             _ => panic!("Expected Resource content"),
         }
-        
+
         // Check user message
         match &messages[2].content {
             PromptContent::Text { text } => {
