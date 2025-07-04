@@ -3,21 +3,52 @@ name: Pull Request Checks
 on:
   pull_request:
     branches: [ main, develop ]
-  # Also run on push to PR branches for faster feedback
-  push:
-    branches-ignore: [ main, develop ]
 
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
 
 jobs:
-  # Optimized single job with balanced parallelization
-  pr-checks:
-    name: PR Checks
+  # Check for changes to determine which jobs to run
+  changes:
+    name: Check Changes
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    outputs:
+      core: ${{ steps.filter.outputs.core }}
+      docs: ${{ steps.filter.outputs.docs }}
+      examples: ${{ steps.filter.outputs.examples }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Needed for proper change detection
 
+    - name: Check for changes
+      id: filter
+      uses: dorny/paths-filter@v2
+      with:
+        filters: |
+          core:
+            - 'crates/**'
+            - 'Cargo.toml'
+            - 'Cargo.lock'
+            - 'benches/**'
+            - 'tests/**'
+          docs:
+            - 'docs/**'
+            - '**/*.md'
+            - 'README.md'
+          examples:
+            - 'examples/**'
+
+  # Ultra-optimized single job for PRs
+  pr-checks:
+    name: PR Checks (Format, Lint, Tests, Builds, Docs, Security)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs: changes
+    if: needs.changes.outputs.core == 'true' || needs.changes.outputs.docs == 'true' || needs.changes.outputs.examples == 'true'
+    
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -25,43 +56,60 @@ jobs:
     - name: Install Rust toolchain
       uses: dtolnay/rust-toolchain@stable
 
+    - name: Cache Rust toolchain
+      uses: actions/cache@v3
+      with:
+        path: ~/.cargo/bin
+        key: rust-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+
     - name: Cache dependencies
       uses: Swatinem/rust-cache@v2
       with:
-        key: pr-${{ hashFiles('**/Cargo.lock') }}
+        key: pr-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
         cache-on-failure: true
-        cache-all-crates: false
+        cache-all-crates: true
+        shared-key: ${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+        cache-targets: true
 
     - name: Install dependencies
       run: |
-        sudo apt-get update && sudo apt-get install -y pkg-config libssl-dev
-        cargo install cargo-audit
+        sudo apt-get update
+        sudo apt-get install -y pkg-config libssl-dev
 
-    # Run format and lint in parallel
-    - name: Format and lint
+    # Run all checks in parallel for maximum speed
+    - name: Run all checks
       run: |
+        # Start all jobs in background
         cargo fmt --all -- --check &
-        cargo clippy --all-targets --all-features &
-        wait
-
-    # Run tests and builds in parallel
-    - name: Tests and builds
-      run: |
+        cargo clippy --all-targets --all-features -- -D warnings &
         cargo test --all-targets --all-features &
         cargo build --all-targets --all-features &
-        cargo build --examples --all-features &
-        wait
-
-    # Run docs and security in parallel
-    - name: Docs and security
-      run: |
         cargo doc --no-deps --all-features &
-        cargo audit &
+        cargo install cargo-audit &
+        
+        # Wait for all background jobs
         wait
+        
+        # Run security audit after installation
+        cargo audit
 
-    # Quick feature tests (only for non-draft PRs)
-    - name: Feature tests
-      if: github.event.pull_request.draft == false
+    # Build examples if they changed
+    - name: Build examples
+      if: needs.changes.outputs.examples == 'true'
+      run: cargo build --examples --all-features
+
+    # Test with minimal features
+    - name: Test minimal features
       run: |
         cargo test --no-default-features --lib
-        cargo test --features http --lib 
+        cargo test --features stdio-transport --lib
+        cargo test --features http-transport --lib
+        cargo test --features oauth --lib
+
+    # Upload documentation artifacts
+    - name: Upload documentation artifacts
+      if: needs.changes.outputs.docs == 'true'
+      uses: actions/upload-artifact@v4
+      with:
+        name: documentation
+        path: target/doc/ 

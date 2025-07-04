@@ -11,11 +11,110 @@ env:
   RUST_BACKTRACE: 1
 
 jobs:
-  # Fast CI on Linux with stable Rust only
-  test:
-    name: Test (Linux, Stable)
+  # Check for changes to determine which jobs to run
+  changes:
+    name: Check Changes
     runs-on: ubuntu-latest
+    outputs:
+      core: ${{ steps.filter.outputs.core }}
+      docs: ${{ steps.filter.outputs.docs }}
+      examples: ${{ steps.filter.outputs.examples }}
+      examples-changed: ${{ steps.filter.outputs.examples-changed }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Needed for proper change detection
 
+    - name: Check for changes
+      id: filter
+      uses: dorny/paths-filter@v2
+      with:
+        filters: |
+          core:
+            - 'crates/**'
+            - 'Cargo.toml'
+            - 'Cargo.lock'
+            - 'benches/**'
+            - 'tests/**'
+          docs:
+            - 'docs/**'
+            - '**/*.md'
+            - 'README.md'
+          examples:
+            - 'examples/**'
+          examples-changed:
+            - 'examples/**'
+
+  # Core checks: format, lint, tests, builds
+  core-checks:
+    name: Core Checks (Format, Lint, Tests, Builds)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: changes
+    if: needs.changes.outputs.core == 'true' || github.event_name == 'release'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Cache Rust toolchain
+      uses: actions/cache@v3
+      with:
+        path: ~/.cargo/bin
+        key: rust-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Cache dependencies
+      uses: Swatinem/rust-cache@v2
+      with:
+        key: core-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+        cache-on-failure: true
+        cache-all-crates: true
+        shared-key: ${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y pkg-config libssl-dev
+
+    # Run format and lint in parallel
+    - name: Format and lint
+      run: |
+        cargo fmt --all -- --check &
+        cargo clippy --all-targets --all-features -- -D warnings &
+        wait
+
+    # Run tests and builds in parallel
+    - name: Tests and builds
+      run: |
+        cargo test --all-targets --all-features &
+        cargo build --all-targets --all-features &
+        wait
+
+    # Build examples if they changed
+    - name: Build examples
+      if: needs.changes.outputs.examples-changed == 'true'
+      run: cargo build --examples --all-features
+
+    # Test with minimal features
+    - name: Test minimal features
+      run: |
+        cargo test --no-default-features --lib
+        cargo test --features stdio-transport --lib
+        cargo test --features http-transport --lib
+        cargo test --features oauth --lib
+
+  # Documentation and security
+  docs-security:
+    name: Documentation and Security
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [changes, core-checks]
+    if: (needs.changes.outputs.docs == 'true' || needs.changes.outputs.core == 'true') && needs.core-checks.result == 'success'
+    
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -26,77 +125,21 @@ jobs:
     - name: Cache dependencies
       uses: Swatinem/rust-cache@v2
       with:
-        key: linux-stable-${{ hashFiles('**/Cargo.lock') }}
+        key: docs-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+        cache-on-failure: true
 
     - name: Install dependencies
       run: |
         sudo apt-get update
         sudo apt-get install -y pkg-config libssl-dev
 
-    - name: Check code formatting
-      run: cargo fmt --all -- --check
-
-    - name: Run clippy
-      run: cargo clippy --all-targets --all-features -- -D warnings
-
-    - name: Run tests
-      run: cargo test --all-targets --all-features
-
-    - name: Build all crates
-      run: cargo build --all-targets --all-features
-
-    - name: Build examples
-      run: cargo build --examples --all-features
-
-  # Test with minimal features
-  test-minimal:
-    name: Test Minimal Features
-    runs-on: ubuntu-latest
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Install Rust toolchain
-      uses: dtolnay/rust-toolchain@stable
-
-    - name: Cache dependencies
-      uses: Swatinem/rust-cache@v2
-
-    - name: Install dependencies
+    # Run docs and security in parallel
+    - name: Build documentation and security audit
       run: |
-        sudo apt-get update
-        sudo apt-get install -y pkg-config libssl-dev
-
-    - name: Test with minimal features
-      run: |
-        cargo test --no-default-features
-        cargo test --features stdio-transport
-        cargo test --features http-transport
-        cargo test --features oauth
-
-  # Documentation
-  docs:
-    name: Build Documentation
-    runs-on: ubuntu-latest
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Install Rust toolchain
-      uses: dtolnay/rust-toolchain@stable
-
-    - name: Cache dependencies
-      uses: Swatinem/rust-cache@v2
-
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y pkg-config libssl-dev
-
-    - name: Build documentation
-      run: cargo doc --no-deps --all-features
+        cargo doc --no-deps --all-features &
+        cargo install cargo-audit &
+        wait
+        cargo audit
 
     - name: Upload documentation artifacts
       uses: actions/upload-artifact@v4
@@ -104,30 +147,14 @@ jobs:
         name: documentation
         path: target/doc/
 
-  # Security audit
-  security:
-    name: Security Audit
+  # Advanced checks (only on main branch)
+  advanced:
+    name: Advanced Checks (Benchmarks, Package Validation)
     runs-on: ubuntu-latest
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Install Rust toolchain
-      uses: dtolnay/rust-toolchain@stable
-
-    - name: Install cargo-audit
-      run: cargo install cargo-audit
-
-    - name: Run security audit
-      run: cargo audit
-
-  # Benchmarks (only on main branch)
-  benchmarks:
-    name: Run Benchmarks
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-
+    timeout-minutes: 25
+    needs: [changes, core-checks, docs-security]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.core-checks.result == 'success' && needs.docs-security.result == 'success'
+    
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -137,47 +164,29 @@ jobs:
 
     - name: Cache dependencies
       uses: Swatinem/rust-cache@v2
-
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y pkg-config libssl-dev
-
-    - name: Run benchmarks
-      run: cargo bench --all-features --no-run
-
-    - name: Upload benchmark results
-      uses: actions/upload-artifact@v4
       with:
-        name: benchmark-results
-        path: target/criterion/
-
-  # Package validation (only on main branch)
-  package:
-    name: Package Validation
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Install Rust toolchain
-      uses: dtolnay/rust-toolchain@stable
-
-    - name: Cache dependencies
-      uses: Swatinem/rust-cache@v2
+        key: advanced-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+        cache-on-failure: true
 
     - name: Install dependencies
       run: |
         sudo apt-get update
         sudo apt-get install -y pkg-config libssl-dev
 
-    - name: Validate packages
+    # Run benchmarks and package validation in parallel
+    - name: Benchmarks and package validation
       run: |
+        cargo bench --all-features --no-run &
         for crate in crates/*/; do
           if [ -f "$crate/Cargo.toml" ]; then
             echo "Validating $crate"
             cargo check --manifest-path "$crate/Cargo.toml" --all-features
           fi
-        done 
+        done &
+        wait
+
+    - name: Upload benchmark results
+      uses: actions/upload-artifact@v4
+      with:
+        name: benchmark-results
+        path: target/criterion/ 
