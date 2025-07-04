@@ -3,8 +3,8 @@ use colored::*;
 use std::path::Path;
 
 /// Utility functions for the CLI
-
 /// Check if a directory looks like an MCP project
+#[allow(dead_code)]
 pub fn is_mcp_project(dir: &Path) -> bool {
     let cargo_toml = dir.join("Cargo.toml");
     if !cargo_toml.exists() {
@@ -20,6 +20,7 @@ pub fn is_mcp_project(dir: &Path) -> bool {
 }
 
 /// Find the project root directory
+#[allow(dead_code)]
 pub fn find_project_root() -> Result<std::path::PathBuf> {
     let mut current = std::env::current_dir()?;
 
@@ -37,12 +38,14 @@ pub fn find_project_root() -> Result<std::path::PathBuf> {
 }
 
 /// Pretty print JSON with syntax highlighting
+#[allow(dead_code)]
 pub fn pretty_print_json(value: &serde_json::Value) -> String {
     // Simple pretty printing - in a real implementation you'd add syntax highlighting
     serde_json::to_string_pretty(value).unwrap_or_else(|_| "Invalid JSON".to_string())
 }
 
 /// Format file size in human readable format
+#[allow(dead_code)]
 pub fn format_file_size(bytes: u64) -> String {
     const UNITS: &[&str] = &["B", "KB", "MB", "GB", "TB"];
     let mut size = bytes as f64;
@@ -61,6 +64,7 @@ pub fn format_file_size(bytes: u64) -> String {
 }
 
 /// Create a progress bar
+#[allow(dead_code)]
 pub fn create_progress_bar(total: u64, message: &str) -> indicatif::ProgressBar {
     let pb = indicatif::ProgressBar::new(total);
     pb.set_style(
@@ -76,26 +80,31 @@ pub fn create_progress_bar(total: u64, message: &str) -> indicatif::ProgressBar 
 }
 
 /// Print success message
+#[allow(dead_code)]
 pub fn print_success(message: &str) {
     println!("{} {}", "✅".green(), message);
 }
 
 /// Print error message
+#[allow(dead_code)]
 pub fn print_error(message: &str) {
     eprintln!("{} {}", "❌".red(), message);
 }
 
 /// Print warning message
+#[allow(dead_code)]
 pub fn print_warning(message: &str) {
     println!("{} {}", "⚠️".yellow(), message);
 }
 
 /// Print info message
+#[allow(dead_code)]
 pub fn print_info(message: &str) {
     println!("{} {}", "ℹ️".blue(), message);
 }
 
 /// Validate project name
+#[allow(dead_code)]
 pub fn validate_project_name(name: &str) -> Result<()> {
     if name.is_empty() {
         anyhow::bail!("Project name cannot be empty");
@@ -118,6 +127,7 @@ pub fn validate_project_name(name: &str) -> Result<()> {
 }
 
 /// Get the user's name for git config
+#[allow(dead_code)]
 pub fn get_git_user_name() -> Option<String> {
     std::process::Command::new("git")
         .args(["config", "user.name"])
@@ -135,6 +145,7 @@ pub fn get_git_user_name() -> Option<String> {
 }
 
 /// Get the user's email for git config
+#[allow(dead_code)]
 pub fn get_git_user_email() -> Option<String> {
     std::process::Command::new("git")
         .args(["config", "user.email"])
@@ -152,6 +163,7 @@ pub fn get_git_user_email() -> Option<String> {
 }
 
 /// Check if a command exists in PATH
+#[allow(dead_code)]
 pub fn command_exists(command: &str) -> bool {
     std::process::Command::new("which")
         .arg(command)
@@ -161,6 +173,7 @@ pub fn command_exists(command: &str) -> bool {
 }
 
 /// Get the current directory name
+#[allow(dead_code)]
 pub fn current_dir_name() -> Option<String> {
     std::env::current_dir().ok().and_then(|path| {
         path.file_name()

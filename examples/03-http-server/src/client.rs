@@ -60,6 +60,7 @@ struct HttpInfoResponse {
 }
 
 #[derive(serde::Deserialize)]
+#[allow(dead_code)]
 struct CreateApiKeyOutput {
     key_id: String,
     api_key: String,
@@ -72,6 +73,7 @@ struct CreateApiKeyOutput {
 }
 
 #[derive(serde::Deserialize)]
+#[allow(dead_code)]
 struct ListApiKeysOutput {
     keys: Vec<ApiKeyInfo>,
     total_count: usize,
@@ -79,6 +81,7 @@ struct ListApiKeysOutput {
 }
 
 #[derive(serde::Deserialize)]
+#[allow(dead_code)]
 struct ApiKeyInfo {
     key_id: String,
     name: String,
@@ -89,6 +92,7 @@ struct ApiKeyInfo {
 }
 
 #[derive(serde::Deserialize)]
+#[allow(dead_code)]
 struct StartTaskOutput {
     task_id: String,
     task_type: String,
@@ -100,6 +104,7 @@ struct StartTaskOutput {
 }
 
 #[derive(serde::Deserialize)]
+#[allow(dead_code)]
 struct GetTaskStatusOutput {
     task_id: String,
     task_type: String,
@@ -113,6 +118,7 @@ struct GetTaskStatusOutput {
 }
 
 #[derive(serde::Deserialize)]
+#[allow(dead_code)]
 struct WebFetchOutput {
     url: String,
     status_code: u16,
@@ -124,6 +130,7 @@ struct WebFetchOutput {
 }
 
 #[derive(serde::Deserialize)]
+#[allow(dead_code)]
 struct ApiKeyResource {
     key_id: String,
     name: String,
@@ -135,6 +142,7 @@ struct ApiKeyResource {
 }
 
 #[derive(serde::Deserialize)]
+#[allow(dead_code)]
 struct TaskResource {
     task_id: String,
     task_type: String,

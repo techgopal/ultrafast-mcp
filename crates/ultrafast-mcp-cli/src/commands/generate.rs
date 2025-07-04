@@ -401,10 +401,8 @@ async fn generate_client(args: &GenerateArgs) -> Result<()> {
         .as_deref()
         .ok_or_else(|| anyhow::anyhow!("Client name is required for client generation"))?;
 
-    let output_dir = args
-        .output
-        .as_ref()
-        .map(|p| p.as_path())
+          let output_dir = args
+        .output.as_deref()
         .unwrap_or_else(|| std::path::Path::new("."));
 
     println!("👤 Generating client: {}", client_name);

@@ -43,6 +43,7 @@ struct WriteFileResponse {
 #[derive(Debug, Deserialize)]
 struct ListFilesRequest {
     path: String,
+    #[allow(dead_code)]
     recursive: Option<bool>,
 }
 
