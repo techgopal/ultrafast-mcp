@@ -1,0 +1,67 @@
+name: Pull Request Checks
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+  # Also run on push to PR branches for faster feedback
+  push:
+    branches-ignore: [ main, develop ]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  # Optimized single job with balanced parallelization
+  pr-checks:
+    name: PR Checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Cache dependencies
+      uses: Swatinem/rust-cache@v2
+      with:
+        key: pr-${{ hashFiles('**/Cargo.lock') }}
+        cache-on-failure: true
+        cache-all-crates: false
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update && sudo apt-get install -y pkg-config libssl-dev
+        cargo install cargo-audit
+
+    # Run format and lint in parallel
+    - name: Format and lint
+      run: |
+        cargo fmt --all -- --check &
+        cargo clippy --all-targets --all-features &
+        wait
+
+    # Run tests and builds in parallel
+    - name: Tests and builds
+      run: |
+        cargo test --all-targets --all-features &
+        cargo build --all-targets --all-features &
+        cargo build --examples --all-features &
+        wait
+
+    # Run docs and security in parallel
+    - name: Docs and security
+      run: |
+        cargo doc --no-deps --all-features &
+        cargo audit &
+        wait
+
+    # Quick feature tests (only for non-draft PRs)
+    - name: Feature tests
+      if: github.event.pull_request.draft == false
+      run: |
+        cargo test --no-default-features --lib
+        cargo test --features http --lib 

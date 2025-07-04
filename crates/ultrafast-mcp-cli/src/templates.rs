@@ -1,9 +1,9 @@
-use anyhow::{Result, Context};
+use crate::config::Config;
+use anyhow::{Context, Result};
+use base64::Engine;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
-use crate::config::Config;
-use serde::{Deserialize, Serialize};
-use base64::Engine;
 
 /// Template for project generation
 pub struct Template {
@@ -61,17 +61,17 @@ impl Template {
     pub fn load_from_path(path: &str) -> Result<Self> {
         use std::fs;
         use std::path::Path;
-        
+
         let template_path = Path::new(path);
-        
+
         if !template_path.exists() {
             anyhow::bail!("Template path does not exist: {}", path);
         }
-        
+
         if !template_path.is_dir() {
             anyhow::bail!("Template path is not a directory: {}", path);
         }
-        
+
         // Look for template.toml or template.json
         let config_path = template_path.join("template.toml");
         let config_path = if config_path.exists() {
@@ -84,19 +84,19 @@ impl Template {
                 anyhow::bail!("No template.toml or template.json found in: {}", path);
             }
         };
-        
+
         // Read template configuration
         let config_content = fs::read_to_string(&config_path)
             .with_context(|| format!("Failed to read template config: {:?}", config_path))?;
-            
-        let template_config: TemplateConfig = if config_path.extension().unwrap_or_default() == "toml" {
-            toml::from_str(&config_content)
-                .with_context(|| "Failed to parse template.toml")?
-        } else {
-            serde_json::from_str(&config_content)
-                .with_context(|| "Failed to parse template.json")?
-        };
-        
+
+        let template_config: TemplateConfig =
+            if config_path.extension().unwrap_or_default() == "toml" {
+                toml::from_str(&config_content).with_context(|| "Failed to parse template.toml")?
+            } else {
+                serde_json::from_str(&config_content)
+                    .with_context(|| "Failed to parse template.json")?
+            };
+
         // Load template files
         let mut files = Vec::new();
         for file_config in &template_config.files {
@@ -112,7 +112,7 @@ impl Template {
                     fs::read_to_string(&file_path)
                         .with_context(|| format!("Failed to read text file: {:?}", file_path))?
                 };
-                
+
                 files.push(TemplateFile {
                     path: file_config.path.clone(),
                     content,
@@ -122,7 +122,7 @@ impl Template {
                 anyhow::bail!("Template file not found: {:?}", file_path);
             }
         }
-        
+
         Ok(Template {
             name: template_config.name,
             description: template_config.description,
@@ -134,38 +134,38 @@ impl Template {
     pub fn generate(&self, output_dir: &Path, context: &HashMap<String, String>) -> Result<()> {
         for file in &self.files {
             let file_path = output_dir.join(&file.path);
-            
+
             // Create parent directories
             if let Some(parent) = file_path.parent() {
                 std::fs::create_dir_all(parent)
                     .with_context(|| format!("Failed to create directory: {}", parent.display()))?;
             }
-            
+
             // Process template content
             let content = if file.is_binary {
                 file.content.clone()
             } else {
                 self.process_template(&file.content, context)?
             };
-            
+
             // Write file
             std::fs::write(&file_path, content)
                 .with_context(|| format!("Failed to write file: {}", file_path.display()))?;
         }
-        
+
         Ok(())
     }
 
     /// Process template content with variables
     fn process_template(&self, content: &str, context: &HashMap<String, String>) -> Result<String> {
         let mut result = content.to_string();
-        
+
         // Simple variable substitution - in a real implementation you'd use a proper template engine
         for (key, value) in context {
             let placeholder = format!("{{{{{}}}}}", key);
             result = result.replace(&placeholder, value);
         }
-        
+
         Ok(result)
     }
 
@@ -198,7 +198,8 @@ tracing-subscriber = "0.3"
 [[bin]]
 name = "{{project_name}}"
 path = "src/main.rs"
-"#.to_string(),
+"#
+                    .to_string(),
                     is_binary: false,
                 },
                 TemplateFile {
@@ -258,7 +259,8 @@ mod tests {
         assert_eq!(result, input);
     }
 }
-"#.to_string(),
+"#
+                    .to_string(),
                     is_binary: false,
                 },
                 TemplateFile {
@@ -294,7 +296,8 @@ mcp dev
 ## License
 
 {{license}}
-"#.to_string(),
+"#
+                    .to_string(),
                     is_binary: false,
                 },
                 TemplateFile {
@@ -304,7 +307,8 @@ mcp dev
 .env
 *.log
 .DS_Store
-"#.to_string(),
+"#
+                    .to_string(),
                     is_binary: false,
                 },
             ],
@@ -315,8 +319,9 @@ mcp dev
     fn server_template() -> Self {
         let mut template = Self::basic_template();
         template.name = "server".to_string();
-        template.description = "Advanced MCP server template with multiple tools and resources".to_string();
-        
+        template.description =
+            "Advanced MCP server template with multiple tools and resources".to_string();
+
         // TODO: Add more server-specific files
         template
     }
@@ -350,7 +355,8 @@ tracing-subscriber = "0.3"
 [[bin]]
 name = "{{project_name}}"
 path = "src/main.rs"
-"#.to_string(),
+"#
+                    .to_string(),
                     is_binary: false,
                 },
                 TemplateFile {
@@ -389,7 +395,8 @@ async fn main() -> Result<()> {
     
     Ok(())
 }
-"#.to_string(),
+"#
+                    .to_string(),
                     is_binary: false,
                 },
             ],
@@ -400,8 +407,9 @@ async fn main() -> Result<()> {
     fn full_template() -> Self {
         let mut template = Self::server_template();
         template.name = "full".to_string();
-        template.description = "Full-featured MCP project with server, client, and examples".to_string();
-        
+        template.description =
+            "Full-featured MCP project with server, client, and examples".to_string();
+
         // TODO: Add client files and examples
         template
     }

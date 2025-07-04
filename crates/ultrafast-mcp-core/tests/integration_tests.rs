@@ -1,5 +1,5 @@
-use ultrafast_mcp_core::*;
 use serde_json::json;
+use ultrafast_mcp_core::*;
 
 #[cfg(test)]
 mod protocol_tests {
@@ -12,7 +12,7 @@ mod protocol_tests {
             Some(json!({"param": "value"})),
             Some(RequestId::String("test-123".to_string())),
         );
-        
+
         assert_eq!(request.method, "test_method");
         assert_eq!(request.jsonrpc, "2.0");
         assert_eq!(request.id, Some(RequestId::String("test-123".to_string())));
@@ -24,7 +24,7 @@ mod protocol_tests {
             json!({"result": "ok"}),
             Some(RequestId::String("test-456".to_string())),
         );
-        
+
         assert!(response.result.is_some());
         assert!(response.error.is_none());
         assert_eq!(response.id, Some(RequestId::String("test-456".to_string())));
@@ -37,7 +37,7 @@ mod protocol_tests {
             error,
             Some(RequestId::String("test-789".to_string())),
         );
-        
+
         assert!(response.result.is_none());
         assert!(response.error.is_some());
         assert_eq!(response.id, Some(RequestId::String("test-789".to_string())));
@@ -58,7 +58,7 @@ mod protocol_tests {
                 license: None,
             },
         };
-        
+
         assert_eq!(init_request.protocol_version, "2025-06-18");
         assert_eq!(init_request.client_info.name, "test-client");
     }
@@ -66,11 +66,20 @@ mod protocol_tests {
     #[test]
     fn test_lifecycle_phases() {
         use protocol::lifecycle::LifecyclePhase;
-        
+
         // Test enum variants exist (not Display implementation)
-        assert!(matches!(LifecyclePhase::Uninitialized, LifecyclePhase::Uninitialized));
-        assert!(matches!(LifecyclePhase::Initializing, LifecyclePhase::Initializing));
-        assert!(matches!(LifecyclePhase::Initialized, LifecyclePhase::Initialized));
+        assert!(matches!(
+            LifecyclePhase::Uninitialized,
+            LifecyclePhase::Uninitialized
+        ));
+        assert!(matches!(
+            LifecyclePhase::Initializing,
+            LifecyclePhase::Initializing
+        ));
+        assert!(matches!(
+            LifecyclePhase::Initialized,
+            LifecyclePhase::Initialized
+        ));
         assert!(matches!(LifecyclePhase::Shutdown, LifecyclePhase::Shutdown));
     }
 
@@ -78,7 +87,7 @@ mod protocol_tests {
     fn test_capability_negotiation() {
         let server_caps = protocol::capabilities::ServerCapabilities::default();
         let client_caps = protocol::capabilities::ClientCapabilities::default();
-        
+
         // Test default capabilities
         assert!(server_caps.tools.is_none());
         assert!(client_caps.roots.is_none());
@@ -97,7 +106,7 @@ mod types_tests {
             input_schema: json!({"type": "object"}),
             output_schema: None,
         };
-        
+
         assert_eq!(tool.name, "test_tool");
         assert_eq!(tool.description, "A test tool");
         assert_eq!(tool.input_schema, json!({"type": "object"}));
@@ -111,7 +120,7 @@ mod types_tests {
             description: Some("A test resource".to_string()),
             mime_type: Some("application/json".to_string()),
         };
-        
+
         assert_eq!(resource.uri, "test://resource");
         assert_eq!(resource.name, "Test Resource");
     }
@@ -121,15 +130,13 @@ mod types_tests {
         let prompt = types::prompts::Prompt {
             name: "test_prompt".to_string(),
             description: Some("A test prompt".to_string()),
-            arguments: Some(vec![
-                types::prompts::PromptArgument {
-                    name: "code".to_string(),
-                    description: Some("Code to review".to_string()),
-                    required: Some(true),
-                }
-            ]),
+            arguments: Some(vec![types::prompts::PromptArgument {
+                name: "code".to_string(),
+                description: Some("Code to review".to_string()),
+                required: Some(true),
+            }]),
         };
-        
+
         assert_eq!(prompt.name, "test_prompt");
         if let Some(ref args) = prompt.arguments {
             assert_eq!(args.len(), 1);
@@ -163,7 +170,7 @@ mod result_tests {
     fn test_result_error_handling() {
         let result: MCPResult<String> = Err(MCPError::internal_error("test error".to_string()));
         assert!(result.is_err());
-        
+
         if let Err(error) = result {
             assert!(matches!(error, MCPError::Protocol(_)));
         }
@@ -173,7 +180,7 @@ mod result_tests {
     fn test_result_success() {
         let result: MCPResult<String> = Ok("success".to_string());
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), "success");
+        assert_eq!(result.as_ref().unwrap(), "success");
     }
 }
 
@@ -225,12 +232,11 @@ mod integration_tests {
 
         // Serialize
         let serialized = serde_json::to_string(&original_tool).unwrap();
-        
+
         // Deserialize
         let deserialized: types::tools::Tool = serde_json::from_str(&serialized).unwrap();
-        
+
         assert_eq!(original_tool.name, deserialized.name);
         assert_eq!(original_tool.description, deserialized.description);
     }
 }
-

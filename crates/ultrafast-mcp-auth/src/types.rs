@@ -42,7 +42,7 @@ pub struct AuthorizationServerMetadata {
     pub grant_types_supported: Option<Vec<String>>,
     pub token_endpoint_auth_methods_supported: Option<Vec<String>>,
     pub code_challenge_methods_supported: Option<Vec<String>>,
-    
+
     #[serde(flatten)]
     pub additional_metadata: HashMap<String, serde_json::Value>,
 }
@@ -94,7 +94,7 @@ pub struct TokenClaims {
     pub nbf: Option<u64>,      // Not before
     pub jti: Option<String>,   // JWT ID
     pub scope: Option<String>, // OAuth scopes
-    
+
     #[serde(flatten)]
     pub additional_claims: HashMap<String, serde_json::Value>,
 }

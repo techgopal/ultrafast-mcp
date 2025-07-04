@@ -1,0 +1,196 @@
+name: Release
+
+on:
+  release:
+    types: [ published ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # Validate release
+  validate:
+    name: Validate Release
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Cache dependencies
+      uses: Swatinem/rust-cache@v2
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y pkg-config libssl-dev
+
+    - name: Verify version consistency
+      run: |
+        # Check that all crates have the same version
+        VERSION=$(grep '^version = ' Cargo.toml | cut -d'"' -f2)
+        echo "Expected version: $VERSION"
+        
+        for crate in crates/*/; do
+          if [ -f "$crate/Cargo.toml" ]; then
+            CRATE_VERSION=$(grep '^version = ' "$crate/Cargo.toml" | cut -d'"' -f2)
+            if [ "$CRATE_VERSION" != "$VERSION" ]; then
+              echo "Version mismatch in $crate: expected $VERSION, got $CRATE_VERSION"
+              exit 1
+            fi
+          fi
+        done
+
+    - name: Run full test suite
+      run: cargo test --all-targets --all-features
+
+    - name: Security audit
+      run: |
+        cargo install cargo-audit
+        cargo audit
+
+    - name: Validate packages
+      run: |
+        for crate in crates/*/; do
+          if [ -f "$crate/Cargo.toml" ]; then
+            echo "Validating package in $crate"
+            cd "$crate"
+            cargo package --allow-dirty
+            cd ../..
+          fi
+        done
+
+  # Publish to crates.io
+  publish:
+    name: Publish to Crates.io
+    runs-on: ubuntu-latest
+    needs: [validate]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Cache dependencies
+      uses: Swatinem/rust-cache@v2
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y pkg-config libssl-dev
+
+    - name: Login to crates.io
+      uses: actions-rs/cargo@v1
+      with:
+        command: login
+        args: --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+    - name: Publish crates in dependency order
+      run: |
+        # Publish in dependency order with proper delays
+        echo "Publishing ultrafast-mcp-core..."
+        cd crates/ultrafast-mcp-core
+        cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        sleep 30
+        
+        echo "Publishing ultrafast-mcp-transport..."
+        cd ../ultrafast-mcp-transport
+        cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        sleep 30
+        
+        echo "Publishing ultrafast-mcp-auth..."
+        cd ../ultrafast-mcp-auth
+        cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        sleep 30
+        
+        echo "Publishing ultrafast-mcp-monitoring..."
+        cd ../ultrafast-mcp-monitoring
+        cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        sleep 30
+        
+        echo "Publishing ultrafast-mcp-server..."
+        cd ../ultrafast-mcp-server
+        cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        sleep 30
+        
+        echo "Publishing ultrafast-mcp-client..."
+        cd ../ultrafast-mcp-client
+        cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        sleep 30
+        
+        echo "Publishing ultrafast-mcp-macros..."
+        cd ../ultrafast-mcp-macros
+        cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        sleep 30
+        
+        echo "Publishing ultrafast-mcp-cli..."
+        cd ../ultrafast-mcp-cli
+        cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        sleep 30
+        
+        echo "Publishing ultrafast-mcp (main crate)..."
+        cd ../ultrafast-mcp
+        cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+  # Deploy documentation
+  deploy-docs:
+    name: Deploy Documentation
+    runs-on: ubuntu-latest
+    needs: [publish]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Cache dependencies
+      uses: Swatinem/rust-cache@v2
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y pkg-config libssl-dev
+
+    - name: Build documentation
+      run: cargo doc --no-deps --all-features
+
+    - name: Deploy to GitHub Pages
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./target/doc
+        destination_dir: .
+        force_orphan: true
+
+  # Verify installation
+  verify-installation:
+    name: Verify Installation
+    runs-on: ubuntu-latest
+    needs: [publish]
+
+    steps:
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Test installation
+      run: |
+        # Wait for crates to be available
+        sleep 60
+        
+        # Test installing the CLI
+        cargo install ultrafast-mcp-cli
+        
+        # Test basic functionality
+        mcp --help
+        
+        # Test creating a new project
+        mcp init test-project
+        cd test-project
+        cargo check 

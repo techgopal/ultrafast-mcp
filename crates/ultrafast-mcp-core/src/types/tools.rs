@@ -10,14 +10,14 @@ pub type ToolResult = ToolCallResponse;
 pub struct Tool {
     /// Tool name (unique identifier)
     pub name: String,
-    
+
     /// Human-readable description
     pub description: String,
-    
+
     /// JSON Schema for input parameters
     #[serde(rename = "inputSchema")]
     pub input_schema: Value,
-    
+
     /// Optional JSON Schema for output
     #[serde(rename = "outputSchema", skip_serializing_if = "Option::is_none")]
     pub output_schema: Option<Value>,
@@ -28,7 +28,7 @@ pub struct Tool {
 pub struct ToolCallRequest {
     /// Tool name to call
     pub name: String,
-    
+
     /// Arguments to pass to the tool
     #[serde(skip_serializing_if = "Option::is_none")]
     pub arguments: Option<Value>,
@@ -39,7 +39,7 @@ pub struct ToolCallRequest {
 pub struct ToolCallResponse {
     /// Tool execution result
     pub content: Vec<ToolContent>,
-    
+
     /// Whether the tool execution was cancelled
     #[serde(rename = "isError", skip_serializing_if = "Option::is_none")]
     pub is_error: Option<bool>,
@@ -51,18 +51,16 @@ pub struct ToolCallResponse {
 pub enum ToolContent {
     #[serde(rename = "text")]
     Text { text: String },
-    
+
     #[serde(rename = "image")]
-    Image { 
-        data: String,  // Base64 encoded
+    Image {
+        data: String, // Base64 encoded
         #[serde(rename = "mimeType")]
         mime_type: String,
     },
-    
+
     #[serde(rename = "resource")]
-    Resource {
-        resource: ResourceReference,
-    },
+    Resource { resource: ResourceReference },
 }
 
 /// Reference to a resource
@@ -70,7 +68,7 @@ pub enum ToolContent {
 pub struct ResourceReference {
     /// Resource URI
     pub uri: String,
-    
+
     /// Optional description
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
@@ -89,7 +87,7 @@ pub struct ListToolsRequest {
 pub struct ListToolsResponse {
     /// Available tools
     pub tools: Vec<Tool>,
-    
+
     /// Next cursor for pagination
     #[serde(rename = "nextCursor", skip_serializing_if = "Option::is_none")]
     pub next_cursor: Option<String>,
@@ -104,7 +102,7 @@ impl Tool {
             output_schema: None,
         }
     }
-    
+
     pub fn with_output_schema(mut self, schema: Value) -> Self {
         self.output_schema = Some(schema);
         self
@@ -115,26 +113,26 @@ impl ToolContent {
     pub fn text(text: String) -> Self {
         Self::Text { text }
     }
-    
+
     pub fn image(data: String, mime_type: String) -> Self {
         Self::Image { data, mime_type }
     }
-    
+
     pub fn resource(uri: String) -> Self {
         Self::Resource {
             resource: ResourceReference {
                 uri,
                 description: None,
-            }
+            },
         }
     }
-    
+
     pub fn resource_with_description(uri: String, description: String) -> Self {
         Self::Resource {
             resource: ResourceReference {
                 uri,
                 description: Some(description),
-            }
+            },
         }
     }
 }

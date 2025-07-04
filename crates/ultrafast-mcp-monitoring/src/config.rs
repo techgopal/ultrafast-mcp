@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::time::Duration;
 
 /// Main monitoring configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct MonitoringConfig {
     /// Tracing configuration
     pub tracing: TracingConfig,
@@ -125,17 +125,6 @@ pub struct TlsConfig {
     pub key_file: String,
 }
 
-impl Default for MonitoringConfig {
-    fn default() -> Self {
-        Self {
-            tracing: TracingConfig::default(),
-            metrics: MetricsConfig::default(),
-            health: HealthConfig::default(),
-            http: HttpConfig::default(),
-        }
-    }
-}
-
 impl Default for TracingConfig {
     fn default() -> Self {
         Self {
@@ -210,47 +199,48 @@ impl MonitoringConfig {
     /// Load configuration from environment variables
     pub fn from_env() -> Self {
         let mut config = Self::default();
-        
+
         // Override with environment variables
         if let Ok(val) = std::env::var("MCP_TRACING_ENABLED") {
             config.tracing.enabled = val.parse().unwrap_or(true);
         }
-        
+
         if let Ok(val) = std::env::var("MCP_SERVICE_NAME") {
             config.tracing.service_name = val;
         }
-        
+
         if let Ok(val) = std::env::var("MCP_ENVIRONMENT") {
             config.tracing.environment = val;
         }
-        
+
         if let Ok(val) = std::env::var("MCP_LOG_LEVEL") {
             config.tracing.level = val;
         }
-        
+
         if let Ok(val) = std::env::var("MCP_JAEGER_ENDPOINT") {
             if let Some(ref mut jaeger) = config.tracing.jaeger {
                 jaeger.agent_endpoint = val;
             }
         }
-        
+
         if let Ok(val) = std::env::var("MCP_METRICS_ENABLED") {
             config.metrics.enabled = val.parse().unwrap_or(true);
         }
-        
+
         if let Ok(val) = std::env::var("MCP_HTTP_PORT") {
             config.http.port = val.parse().unwrap_or(9090);
         }
-        
+
         config
     }
-    
+
     /// Load configuration from a file
     #[cfg(feature = "config-files")]
     pub fn from_file(path: &str) -> anyhow::Result<Self> {
         let content = std::fs::read_to_string(path)?;
-        let config = match path.split('.').last() {
+        let config = match path.split('.').next_back() {
             Some("toml") => toml::from_str(&content)?,
+            #[cfg(feature = "config-files")]
             Some("yaml") | Some("yml") => serde_yaml::from_str(&content)?,
             Some("json") => serde_json::from_str(&content)?,
             _ => return Err(anyhow::anyhow!("Unsupported file format")),
@@ -261,6 +251,8 @@ impl MonitoringConfig {
     /// Load configuration from a file (no-op without config-files feature)
     #[cfg(not(feature = "config-files"))]
     pub fn from_file(_path: &str) -> anyhow::Result<Self> {
-        Err(anyhow::anyhow!("Config file support not enabled. Enable 'config-files' feature."))
+        Err(anyhow::anyhow!(
+            "Config file support not enabled. Enable 'config-files' feature."
+        ))
     }
 }

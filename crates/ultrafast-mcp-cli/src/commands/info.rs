@@ -1,7 +1,7 @@
-use clap::Args;
-use anyhow::Result;
-use colored::*;
 use crate::config::Config;
+use anyhow::Result;
+use clap::Args;
+use colored::*;
 
 /// Show project information
 #[derive(Debug, Args)]
@@ -18,20 +18,20 @@ pub struct InfoArgs {
 pub async fn execute(args: InfoArgs, config: Option<Config>) -> Result<()> {
     println!("{}", "MCP Project Information".green().bold());
     println!();
-    
+
     // Show CLI version
     println!("🚀 ULTRAFAST MCP CLI");
     println!("   Version: {}", env!("CARGO_PKG_VERSION"));
     println!();
-    
+
     // Show project info if available
     let current_dir = std::env::current_dir()?;
     let cargo_toml = current_dir.join("Cargo.toml");
-    
+
     if cargo_toml.exists() {
         println!("📦 Current Project");
         println!("   Directory: {}", current_dir.display());
-        
+
         // Parse Cargo.toml for project info
         if let Ok(content) = std::fs::read_to_string(&cargo_toml) {
             if let Ok(toml_value) = toml::from_str::<toml::Value>(&content) {
@@ -50,7 +50,7 @@ pub async fn execute(args: InfoArgs, config: Option<Config>) -> Result<()> {
         }
         println!();
     }
-    
+
     // Show configuration info
     if let Some(config) = config {
         println!("⚙️ Configuration");
@@ -63,7 +63,7 @@ pub async fn execute(args: InfoArgs, config: Option<Config>) -> Result<()> {
         println!("   Clients: {}", config.clients.len());
         println!();
     }
-    
+
     if args.detailed {
         println!("📋 Available Commands:");
         println!("   mcp init      - Initialize a new MCP project");
@@ -76,6 +76,6 @@ pub async fn execute(args: InfoArgs, config: Option<Config>) -> Result<()> {
         println!("   mcp client    - Manage client configurations");
         println!();
     }
-    
+
     Ok(())
 }

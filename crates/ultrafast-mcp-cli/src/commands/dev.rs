@@ -1,9 +1,9 @@
+use crate::config::Config;
+use anyhow::{Context, Result};
 use clap::Args;
-use anyhow::{Result, Context};
+use colored::*;
 use std::path::PathBuf;
 use tokio::time::{sleep, Duration};
-use colored::*;
-use crate::config::Config;
 
 /// Run a development server with hot reload
 #[derive(Debug, Args)]
@@ -36,12 +36,17 @@ pub struct DevArgs {
 pub async fn execute(args: DevArgs, config: Option<Config>) -> Result<()> {
     println!("{}", "Starting MCP development server...".green().bold());
 
-    let project_dir = args.path.unwrap_or_else(|| std::env::current_dir().unwrap());
-    let port = args.port.or_else(|| config.as_ref().and_then(|c| c.dev.port)).unwrap_or(8080);
+    let project_dir = args
+        .path
+        .unwrap_or_else(|| std::env::current_dir().unwrap());
+    let port = args
+        .port
+        .or_else(|| config.as_ref().and_then(|c| c.dev.port))
+        .unwrap_or(8080);
 
     println!("📁 Project directory: {}", project_dir.display());
     println!("🚀 Transport: {}", args.transport);
-    
+
     if args.transport != "stdio" {
         println!("🌐 Port: {}", port);
     }
@@ -56,7 +61,7 @@ pub async fn execute(args: DevArgs, config: Option<Config>) -> Result<()> {
     let hot_reload = !args.no_hot_reload;
     if hot_reload {
         println!("🔥 Hot reload: enabled");
-        
+
         // Start the file watcher in a separate task
         let project_dir_clone = project_dir.clone();
         let watch_dirs = if args.watch.is_empty() {
@@ -105,7 +110,7 @@ async fn start_mcp_server(project_dir: &PathBuf, transport: &str, port: u16) -> 
         "stdio" => {
             // Start stdio server
             println!("📡 Starting stdio server...");
-            
+
             let mut child = tokio::process::Command::new("cargo")
                 .args(["run"])
                 .current_dir(project_dir)
@@ -116,8 +121,11 @@ async fn start_mcp_server(project_dir: &PathBuf, transport: &str, port: u16) -> 
                 .context("Failed to start MCP server")?;
 
             // Monitor the process
-            let status = child.wait().await.context("Failed to wait for server process")?;
-            
+            let status = child
+                .wait()
+                .await
+                .context("Failed to wait for server process")?;
+
             if !status.success() {
                 anyhow::bail!("Server process exited with error: {}", status);
             }
@@ -125,7 +133,7 @@ async fn start_mcp_server(project_dir: &PathBuf, transport: &str, port: u16) -> 
         "http" => {
             // Start HTTP server
             println!("🌐 Starting HTTP server on port {}...", port);
-            
+
             // For now, just simulate an HTTP server
             // In a real implementation, this would start an actual HTTP server
             loop {
@@ -142,9 +150,6 @@ async fn start_mcp_server(project_dir: &PathBuf, transport: &str, port: u16) -> 
 }
 
 async fn start_file_watcher(project_dir: PathBuf, watch_dirs: Vec<PathBuf>) -> Result<()> {
-    
-    
-
     println!("👀 Watching directories for changes...");
     for dir in &watch_dirs {
         println!("   - {}", dir.display());

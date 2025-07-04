@@ -1,0 +1,61 @@
+name: Publish to docs.rs
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: x86_64-unknown-linux-gnu
+          override: true
+
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Build documentation
+        run: |
+          cargo doc --no-deps --all-features
+          cargo doc --no-deps --all-features --package ultrafast-mcp-core
+          cargo doc --no-deps --all-features --package ultrafast-mcp-transport
+          cargo doc --no-deps --all-features --package ultrafast-mcp-server
+          cargo doc --no-deps --all-features --package ultrafast-mcp-client
+          cargo doc --no-deps --all-features --package ultrafast-mcp-auth
+          cargo doc --no-deps --all-features --package ultrafast-mcp-cli
+          cargo doc --no-deps --all-features --package ultrafast-mcp-macros
+          cargo doc --no-deps --all-features --package ultrafast-mcp-monitoring
+
+      - name: Upload documentation artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: documentation
+          path: target/doc/
+          retention-days: 30
+
+      - name: Notify docs.rs
+        run: |
+          curl -X POST https://docs.rs/build/ultrafast-mcp
+          curl -X POST https://docs.rs/build/ultrafast-mcp-core
+          curl -X POST https://docs.rs/build/ultrafast-mcp-transport
+          curl -X POST https://docs.rs/build/ultrafast-mcp-server
+          curl -X POST https://docs.rs/build/ultrafast-mcp-client
+          curl -X POST https://docs.rs/build/ultrafast-mcp-auth
+          curl -X POST https://docs.rs/build/ultrafast-mcp-cli
+          curl -X POST https://docs.rs/build/ultrafast-mcp-macros
+          curl -X POST https://docs.rs/build/ultrafast-mcp-monitoring 

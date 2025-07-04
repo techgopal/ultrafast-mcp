@@ -3,7 +3,7 @@ use ultrafast_mcp_auth::*;
 #[cfg(test)]
 mod oauth_tests {
     use super::*;
-    
+
     #[test]
     fn test_oauth_client_creation() {
         let client = OAuthClient::new(
@@ -11,7 +11,7 @@ mod oauth_tests {
             "test_client_secret".to_string(),
             "https://auth.example.com".to_string(),
         );
-        
+
         assert_eq!(client.client_id(), "test_client_id");
         assert_eq!(client.auth_url(), "https://auth.example.com");
     }
@@ -23,10 +23,10 @@ mod oauth_tests {
             "secret".to_string(),
             "https://oauth.example.com".to_string(),
         );
-        
+
         let auth_url = client.get_authorization_url("test_state".to_string()).await;
         assert!(auth_url.is_ok());
-        
+
         let url = auth_url.unwrap();
         assert!(url.contains("oauth.example.com"));
         assert!(url.contains("test_client"));
@@ -40,11 +40,11 @@ mod pkce_tests {
     #[test]
     fn test_pkce_params_generation() {
         let params = generate_pkce_params().unwrap();
-        
+
         assert!(!params.code_verifier.is_empty());
         assert!(!params.code_challenge.is_empty());
         assert_eq!(params.code_challenge_method, "S256");
-        
+
         // Code verifier should be at least 43 characters
         assert!(params.code_verifier.len() >= 43);
         assert!(params.code_verifier.len() <= 128);
@@ -54,10 +54,10 @@ mod pkce_tests {
     fn test_state_generation() {
         let state1 = generate_state();
         let state2 = generate_state();
-        
+
         // States should be different
         assert_ne!(state1, state2);
-        
+
         // States should be reasonable length
         assert!(state1.len() >= 16);
         assert!(state2.len() >= 16);
@@ -67,10 +67,10 @@ mod pkce_tests {
     fn test_session_id_generation() {
         let session1 = generate_session_id();
         let session2 = generate_session_id();
-        
+
         // Session IDs should be different
         assert_ne!(session1, session2);
-        
+
         // Should be base64-encoded strings (43 characters)
         assert_eq!(session1.len(), 43);
         assert_eq!(session2.len(), 43);
@@ -84,7 +84,7 @@ mod pkce_tests {
         // Test that the same code verifier produces the same challenge
         let params1 = generate_pkce_params().unwrap();
         let params2 = generate_pkce_params().unwrap();
-        
+
         // Different generations should produce different values
         assert_ne!(params1.code_verifier, params2.code_verifier);
         assert_ne!(params1.code_challenge, params2.code_challenge);
@@ -122,7 +122,7 @@ mod validation_tests {
     #[tokio::test]
     async fn test_token_validator_creation() {
         let validator = TokenValidator::new("test_secret".to_string());
-        
+
         // Test that validator can be created
         assert_eq!(validator.get_secret(), "test_secret");
     }
@@ -130,12 +130,12 @@ mod validation_tests {
     #[tokio::test]
     async fn test_token_validation_flow() {
         let validator = TokenValidator::new("test_secret_key".to_string());
-        
+
         // This would test actual token validation in a real implementation
         // For now, we test that the validator exists and can be used
         let test_token = "test.jwt.token";
         let result = validator.validate_token(test_token).await;
-        
+
         // This should fail with invalid token format
         assert!(result.is_err());
     }
@@ -164,7 +164,7 @@ mod error_tests {
             // Test that all errors can be displayed
             let error_string = format!("{}", error);
             assert!(!error_string.is_empty());
-            
+
             // Test that errors implement Debug
             let debug_string = format!("{:?}", error);
             assert!(!debug_string.is_empty());
@@ -175,7 +175,7 @@ mod error_tests {
     fn test_auth_result_type() {
         let success: AuthResult<String> = Ok("success".to_string());
         assert!(success.is_ok());
-        
+
         let failure: AuthResult<String> = Err(AuthError::TokenExpired);
         assert!(failure.is_err());
     }
@@ -195,7 +195,7 @@ mod types_tests {
             redirect_uri: "http://localhost:8080/callback".to_string(),
             scopes: vec!["read".to_string(), "write".to_string()],
         };
-        
+
         assert_eq!(config.client_id, "test_client");
         assert_eq!(config.scopes.len(), 2);
         assert!(config.scopes.contains(&"read".to_string()));
@@ -210,7 +210,7 @@ mod types_tests {
             refresh_token: Some("refresh_token_456".to_string()),
             scope: Some("read write".to_string()),
         };
-        
+
         assert_eq!(response.access_token, "access_token_123");
         assert_eq!(response.token_type, "Bearer");
         assert_eq!(response.expires_in, Some(3600));
@@ -223,7 +223,7 @@ mod types_tests {
             code_challenge: "test_challenge".to_string(),
             code_challenge_method: "S256".to_string(),
         };
-        
+
         assert_eq!(params.code_verifier, "test_verifier");
         assert_eq!(params.code_challenge_method, "S256");
     }
@@ -248,11 +248,13 @@ mod integration_tests {
         let client = OAuthClient::from_config(config);
         let pkce_params = generate_pkce_params().unwrap();
         let state = generate_state();
-        
+
         // Generate authorization URL
-        let auth_url = client.get_authorization_url_with_pkce(state, pkce_params).await;
+        let auth_url = client
+            .get_authorization_url_with_pkce(state, pkce_params)
+            .await;
         assert!(auth_url.is_ok());
-        
+
         let url = auth_url.unwrap();
         assert!(url.contains("auth.integration.test"));
         assert!(url.contains("integration_test_client"));
@@ -262,15 +264,18 @@ mod integration_tests {
     #[tokio::test]
     async fn test_token_validation_integration() {
         let validator = TokenValidator::new("integration_test_secret".to_string());
-        
+
         // Test with various token formats
         let test_cases = vec![
-            ("", false), // Empty token
-            ("invalid", false), // Invalid format
+            ("", false),             // Empty token
+            ("invalid", false),      // Invalid format
             ("Bearer token", false), // Wrong format for validation
-            ("eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.invalid.signature", false), // Invalid JWT
+            (
+                "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.invalid.signature",
+                false,
+            ), // Invalid JWT
         ];
-        
+
         for (token, should_succeed) in test_cases {
             let result = validator.validate_token(token).await;
             assert_eq!(result.is_ok(), should_succeed);

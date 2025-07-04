@@ -1,9 +1,9 @@
 //! Elicitation types for MCP
-//! 
+//!
 //! Server-initiated user input collection
 
-use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
 /// Server-initiated request for user input
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

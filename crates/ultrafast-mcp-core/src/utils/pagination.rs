@@ -1,4 +1,4 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// Cursor-based pagination for MCP list operations
@@ -21,7 +21,10 @@ impl Cursor {
     }
 
     /// Create a cursor with metadata
-    pub fn with_metadata(value: impl Into<String>, metadata: HashMap<String, serde_json::Value>) -> Self {
+    pub fn with_metadata(
+        value: impl Into<String>,
+        metadata: HashMap<String, serde_json::Value>,
+    ) -> Self {
         Self {
             value: value.into(),
             metadata: Some(metadata),
@@ -259,7 +262,10 @@ mod tests {
         assert!(cursor.metadata().is_none());
 
         let mut metadata = HashMap::new();
-        metadata.insert("key".to_string(), serde_json::Value::String("value".to_string()));
+        metadata.insert(
+            "key".to_string(),
+            serde_json::Value::String("value".to_string()),
+        );
         let cursor = Cursor::with_metadata("def456", metadata.clone());
         assert_eq!(cursor.value(), "def456");
         assert_eq!(cursor.metadata(), Some(&metadata));
@@ -270,11 +276,11 @@ mod tests {
         let params = PaginationParams::new()
             .with_limit(10)
             .with_cursor(Cursor::new("cursor123"));
-        
+
         assert_eq!(params.limit, Some(10));
         assert_eq!(params.cursor.as_ref().unwrap().value(), "cursor123");
         assert_eq!(params.effective_limit(50), 10);
-        
+
         let params = PaginationParams::new();
         assert_eq!(params.effective_limit(50), 50);
     }
@@ -283,11 +289,11 @@ mod tests {
     fn test_paginated_list() {
         let items = vec![1, 2, 3, 4, 5];
         let list = PaginatedList::complete(items.clone());
-        
+
         assert_eq!(list.len(), 5);
         assert!(!list.has_more());
         assert!(list.next_cursor().is_none());
-        
+
         let list = PaginatedList::with_next(items, Cursor::new("next"));
         assert!(list.has_more());
         assert_eq!(list.next_cursor().unwrap().value(), "next");
@@ -296,16 +302,14 @@ mod tests {
     #[test]
     fn test_pagination_builder() {
         let items = vec![1, 2, 3, 4, 5];
-        let list = PaginationBuilder::new(items)
-            .with_limit(3)
-            .build(|items| {
-                if !items.is_empty() {
-                    Some(Cursor::new(format!("after_{}", items.last().unwrap())))
-                } else {
-                    None
-                }
-            });
-        
+        let list = PaginationBuilder::new(items).with_limit(3).build(|items| {
+            if !items.is_empty() {
+                Some(Cursor::new(format!("after_{}", items.last().unwrap())))
+            } else {
+                None
+            }
+        });
+
         assert_eq!(list.len(), 3);
         assert!(list.has_more());
         assert_eq!(list.next_cursor().unwrap().value(), "after_3");

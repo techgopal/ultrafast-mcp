@@ -1,11 +1,11 @@
 //! Connection pooling for HTTP transport
 
-use crate::{TransportError, Result};
-use std::sync::Arc;
-use tokio::sync::{Semaphore, RwLock};
-use std::collections::HashMap;
-use std::time::{Duration, SystemTime};
+use crate::{Result, TransportError};
 use reqwest::Client;
+use std::collections::HashMap;
+use std::sync::Arc;
+use std::time::{Duration, SystemTime};
+use tokio::sync::{RwLock, Semaphore};
 
 /// Connection pool configuration
 #[derive(Debug, Clone)]
@@ -50,21 +50,24 @@ impl ConnectionPool {
             config,
         }
     }
-    
+
     /// Get a client for the given host, creating one if necessary
     pub async fn get_client(&self, host: &str) -> Result<Client> {
         // Acquire permit from semaphore
-        let _permit = self.semaphore.acquire().await
-            .map_err(|_| TransportError::ConnectionError {
-                message: "Connection pool exhausted".to_string()
-            })?;
-        
+        let _permit =
+            self.semaphore
+                .acquire()
+                .await
+                .map_err(|_| TransportError::ConnectionError {
+                    message: "Connection pool exhausted".to_string(),
+                })?;
+
         let mut clients = self.clients.write().await;
         let now = SystemTime::now();
-        
+
         // Check if we have a valid client for this host
         if let Some(pooled) = clients.get_mut(host) {
-            if !self.is_expired(&pooled, now) {
+            if !self.is_expired(pooled, now) {
                 pooled.last_used = now;
                 return Ok(pooled.client.clone());
             } else {
@@ -72,7 +75,7 @@ impl ConnectionPool {
                 clients.remove(host);
             }
         }
-        
+
         // Create new client
         let client = Client::builder()
             .timeout(self.config.connection_timeout)
@@ -80,28 +83,29 @@ impl ConnectionPool {
             .pool_max_idle_per_host(self.config.max_idle_per_host)
             .build()
             .map_err(|e| TransportError::InitializationError {
-                message: format!("Failed to create HTTP client: {}", e)
+                message: format!("Failed to create HTTP client: {}", e),
             })?;
-        
+
         let pooled_client = PooledClient {
             client: client.clone(),
             created_at: now,
             last_used: now,
         };
-        
+
         clients.insert(host.to_string(), pooled_client);
         Ok(client)
     }
-    
+
     /// Clean up expired connections
     pub async fn cleanup_expired(&self) {
         let mut clients = self.clients.write().await;
         let now = SystemTime::now();
         clients.retain(|_, pooled| !self.is_expired(pooled, now));
     }
-    
+
     fn is_expired(&self, pooled: &PooledClient, _now: SystemTime) -> bool {
-        pooled.last_used
+        pooled
+            .last_used
             .elapsed()
             .map(|elapsed| elapsed > self.config.idle_timeout)
             .unwrap_or(true)
