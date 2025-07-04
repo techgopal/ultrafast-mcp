@@ -19,7 +19,7 @@ jobs:
           override: true
 
       - name: Cache dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
@@ -42,7 +42,7 @@ jobs:
           cargo doc --no-deps --all-features --package ultrafast-mcp-monitoring
 
       - name: Upload documentation artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: documentation
           path: target/doc/
