@@ -23,7 +23,8 @@
 //! The protocol is built around several core concepts:
 //!
 //! ### Message Flow
-//! ```
+//! 
+//! ```text
 //! Client                    Server
 //!   |                         |
 //!   |-- Initialize Request -->|
@@ -55,8 +56,10 @@
 //! ```rust
 //! use ultrafast_mcp_core::protocol::{
 //!     InitializeRequest, InitializeResponse, JsonRpcRequest, JsonRpcResponse,
-//!     ServerCapabilities, ClientCapabilities, ServerInfo, ClientInfo
+//!     ServerCapabilities, ClientCapabilities
 //! };
+//! use ultrafast_mcp_core::types::client::ClientInfo;
+//! use ultrafast_mcp_core::types::server::ServerInfo;
 //!
 //! // Create initialization request
 //! let init_request = InitializeRequest {
@@ -66,6 +69,10 @@
 //!         name: "example-client".to_string(),
 //!         version: "1.0.0".to_string(),
 //!         description: Some("Example MCP client".to_string()),
+//!         authors: None,
+//!         homepage: None,
+//!         license: None,
+//!         repository: None,
 //!     },
 //! };
 //!
@@ -77,7 +84,12 @@
 //!         name: "example-server".to_string(),
 //!         version: "1.0.0".to_string(),
 //!         description: Some("Example MCP server".to_string()),
+//!         authors: None,
+//!         homepage: None,
+//!         license: None,
+//!         repository: None,
 //!     },
+//!     instructions: None,
 //! };
 //! ```
 //!
@@ -87,6 +99,7 @@
 //! use ultrafast_mcp_core::protocol::{
 //!     JsonRpcMessage, JsonRpcRequest, JsonRpcResponse, JsonRpcError
 //! };
+//! use serde_json;
 //!
 //! fn handle_message(message: JsonRpcMessage) -> Option<JsonRpcResponse> {
 //!     match message {
@@ -97,11 +110,11 @@
 //!                 request.id
 //!             ))
 //!         }
-//!         JsonRpcMessage::Notification(notification) => {
+//!         JsonRpcMessage::Notification(_notification) => {
 //!             // Process notification (no response needed)
 //!             None
 //!         }
-//!         JsonRpcMessage::Response(_) => {
+//!         JsonRpcMessage::Response(_response) => {
 //!             // Handle response (typically on client side)
 //!             None
 //!         }
@@ -113,15 +126,14 @@
 //!
 //! ```rust
 //! use ultrafast_mcp_core::protocol::{
-//!     ServerCapabilities, ClientCapabilities, ToolsCapability
+//!     ServerCapabilities, ToolsCapability
 //! };
 //!
 //! fn negotiate_capabilities(
-//!     client_caps: &ClientCapabilities,
 //!     server_caps: &ServerCapabilities,
 //! ) -> bool {
-//!     // Check if server supports tools if client requests them
-//!     if client_caps.tools.is_some() && server_caps.tools.is_none() {
+//!     // Check if server supports tools
+//!     if server_caps.tools.is_none() {
 //!         return false; // Incompatible capabilities
 //!     }
 //!

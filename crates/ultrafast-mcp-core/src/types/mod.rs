@@ -60,11 +60,13 @@
 //!     Tool, ToolCall, ToolResult, ToolContent,
 //!     ListToolsRequest, ListToolsResponse
 //! };
+//! use ultrafast_mcp_core::types::prompts::{PromptArgument, PromptMessage};
+//! use ultrafast_mcp_core::types::{PromptContent};
 //!
 //! // Define a tool
 //! let tool = Tool {
 //!     name: "greet".to_string(),
-//!     description: Some("Greet a person by name".to_string()),
+//!     description: "Greet a person by name".to_string(),
 //!     input_schema: serde_json::json!({
 //!         "type": "object",
 //!         "properties": {
@@ -73,6 +75,7 @@
 //!         },
 //!         "required": ["name"]
 //!     }),
+//!     output_schema: None,
 //! };
 //!
 //! // Create a tool call
@@ -103,7 +106,7 @@
 //!     uri: "file:///path/to/document.txt".to_string(),
 //!     name: "Document".to_string(),
 //!     description: Some("A text document".to_string()),
-//!     mime_type: "text/plain".to_string(),
+//!     mime_type: Some("text/plain".to_string()),
 //! };
 //!
 //! // Create a read request
@@ -128,14 +131,10 @@
 //! let prompt = Prompt {
 //!     name: "summarize".to_string(),
 //!     description: Some("Summarize text content".to_string()),
-//!     arguments: serde_json::json!({
-//!         "type": "object",
-//!         "properties": {
-//!             "text": {"type": "string"},
-//!             "max_length": {"type": "integer", "default": 100}
-//!         },
-//!         "required": ["text"]
-//!     }),
+//!     arguments: Some(vec![
+//!         ultrafast_mcp_core::types::prompts::PromptArgument::new("text".to_string()).required(true),
+//!         ultrafast_mcp_core::types::prompts::PromptArgument::new("max_length".to_string()).required(false),
+//!     ]),
 //! };
 //!
 //! // Create a prompt request
@@ -149,10 +148,8 @@
 //!
 //! // Create a prompt response
 //! let prompt_response = GetPromptResponse {
-//!     content: vec![PromptContent {
-//!         role: PromptRole::User,
-//!         content: vec![PromptContent::text("Summarize this text...".to_string())],
-//!     }],
+//!     messages: vec![ultrafast_mcp_core::types::prompts::PromptMessage::system(PromptContent::text("Summarize this text...".to_string()))],
+//!     description: None,
 //! };
 //! ```
 //!
@@ -160,7 +157,7 @@
 //!
 //! ```rust
 //! use ultrafast_mcp_core::types::{
-//!     ClientInfo, ServerInfo, ClientCapabilities, ServerCapabilities
+//!     ClientInfo, ServerInfo, ServerCapabilities
 //! };
 //!
 //! // Client information
@@ -168,6 +165,10 @@
 //!     name: "example-client".to_string(),
 //!     version: "1.0.0".to_string(),
 //!     description: Some("An example MCP client".to_string()),
+//!     authors: None,
+//!     homepage: None,
+//!     license: None,
+//!     repository: None,
 //! };
 //!
 //! // Server information
@@ -175,14 +176,14 @@
 //!     name: "example-server".to_string(),
 //!     version: "1.0.0".to_string(),
 //!     description: Some("An example MCP server".to_string()),
+//!     authors: None,
+//!     homepage: None,
+//!     license: None,
+//!     repository: None,
 //! };
 //!
 //! // Capabilities
-//! let client_capabilities = ClientCapabilities {
-//!     tools: Some(ToolsCapability { list_changed: Some(true) }),
-//!     resources: Some(ResourcesCapability { list_changed: Some(true) }),
-//!     prompts: Some(PromptsCapability { list_changed: Some(true) }),
-//! };
+//! let server_capabilities = ServerCapabilities::default();
 //! ```
 //!
 //! ## Serialization

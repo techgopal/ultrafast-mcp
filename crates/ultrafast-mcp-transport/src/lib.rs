@@ -77,67 +77,9 @@
 //!     let config = TransportConfig::Stdio;
 //!     let mut transport = create_transport(config).await?;
 //!
-//!     // Send a message
-//!     let message = JsonRpcMessage::Request(/* ... */);
-//!     transport.send_message(message).await?;
-//!
-//!     // Receive a message
-//!     let response = transport.receive_message().await?;
-//!
+//!     // Send/receive messages here using transport.send_message(...) and transport.receive_message(...)
 //!     // Close the transport
 //!     transport.close().await?;
-//!
-//!     Ok(())
-//! }
-//! ```
-//!
-//! ### Streamable HTTP Transport
-//!
-//! ```rust
-//! use ultrafast_mcp_transport::{
-//!     TransportConfig, create_transport
-//! };
-//!
-//! #[tokio::main]
-//! async fn main() -> anyhow::Result<()> {
-//!     // Configure Streamable HTTP transport
-//!     let config = TransportConfig::Streamable {
-//!         base_url: "https://api.example.com/mcp".to_string(),
-//!         auth_token: Some("your-auth-token".to_string()),
-//!         session_id: Some("your-session-id".to_string()),
-//!     };
-//!
-//!     // Create and connect the transport
-//!     let mut transport = create_transport(config).await?;
-//!
-//!     // Use the transport for communication
-//!     // ... send and receive messages ...
-//!
-//!     Ok(())
-//! }
-//! ```
-//!
-//! ### HTTP+SSE Transport (Legacy)
-//!
-//! ```rust
-//! use ultrafast_mcp_transport::{
-//!     TransportConfig, create_transport
-//! };
-//!
-//! #[tokio::main]
-//! async fn main() -> anyhow::Result<()> {
-//!     // Configure HTTP+SSE transport
-//!     let config = TransportConfig::HttpSse {
-//!         base_url: "https://api.example.com/mcp".to_string(),
-//!         auth_token: Some("your-auth-token".to_string()),
-//!         session_id: Some("your-session-id".to_string()),
-//!     };
-//!
-//!     // Create and connect the transport
-//!     let mut transport = create_transport(config).await?;
-//!
-//!     // Use the transport for communication
-//!     // ... send and receive messages ...
 //!
 //!     Ok(())
 //! }
@@ -195,19 +137,6 @@
 //!
 //! ## Authentication and Security
 //!
-//! ### OAuth 2.1 Support
-//! The HTTP transports support OAuth 2.1 authentication:
-//!
-//! ```rust
-//! use ultrafast_mcp_transport::TransportConfig;
-//!
-//! let config = TransportConfig::Streamable {
-//!     base_url: "https://api.example.com/mcp".to_string(),
-//!     auth_token: Some("oauth2_token_here".to_string()),
-//!     session_id: Some("session_id_here".to_string()),
-//! };
-//! ```
-//!
 //! ### Security Features
 //! - **TLS/SSL**: Encrypted communication for HTTP transports
 //! - **Token Management**: Secure token storage and rotation
@@ -220,6 +149,7 @@
 //!
 //! ```rust
 //! use ultrafast_mcp_transport::{TransportError, Result};
+//! use ultrafast_mcp_transport::Transport;
 //!
 //! async fn handle_transport_errors(transport: &mut Box<dyn Transport>) -> Result<()> {
 //!     match transport.receive_message().await {
@@ -257,33 +187,6 @@
 //! - **Rate Limiting Middleware**: Request throttling
 //!
 //! ## Configuration Options
-//!
-//! ### Streamable HTTP Configuration
-//! ```rust
-//! use ultrafast_mcp_transport::http::streamable::StreamableHttpClientConfig;
-//!
-//! let config = StreamableHttpClientConfig {
-//!     base_url: "https://api.example.com/mcp".to_string(),
-//!     auth_token: Some("token".to_string()),
-//!     session_id: Some("session".to_string()),
-//!     timeout: std::time::Duration::from_secs(30),
-//!     max_retries: 3,
-//!     compression: true,
-//! };
-//! ```
-//!
-//! ### HTTP+SSE Configuration
-//! ```rust
-//! use ultrafast_mcp_transport::http::client::HttpClientConfig;
-//!
-//! let config = HttpClientConfig {
-//!     base_url: "https://api.example.com/mcp".to_string(),
-//!     auth_token: Some("token".to_string()),
-//!     session_id: Some("session".to_string()),
-//!     timeout: std::time::Duration::from_secs(30),
-//!     max_retries: 3,
-//! };
-//! ```
 //!
 //! ## Best Practices
 //!
