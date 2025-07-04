@@ -375,121 +375,116 @@ impl From<MCPError> for crate::protocol::JsonRpcError {
         match err {
             MCPError::Protocol(ProtocolError::InvalidVersion(version)) => JsonRpcError::new(
                 error_codes::INVALID_REQUEST,
-                format!("Invalid JSON-RPC version: {}", version),
+                format!("Invalid JSON-RPC version: {version}"),
             ),
             MCPError::Protocol(ProtocolError::InvalidRequestId(id)) => JsonRpcError::new(
                 error_codes::INVALID_REQUEST,
-                format!("Invalid request ID: {}", id),
+                format!("Invalid request ID: {id}"),
             ),
             MCPError::Protocol(ProtocolError::ConnectionClosed) => {
                 JsonRpcError::new(error_codes::INTERNAL_ERROR, "Connection closed".to_string())
             }
             MCPError::Protocol(ProtocolError::TransportError(msg)) => JsonRpcError::new(
                 error_codes::INTERNAL_ERROR,
-                format!("Transport error: {}", msg),
+                format!("Transport error: {msg}"),
             ),
             MCPError::Protocol(ProtocolError::SerializationError(msg)) => JsonRpcError::new(
                 error_codes::PARSE_ERROR,
-                format!("Serialization error: {}", msg),
+                format!("Serialization error: {msg}"),
             ),
             MCPError::Protocol(ProtocolError::MethodNotFound(method)) => JsonRpcError::new(
                 error_codes::METHOD_NOT_FOUND,
-                format!("Method not found: {}", method),
+                format!("Method not found: {method}"),
             ),
             MCPError::Protocol(ProtocolError::InvalidParams(msg)) => JsonRpcError::new(
                 error_codes::INVALID_PARAMS,
-                format!("Invalid params: {}", msg),
+                format!("Invalid params: {msg}"),
             ),
             MCPError::Protocol(ProtocolError::InitializationFailed(msg)) => JsonRpcError::new(
                 error_codes::INITIALIZATION_FAILED,
-                format!("Initialization failed: {}", msg),
+                format!("Initialization failed: {msg}"),
             ),
             MCPError::Protocol(ProtocolError::CapabilityNotSupported(cap)) => JsonRpcError::new(
                 error_codes::CAPABILITY_NOT_SUPPORTED,
-                format!("Capability not supported: {}", cap),
+                format!("Capability not supported: {cap}"),
             ),
-            MCPError::Protocol(ProtocolError::NotFound(msg)) => JsonRpcError::new(
-                error_codes::RESOURCE_NOT_FOUND,
-                format!("Not found: {}", msg),
-            ),
+            MCPError::Protocol(ProtocolError::NotFound(msg)) => {
+                JsonRpcError::new(error_codes::RESOURCE_NOT_FOUND, format!("Not found: {msg}"))
+            }
             MCPError::Protocol(ProtocolError::InvalidRequest(msg)) => JsonRpcError::new(
                 error_codes::INVALID_REQUEST,
-                format!("Invalid request: {}", msg),
+                format!("Invalid request: {msg}"),
             ),
             MCPError::Protocol(ProtocolError::InvalidResponse(msg)) => JsonRpcError::new(
                 error_codes::INVALID_REQUEST,
-                format!("Invalid response: {}", msg),
+                format!("Invalid response: {msg}"),
             ),
             MCPError::Protocol(ProtocolError::RequestTimeout) => {
                 JsonRpcError::new(error_codes::INTERNAL_ERROR, "Request timeout".to_string())
             }
             MCPError::Protocol(ProtocolError::InternalError(msg)) => JsonRpcError::new(
                 error_codes::INTERNAL_ERROR,
-                format!("Internal error: {}", msg),
+                format!("Internal error: {msg}"),
             ),
             MCPError::Protocol(ProtocolError::AuthenticationError(msg)) => JsonRpcError::new(
                 error_codes::ACCESS_DENIED,
-                format!("Authentication error: {}", msg),
+                format!("Authentication error: {msg}"),
             ),
             MCPError::ToolExecution(ToolError::NotFound(tool)) => JsonRpcError::new(
                 error_codes::METHOD_NOT_FOUND,
-                format!("Tool not found: {}", tool),
+                format!("Tool not found: {tool}"),
             ),
             MCPError::ToolExecution(ToolError::ExecutionFailed(msg)) => JsonRpcError::new(
                 error_codes::TOOL_EXECUTION_ERROR,
-                format!("Tool execution failed: {}", msg),
+                format!("Tool execution failed: {msg}"),
             ),
             MCPError::ToolExecution(ToolError::InvalidInput(msg)) => JsonRpcError::new(
                 error_codes::INVALID_PARAMS,
-                format!("Invalid tool input: {}", msg),
+                format!("Invalid tool input: {msg}"),
             ),
             MCPError::ToolExecution(ToolError::SchemaValidation(msg)) => JsonRpcError::new(
                 error_codes::INVALID_PARAMS,
-                format!("Schema validation failed: {}", msg),
+                format!("Schema validation failed: {msg}"),
             ),
             MCPError::Resource(ResourceError::NotFound(uri)) => JsonRpcError::new(
                 error_codes::RESOURCE_NOT_FOUND,
-                format!("Resource not found: {}", uri),
+                format!("Resource not found: {uri}"),
             ),
-            MCPError::Resource(ResourceError::AccessDenied(msg)) => JsonRpcError::new(
-                error_codes::ACCESS_DENIED,
-                format!("Access denied: {}", msg),
-            ),
+            MCPError::Resource(ResourceError::AccessDenied(msg)) => {
+                JsonRpcError::new(error_codes::ACCESS_DENIED, format!("Access denied: {msg}"))
+            }
             MCPError::Resource(ResourceError::InvalidUri(uri)) => {
-                JsonRpcError::new(error_codes::INVALID_URI, format!("Invalid URI: {}", uri))
+                JsonRpcError::new(error_codes::INVALID_URI, format!("Invalid URI: {uri}"))
             }
             MCPError::Resource(ResourceError::ContentTypeMismatch { expected, actual }) => {
                 JsonRpcError::new(
                     error_codes::INVALID_REQUEST,
-                    format!(
-                        "Content type mismatch: expected {}, got {}",
-                        expected, actual
-                    ),
+                    format!("Content type mismatch: expected {expected}, got {actual}"),
                 )
             }
             MCPError::Transport(TransportError::ConnectionFailed(msg)) => JsonRpcError::new(
                 error_codes::INTERNAL_ERROR,
-                format!("Connection failed: {}", msg),
+                format!("Connection failed: {msg}"),
             ),
             MCPError::Transport(TransportError::ConnectionClosed) => {
                 JsonRpcError::new(error_codes::INTERNAL_ERROR, "Connection closed".to_string())
             }
             MCPError::Transport(TransportError::SendFailed(msg)) => {
-                JsonRpcError::new(error_codes::INTERNAL_ERROR, format!("Send failed: {}", msg))
+                JsonRpcError::new(error_codes::INTERNAL_ERROR, format!("Send failed: {msg}"))
             }
             MCPError::Transport(TransportError::ReceiveFailed(msg)) => JsonRpcError::new(
                 error_codes::INTERNAL_ERROR,
-                format!("Receive failed: {}", msg),
+                format!("Receive failed: {msg}"),
             ),
             MCPError::Serialization(e) => JsonRpcError::new(
                 error_codes::PARSE_ERROR,
-                format!("Serialization error: {}", e),
+                format!("Serialization error: {e}"),
             ),
             MCPError::Io(e) => {
-                JsonRpcError::new(error_codes::INTERNAL_ERROR, format!("IO error: {}", e))
+                JsonRpcError::new(error_codes::INTERNAL_ERROR, format!("IO error: {e}"))
             }
             MCPError::Other(e) => {
-                JsonRpcError::new(error_codes::INTERNAL_ERROR, format!("Other error: {}", e))
+                JsonRpcError::new(error_codes::INTERNAL_ERROR, format!("Other error: {e}"))
             }
         }
     }

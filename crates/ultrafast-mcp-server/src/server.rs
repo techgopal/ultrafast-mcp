@@ -41,9 +41,13 @@ pub struct UltraFastServer {
     info: ServerInfo,
     capabilities: ServerCapabilities,
     state: Arc<RwLock<ServerState>>,
+    #[allow(dead_code)]
     tools: Arc<RwLock<HashMap<String, Tool>>>,
+    #[allow(dead_code)]
     resources: Arc<RwLock<HashMap<String, Resource>>>,
+    #[allow(dead_code)]
     resource_templates: Arc<RwLock<HashMap<String, ResourceTemplate>>>,
+    #[allow(dead_code)]
     prompts: Arc<RwLock<HashMap<String, Prompt>>>,
     tool_handler: Option<Arc<dyn ToolHandler>>,
     resource_handler: Option<Arc<dyn ResourceHandler>>,
@@ -53,11 +57,13 @@ pub struct UltraFastServer {
     roots_handler: Option<Arc<dyn RootsHandler>>,
     elicitation_handler: Option<Arc<dyn ElicitationHandler>>,
     subscription_handler: Option<Arc<dyn ResourceSubscriptionHandler>>,
+    #[allow(dead_code)]
     resource_subscriptions: Arc<RwLock<HashMap<String, Vec<String>>>>,
     cancellation_manager: Arc<CancellationManager>,
     ping_manager: Arc<PingManager>,
 
     #[cfg(feature = "monitoring")]
+    #[allow(dead_code)]
     monitoring_system: Option<Arc<ultrafast_mcp_monitoring::MonitoringSystem>>,
 }
 

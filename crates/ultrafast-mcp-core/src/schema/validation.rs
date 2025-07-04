@@ -58,8 +58,7 @@ pub fn validate_against_schema(data: &Value, schema: &Value) -> MCPResult<()> {
                     for (i, item) in array.iter().enumerate() {
                         validate_against_schema(item, items_schema).map_err(|e| {
                             ToolError::SchemaValidation(format!(
-                                "Array item {} validation failed: {}",
-                                i, e
+                                "Array item {i} validation failed: {e}"
                             ))
                         })?;
                     }
@@ -81,8 +80,7 @@ pub fn validate_against_schema(data: &Value, schema: &Value) -> MCPResult<()> {
                             if let Some(prop_name) = req.as_str() {
                                 if !obj.contains_key(prop_name) {
                                     return Err(ToolError::SchemaValidation(format!(
-                                        "Missing required property: {}",
-                                        prop_name
+                                        "Missing required property: {prop_name}"
                                     ))
                                     .into());
                                 }
@@ -100,8 +98,7 @@ pub fn validate_against_schema(data: &Value, schema: &Value) -> MCPResult<()> {
                             if let Some(prop_schema) = props.get(key) {
                                 validate_against_schema(value, prop_schema).map_err(|e| {
                                     ToolError::SchemaValidation(format!(
-                                        "Property '{}' validation failed: {}",
-                                        key, e
+                                        "Property '{key}' validation failed: {e}"
                                     ))
                                 })?;
                             }
