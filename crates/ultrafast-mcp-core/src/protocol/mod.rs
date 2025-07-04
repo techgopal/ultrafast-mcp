@@ -174,9 +174,11 @@ pub mod jsonrpc;
 pub mod lifecycle;
 pub mod messages;
 pub mod metadata;
+pub mod version;
 
 pub use capabilities::*;
 pub use jsonrpc::*;
 pub use lifecycle::*;
 pub use messages::*;
 pub use metadata::*;
+pub use version::{ProtocolVersion, VersionNegotiator as NewVersionNegotiator, constants};

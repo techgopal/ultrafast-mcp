@@ -38,7 +38,7 @@ impl Default for HttpClientConfig {
         Self {
             base_url: "http://127.0.0.1:8080".to_string(),
             session_id: None,
-            protocol_version: "2025-06-18".to_string(),
+            protocol_version: "2025-06-18".to_string(), // TODO: Use centralized version constant
             timeout: Duration::from_secs(30),
             max_retries: 3,
             auth_token: None,

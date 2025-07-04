@@ -181,7 +181,7 @@ pub use protocol::{
     ImplementationMetadata, InitializeRequest, InitializeResponse, InitializedNotification,
     JsonRpcError, JsonRpcMessage, JsonRpcRequest, JsonRpcResponse, LifecyclePhase, LogLevel,
     LogMessage, Message, Notification, ProgressNotification, ProtocolMetadata, RequestId,
-    RequestMetadata, ResponseMetadata, ShutdownRequest, VersionNegotiator,
+    RequestMetadata, ResponseMetadata, ShutdownRequest, NewVersionNegotiator as VersionNegotiator,
 };
 
 // Re-export types items
