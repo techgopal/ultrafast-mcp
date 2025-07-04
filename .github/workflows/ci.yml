@@ -107,7 +107,7 @@ jobs:
     - name: Test minimal features
       run: |
         cargo test --no-default-features --lib
-        cargo test --features http-transport --lib
+        cargo test --features http --lib
         cargo test --features oauth --lib
 
   # Documentation and security

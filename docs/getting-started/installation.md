@@ -44,10 +44,10 @@ cargo add ultrafast-mcp
 
 ```bash
 # HTTP transport and OAuth authentication
-cargo add ultrafast-mcp --features="http-transport,oauth"
+cargo add ultrafast-mcp --features="http,oauth"
 
 # All features for enterprise use
-cargo add ultrafast-mcp --features="all"
+cargo add ultrafast-mcp --features="full"
 
 # Minimal installation (stdio only)
 cargo add ultrafast-mcp --no-default-features --features="stdio-transport"
@@ -58,7 +58,7 @@ cargo add ultrafast-mcp --no-default-features --features="stdio-transport"
 | Feature | Description | Dependencies |
 |---------|-------------|--------------|
 | `stdio-transport` | stdio transport (default) | None |
-| `http-transport` | HTTP/HTTPS transport | axum, reqwest, tower |
+| `http` | HTTP/HTTPS transport | axum, reqwest, tower |
 | `oauth` | OAuth 2.1 authentication | oauth2, jsonwebtoken |
 | `performance` | Zero-copy optimizations | bytes, smallvec, dashmap |
 | `monitoring` | OpenTelemetry observability | opentelemetry, metrics |
@@ -96,7 +96,7 @@ cargo install --path crates/ultrafast-mcp-cli
 
 ```bash
 # Build with specific features
-cargo build --workspace --features="http-transport,oauth,performance"
+cargo build --workspace --features="http,oauth,performance"
 
 # Build release version
 cargo build --workspace --release
@@ -120,7 +120,7 @@ docker run -p 8080:8080 ultrafast-mcp/ultrafast-mcp:latest
 docker run -p 8080:8080 \
   -e MCP_HOST=0.0.0.0 \
   -e MCP_PORT=8080 \
-  -e MCP_FEATURES="http-transport,oauth" \
+  -e MCP_FEATURES="http,oauth" \
   ultrafast-mcp/ultrafast-mcp:latest
 ```
 
@@ -137,7 +137,7 @@ services:
     environment:
       - MCP_HOST=0.0.0.0
       - MCP_PORT=8080
-      - MCP_FEATURES=http-transport,oauth
+      - MCP_FEATURES=http,oauth
     volumes:
       - ./config:/app/config
     restart: unless-stopped
@@ -174,7 +174,7 @@ cargo install ultrafast-mcp-cli --version 0.1.0
 export MCP_HOST=127.0.0.1
 export MCP_PORT=8080
 export MCP_PROTOCOL_VERSION=2025-06-18
-export MCP_FEATURES=http-transport,oauth
+export MCP_FEATURES=http,oauth
 
 # Authentication
 export MCP_OAUTH_CLIENT_ID=your-client-id
@@ -195,7 +195,7 @@ export MCP_PROMETHEUS_ENDPOINT=http://localhost:9090
 host = "127.0.0.1"
 port = 8080
 protocol_version = "2025-06-18"
-features = ["http-transport", "oauth"]
+features = ["http", "oauth"]
 
 [capabilities]
 tools = { list_changed = true }
@@ -389,7 +389,7 @@ cargo doc --open
 cargo add ultrafast-mcp --features="stdio-transport"
 
 # Check feature dependencies
-cargo tree --features="http-transport"
+cargo tree --features="http"
 ```
 
 #### 3. SSL/TLS Issues

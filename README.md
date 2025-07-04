@@ -46,7 +46,7 @@ cargo new my-mcp-server
 cd my-mcp-server
 
 # Add ULTRAFAST_MCP with HTTP transport and OAuth
-cargo add ultrafast-mcp --features="http-transport,oauth"
+cargo add ultrafast-mcp --features="http,oauth"
 ```
 
 ### Feature Flags
@@ -55,7 +55,7 @@ cargo add ultrafast-mcp --features="http-transport,oauth"
 [dependencies]
 ultrafast-mcp = { version = "0.1.0", features = [
     "stdio-transport",    # Default: stdio transport
-    "http-transport",     # HTTP/HTTPS transport
+    "http",           # HTTP/HTTPS transport
     "oauth",             # OAuth 2.1 authentication
     "performance",       # Zero-copy optimizations
     "monitoring",        # OpenTelemetry observability
