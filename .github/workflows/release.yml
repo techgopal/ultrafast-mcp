@@ -31,16 +31,24 @@ jobs:
     - name: Verify version consistency
       run: |
         # Check that all crates have the same version
-        VERSION=$(grep '^version = ' Cargo.toml | cut -d'"' -f2)
-        echo "Expected version: $VERSION"
+        WORKSPACE_VERSION=$(grep '^version = ' Cargo.toml | cut -d'"' -f2)
+        echo "Expected version: $WORKSPACE_VERSION"
         
+        # Verify workspace package version
+        WORKSPACE_PACKAGE_VERSION=$(grep '^version = ' Cargo.toml | head -1 | cut -d'"' -f2)
+        if [ "$WORKSPACE_PACKAGE_VERSION" != "$WORKSPACE_VERSION" ]; then
+          echo "Workspace package version mismatch: expected $WORKSPACE_VERSION, got $WORKSPACE_PACKAGE_VERSION"
+          exit 1
+        fi
+        
+        # Check that all crates use workspace inheritance
         for crate in crates/*/; do
           if [ -f "$crate/Cargo.toml" ]; then
-            CRATE_VERSION=$(grep '^version = ' "$crate/Cargo.toml" | cut -d'"' -f2)
-            if [ "$CRATE_VERSION" != "$VERSION" ]; then
-              echo "Version mismatch in $crate: expected $VERSION, got $CRATE_VERSION"
+            if ! grep -q "version.workspace = true" "$crate/Cargo.toml"; then
+              echo "Crate $crate does not use workspace version inheritance"
               exit 1
             fi
+            echo "✓ $crate uses workspace version inheritance"
           fi
         done
 
