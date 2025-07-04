@@ -56,7 +56,7 @@ uuid = { workspace = true }
 tracing = { workspace = true }
 
 # JSON Schema
-schemars = { workspace = true, optional = true }
+schemars = { workspace = true }
 
 # Monitoring and observability
 ultrafast-mcp-monitoring = { path = "../ultrafast-mcp-monitoring", optional = true }
@@ -75,7 +75,5 @@ monitoring = ["ultrafast-mcp-monitoring"]
 http = ["ultrafast-mcp-transport/http", "ultrafast-mcp-client/http", "ultrafast-mcp-server/http", "axum", "reqwest", "tower", "tower-http"]
 # Enables OAuth authentication support
 oauth = ["ultrafast-mcp-auth/oauth", "oauth2", "jsonwebtoken", "base64", "url", "rand", "sha2"]
-# Enables JSON Schema support
-schema = ["schemars"]
 # Enables all features
-full = ["monitoring", "http", "oauth", "schema"] 
+full = ["monitoring", "http", "oauth"] 

@@ -62,7 +62,6 @@ cargo add ultrafast-mcp --no-default-features --features="stdio-transport"
 | `oauth` | OAuth 2.1 authentication | oauth2, jsonwebtoken |
 | `performance` | Zero-copy optimizations | bytes, smallvec, dashmap |
 | `monitoring` | OpenTelemetry observability | opentelemetry, metrics |
-| `schema` | JSON Schema generation | schemars |
 
 #### Convenience Features
 
