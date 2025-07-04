@@ -333,13 +333,9 @@
 //!
 //! #[cfg(feature = "monitoring")]
 //! async fn setup_monitoring() -> anyhow::Result<()> {
-//!     let config = MonitoringConfig::default()
-//!         .with_metrics(true)
-//!         .with_tracing(true)
-//!         .with_health_checks(true);
+//!     let config = MonitoringConfig::default();
 //!
 //!     let monitoring = MonitoringSystem::new(config);
-//!     monitoring.start().await?;
 //!
 //!     Ok(())
 //! }
