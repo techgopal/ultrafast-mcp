@@ -1224,7 +1224,7 @@ fn validate_with_context(
     if let Err(e) = validate_against_schema(data, schema) {
         context.add_error(ValidationError::new(
             path.clone(),
-            format!("{}", e),
+            format!("{e}"),
             ErrorSeverity::High,
         ));
         return Err(e);
