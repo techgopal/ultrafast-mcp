@@ -1,26 +1,23 @@
-# ULTRAFAST_MCP 🚀
+# UltraFast MCP 🚀
 
 **High-performance, ergonomic Model Context Protocol (MCP) implementation in Rust**
 
 [![Crates.io](https://img.shields.io/crates/v/ultrafast-mcp)](https://crates.io/crates/ultrafast-mcp)
 [![Documentation](https://img.shields.io/badge/docs-docs.rs-blue.svg)](https://docs.rs/ultrafast-mcp)
-[![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)](https://github.com/ultrafast-mcp/ultrafast-mcp/blob/main/LICENSE)
+[![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)](https://github.com/techgopal/ultrafast-mcp/blob/main/LICENSE)
 [![Rust](https://img.shields.io/badge/rust-1.70+-blue.svg)](https://www.rust-lang.org)
 [![MCP](https://img.shields.io/badge/MCP-2025--06--18-green.svg)](https://modelcontextprotocol.io)
 
-> **ULTRAFAST_MCP** is the fastest, most reliable, and developer-friendly MCP framework in the Rust ecosystem. Built with performance, safety, and ergonomics in mind, it enables production-grade MCP servers and clients with minimal boilerplate while maintaining 100% MCP 2025-06-18 specification compliance.
+> **UltraFast MCP** is a high-performance, developer-friendly MCP framework in the Rust ecosystem. Built with performance, safety, and ergonomics in mind, it enables robust MCP servers and clients with minimal boilerplate while maintaining full MCP 2025-06-18 specification compliance.
+
+## ⚠️ Release Candidate Status
+
+This is **Release Candidate 1 (v202506018.1.0-rc.1)** of UltraFast MCP. While the framework is feature-complete and well-tested, it should be considered **pre-production** software. We recommend thorough testing in your environment before deploying to production.
 
 ## ✨ Features
 
-### 🛡️ **Production Ready**
-- **100% MCP 2025-06-18 specification compliance**
-- **OAuth 2.1** with PKCE and dynamic client registration
-- **Streamable HTTP transport** with session management
-- **Comprehensive error handling** and recovery
-- **Memory safety** guaranteed by Rust
-
 ### 🎯 **Developer Experience**
-- **Ergonomic APIs** inspired by FastMCP
+- **Ergonomic APIs** with minimal boilerplate
 - **Type-safe** with automatic schema generation
 - **Async-first** design with `tokio` integration
 - **Comprehensive CLI** with project scaffolding
@@ -36,6 +33,12 @@
 - **Logging**: RFC 5424 compliant structured logging
 - **Completion**: Argument autocompletion system
 
+### 🛡️ **Security & Authentication**
+- **OAuth 2.1** with PKCE and dynamic client registration
+- **Streamable HTTP transport** with session management
+- **Comprehensive error handling** and recovery
+- **Memory safety** guaranteed by Rust
+
 ## 📦 Installation
 
 ### Quick Start
@@ -45,7 +48,7 @@
 cargo new my-mcp-server
 cd my-mcp-server
 
-# Add ULTRAFAST_MCP with HTTP transport and OAuth
+# Add UltraFast MCP with HTTP transport and OAuth
 cargo add ultrafast-mcp --features="http,oauth"
 ```
 
@@ -53,13 +56,13 @@ cargo add ultrafast-mcp --features="http,oauth"
 
 ```toml
 [dependencies]
-ultrafast-mcp = { version = "0.1.0", features = [
+ultrafast-mcp = { version = "202506018.1.0-rc.1", features = [
     "stdio-transport",    # Default: stdio transport
-    "http",           # HTTP/HTTPS transport
-    "oauth",             # OAuth 2.1 authentication
-    "performance",       # Zero-copy optimizations
-    "monitoring",        # OpenTelemetry observability
-    "schema"             # JSON Schema generation
+    "http",               # HTTP/HTTPS transport
+    "oauth",              # OAuth 2.1 authentication
+    "performance",        # Zero-copy optimizations
+    "monitoring",         # OpenTelemetry observability
+    "schema"              # JSON Schema generation
 ] }
 ```
 
@@ -106,7 +109,7 @@ async fn main() -> Result<()> {
         ctx.log_info(&format!("Greeting requested for {}", request.name)).await?;
         
         Ok(GreetResponse {
-            message: format!("Hello, {}! Welcome to ULTRAFAST_MCP!", request.name),
+            message: format!("Hello, {}! Welcome to UltraFast MCP!", request.name),
         })
     })
     .description("Greet a user by name")
@@ -149,12 +152,264 @@ async fn main() -> Result<()> {
 }
 ```
 
+## 🔧 Advanced Examples
+
+### File Operations Server
+
+```rust
+use ultrafast_mcp::prelude::*;
+use std::path::PathBuf;
+
+#[derive(Deserialize)]
+struct ReadFileRequest {
+    path: String,
+}
+
+#[derive(Serialize)]
+struct ReadFileResponse {
+    content: String,
+    size: u64,
+}
+
+#[tokio::main]
+async fn main() -> Result<()> {
+    let server = UltraFastServer::new("File Operations Server")
+        .with_capabilities(ServerCapabilities {
+            tools: Some(ToolsCapability { list_changed: true }),
+            resources: Some(ResourcesCapability { list_changed: true }),
+            ..Default::default()
+        });
+    
+    // Add file reading tool
+    server.tool("read_file", |request: ReadFileRequest, ctx: Context| async move {
+        let path = PathBuf::from(&request.path);
+        
+        // Validate path is within allowed roots
+        ctx.validate_path(&path)?;
+        
+        ctx.progress("Reading file...", 0.0, Some(1.0)).await?;
+        
+        let content = tokio::fs::read_to_string(&path).await?;
+        let metadata = tokio::fs::metadata(&path).await?;
+        
+        ctx.progress("File read complete", 1.0, Some(1.0)).await?;
+        
+        Ok(ReadFileResponse {
+            content,
+            size: metadata.len(),
+        })
+    })
+    .description("Read a file from the filesystem")
+    .output_schema::<ReadFileResponse>();
+    
+    // Add resource for file listing
+    server.resource("file://{path}", |uri: Uri, ctx: Context| async move {
+        let path = uri.path().trim_start_matches('/');
+        let path_buf = PathBuf::from(path);
+        
+        ctx.validate_path(&path_buf)?;
+        
+        if path_buf.is_file() {
+            let content = tokio::fs::read_to_string(&path_buf).await?;
+            Ok(ResourceContent::Text(content))
+        } else if path_buf.is_dir() {
+            let entries = tokio::fs::read_dir(&path_buf).await?;
+            let files: Vec<String> = entries
+                .map(|entry| entry.map(|e| e.file_name().to_string_lossy().to_string()))
+                .collect::<Result<Vec<_>, _>>()?;
+            
+            Ok(ResourceContent::Text(files.join("\n")))
+        } else {
+            Err(Error::ResourceNotFound(uri))
+        }
+    });
+    
+    server.run_stdio().await?;
+    Ok(())
+}
+```
+
+### HTTP Server with Authentication
+
+```rust
+use ultrafast_mcp::prelude::*;
+use ultrafast_mcp::auth::OAuthConfig;
+
+#[tokio::main]
+async fn main() -> Result<()> {
+    let server = UltraFastServer::new("HTTP MCP Server")
+        .with_capabilities(ServerCapabilities {
+            tools: Some(ToolsCapability { list_changed: true }),
+            prompts: Some(PromptsCapability { list_changed: true }),
+            ..Default::default()
+        });
+    
+    // Add OAuth configuration
+    let oauth_config = OAuthConfig {
+        client_id: "your-client-id".into(),
+        client_secret: Some("your-client-secret".into()),
+        auth_url: "https://accounts.google.com/oauth/authorize".into(),
+        token_url: "https://oauth2.googleapis.com/token".into(),
+        scopes: vec!["https://www.googleapis.com/auth/userinfo.profile".into()],
+        redirect_uri: "http://localhost:8080/callback".into(),
+    };
+    
+    // Add authenticated tool
+    server.tool("get_user_info", |_: (), ctx: Context| async move {
+        // Verify authentication
+        let token = ctx.get_auth_token()?;
+        
+        // Make authenticated request
+        let client = reqwest::Client::new();
+        let response = client
+            .get("https://www.googleapis.com/oauth2/v2/userinfo")
+            .bearer_auth(token)
+            .send()
+            .await?;
+        
+        let user_info: serde_json::Value = response.json().await?;
+        
+        Ok(user_info)
+    })
+    .description("Get authenticated user information")
+    .requires_auth(true);
+    
+    // Run HTTP server
+    server.run_http("127.0.0.1:8080", Some(oauth_config)).await?;
+    Ok(())
+}
+```
+
+### Advanced Features Example
+
+```rust
+use ultrafast_mcp::prelude::*;
+use serde::{Deserialize, Serialize};
+
+#[derive(Deserialize)]
+struct SearchRequest {
+    query: String,
+    limit: Option<u32>,
+}
+
+#[derive(Serialize)]
+struct SearchResult {
+    title: String,
+    url: String,
+    snippet: String,
+}
+
+#[derive(Serialize)]
+struct SearchResponse {
+    results: Vec<SearchResult>,
+    total: u32,
+}
+
+#[tokio::main]
+async fn main() -> Result<()> {
+    let server = UltraFastServer::new("Advanced Features Server")
+        .with_capabilities(ServerCapabilities {
+            tools: Some(ToolsCapability { list_changed: true }),
+            prompts: Some(PromptsCapability { list_changed: true }),
+            sampling: Some(SamplingCapability { list_changed: true }),
+            ..Default::default()
+        });
+    
+    // Add search tool with progress tracking
+    server.tool("search", |request: SearchRequest, ctx: Context| async move {
+        let limit = request.limit.unwrap_or(10);
+        
+        ctx.progress("Starting search...", 0.0, Some(1.0)).await?;
+        ctx.log_info(&format!("Searching for: {}", request.query)).await?;
+        
+        // Simulate search with progress updates
+        for i in 0..limit {
+            tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+            ctx.progress("Searching...", (i + 1) as f64 / limit as f64, Some(1.0)).await?;
+        }
+        
+        // Simulate results
+        let results = (0..limit)
+            .map(|i| SearchResult {
+                title: format!("Result {}", i + 1),
+                url: format!("https://example.com/result-{}", i + 1),
+                snippet: format!("This is result {} for query '{}'", i + 1, request.query),
+            })
+            .collect();
+        
+        ctx.progress("Search complete", 1.0, Some(1.0)).await?;
+        
+        Ok(SearchResponse {
+            results,
+            total: limit,
+        })
+    })
+    .description("Search for information")
+    .output_schema::<SearchResponse>();
+    
+    // Add prompt template
+    server.prompt("search_prompt", |args: serde_json::Value, ctx: Context| async move {
+        let query = args["query"].as_str().unwrap_or("");
+        let limit = args["limit"].as_u64().unwrap_or(10);
+        
+        let prompt = format!(
+            "Please search for information about '{}' and return up to {} results. " \
+            "Format the results as a structured list with titles, URLs, and snippets.",
+            query, limit
+        );
+        
+        Ok(Prompt {
+            messages: vec![
+                PromptMessage::User { content: vec![PromptContent::Text(prompt)] }
+            ],
+        })
+    })
+    .description("Generate a search prompt")
+    .input_schema(json!({
+        "type": "object",
+        "properties": {
+            "query": { "type": "string" },
+            "limit": { "type": "integer", "minimum": 1, "maximum": 100 }
+        },
+        "required": ["query"]
+    }));
+    
+    // Add sampling capability
+    server.sampling("complete_search", |request: SamplingRequest, ctx: Context| async move {
+        let prompt = request.prompt.messages.first()
+            .and_then(|msg| msg.content.first())
+            .and_then(|content| {
+                if let PromptContent::Text(text) = content {
+                    Some(text.clone())
+                } else {
+                    None
+                }
+            })
+            .ok_or(Error::InvalidRequest("No text content found".into()))?;
+        
+        // Simulate LLM completion
+        tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+        
+        let completion = format!("Based on the search query, here are the relevant results:\n\n{}", prompt);
+        
+        Ok(SamplingResponse {
+            content: vec![PromptContent::Text(completion)],
+            stop_reason: Some("end_turn".into()),
+        })
+    })
+    .description("Complete search queries with LLM");
+    
+    server.run_stdio().await?;
+    Ok(())
+}
+```
+
 ## 🏗️ Architecture
 
 ### Core Components
 
 ```
-ultrafast-mcp/          # Main crate with unified APIs
+ultrafast-mcp/              # Main crate with unified APIs
 ├── ultrafast-mcp-core/     # Core protocol implementation
 ├── ultrafast-mcp-server/   # Server-side implementation
 ├── ultrafast-mcp-client/   # Client-side implementation
@@ -172,7 +427,7 @@ ultrafast-mcp/          # Main crate with unified APIs
 - **Optional SSE upgrade** for streaming when needed
 - **Stateless architecture** for horizontal scaling
 - **Session management** with secure session IDs
-- **10x performance improvement** over HTTP+SSE
+- **High performance** with connection pooling
 
 #### stdio Transport
 - **Subprocess communication** for local tools
@@ -203,6 +458,8 @@ cargo doc --package ultrafast-mcp-server --open
 ```
 
 ## 📚 Examples
+
+### 1. Basic Echo Server
 ```bash
 cd examples/01-basic-echo
 cargo run --bin server  # Terminal 1
@@ -367,7 +624,7 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 
 ```bash
 # Clone the repository
-git clone https://github.com/ultrafast-mcp/ultrafast-mcp.git
+git clone https://github.com/techgopal/ultrafast-mcp.git
 cd ultrafast-mcp
 
 # Build all crates
@@ -429,4 +686,4 @@ at your option.
 
 ---
 
-**ULTRAFAST_MCP** - The fastest, most reliable, and developer-friendly MCP framework in Rust. 🚀 
+**UltraFast MCP** - A high-performance, developer-friendly MCP framework in Rust. 🚀 
