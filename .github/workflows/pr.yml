@@ -16,7 +16,7 @@ jobs:
   pr-checks:
     name: PR Checks
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 12
 
     steps:
     - name: Checkout code
@@ -29,6 +29,8 @@ jobs:
       uses: Swatinem/rust-cache@v2
       with:
         key: pr-${{ hashFiles('**/Cargo.lock') }}
+        cache-on-failure: true
+        cache-all-crates: false
 
     - name: Install dependencies
       run: |
