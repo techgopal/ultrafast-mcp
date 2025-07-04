@@ -76,4 +76,6 @@ http = ["ultrafast-mcp-transport/http", "ultrafast-mcp-client/http", "ultrafast-
 # Enables OAuth authentication support
 oauth = ["ultrafast-mcp-auth/oauth", "oauth2", "jsonwebtoken", "base64", "url", "rand", "sha2"]
 # Enables all features
-full = ["monitoring", "http", "oauth"] 
+full = ["monitoring", "http", "oauth"]
+# Minimal features for basic usage
+minimal = [] 

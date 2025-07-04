@@ -43,7 +43,7 @@ reqwest = { workspace = true }
 
 # Tracing
 tracing = { workspace = true }
-rand_distr = "0.5.1"
+rand_distr = { workspace = true }
 
 [features]
 default = ["oauth"]

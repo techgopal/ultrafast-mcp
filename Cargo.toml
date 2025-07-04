@@ -16,6 +16,49 @@ members = [
     "examples/04-advanced-features",
 ]
 
+# Workspace-wide profile configurations
+[profile.dev]
+opt-level = 0
+debug = true
+split-debuginfo = "unpacked"
+debug-assertions = true
+overflow-checks = true
+lto = false
+panic = "unwind"
+codegen-units = 256
+incremental = true
+
+[profile.release]
+opt-level = 3
+debug = false
+split-debuginfo = "packed"
+debug-assertions = false
+overflow-checks = false
+lto = "thin"
+panic = "unwind"
+codegen-units = 16
+incremental = false
+
+[profile.test]
+opt-level = 0
+debug = true
+split-debuginfo = "unpacked"
+debug-assertions = true
+overflow-checks = true
+lto = false
+codegen-units = 256
+incremental = true
+
+[profile.bench]
+opt-level = 3
+debug = false
+split-debuginfo = "packed"
+debug-assertions = false
+overflow-checks = false
+lto = "thin"
+codegen-units = 16
+incremental = false
+
 [workspace.package]
 version = "202506018.1.0-rc.1"
 edition = "2021"
@@ -105,3 +148,8 @@ serde_yaml = "0.9"
 
 # Text processing
 regex = "1.10"
+
+# Additional utilities
+lazy_static = "1.4"
+urlencoding = "2.1"
+rand_distr = "0.5.1"

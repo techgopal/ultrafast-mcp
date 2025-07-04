@@ -57,6 +57,7 @@ http = [
     "dep:hyper-util",
     "dep:ultrafast-mcp-auth"
 ]
+full = ["http"]
 
 [dev-dependencies]
 tokio-test = { workspace = true }

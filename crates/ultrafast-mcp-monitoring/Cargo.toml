@@ -61,7 +61,7 @@ toml = { workspace = true, optional = true }
 serde_yaml = { workspace = true, optional = true }
 
 [features]
-default = ["http", "jaeger", "console"]
+default = ["http", "console"]
 http = ["dep:axum", "dep:tower", "dep:opentelemetry-prometheus", "dep:metrics", "dep:metrics-exporter-prometheus"]
 jaeger = ["dep:opentelemetry-jaeger", "dep:tracing-opentelemetry"]
 otlp = ["dep:opentelemetry-otlp", "dep:tracing-opentelemetry"]
