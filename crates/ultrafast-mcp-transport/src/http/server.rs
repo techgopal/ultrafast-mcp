@@ -1,4 +1,5 @@
 use crate::http::{
+    optimization::{OptimizationConfig, PerformanceMonitor, RequestBatcher, ResponseCache, ResponseOptimizer},
     pool::{ConnectionPool, PoolConfig},
     rate_limit::{RateLimitConfig, RateLimiter},
 };
@@ -22,7 +23,10 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::broadcast;
 use tokio_stream::wrappers::BroadcastStream;
-use tower_http::cors::CorsLayer;
+use tower_http::{
+    cors::CorsLayer,
+    compression::CompressionLayer,
+};
 use tracing::info;
 use ultrafast_mcp_core::protocol::JsonRpcMessage;
 
@@ -47,6 +51,10 @@ pub struct HttpTransportConfig {
     pub request_timeout: Duration,
     pub max_request_size: usize,
     pub enable_compression: bool,
+    pub enable_caching: bool,
+    pub compression_level: u32,
+    pub cache_ttl_seconds: u64,
+    pub optimization_config: OptimizationConfig,
 }
 
 impl Default for HttpTransportConfig {
@@ -67,6 +75,10 @@ impl Default for HttpTransportConfig {
             request_timeout: Duration::from_secs(30),
             max_request_size: 1024 * 1024, // 1MB
             enable_compression: true,
+            enable_caching: true,
+            compression_level: 6, // Balanced compression level
+            cache_ttl_seconds: 300, // 5 minutes cache TTL
+            optimization_config: OptimizationConfig::default(),
         }
     }
 }
@@ -80,6 +92,10 @@ pub struct HttpTransportState {
     pub config: HttpTransportConfig,
     pub rate_limiter: Arc<RateLimiter>,
     pub connection_pool: Arc<ConnectionPool>,
+    pub performance_monitor: Arc<PerformanceMonitor>,
+    pub request_batcher: Arc<RequestBatcher>,
+    pub response_optimizer: Arc<ResponseOptimizer>,
+    pub response_cache: Arc<ResponseCache>,
     #[cfg(feature = "http")]
     pub token_validator: Option<TokenValidator>,
 }
@@ -96,6 +112,10 @@ impl HttpTransportServer {
 
         let rate_limiter = Arc::new(RateLimiter::new(config.rate_limit_config.clone()));
         let connection_pool = Arc::new(ConnectionPool::new(config.connection_pool_config.clone()));
+        let performance_monitor = Arc::new(PerformanceMonitor::new());
+        let request_batcher = Arc::new(RequestBatcher::new(config.optimization_config.clone()));
+        let response_optimizer = Arc::new(ResponseOptimizer::new(config.optimization_config.clone()));
+        let response_cache = Arc::new(ResponseCache::new(config.cache_ttl_seconds, 1000));
 
         let state = HttpTransportState {
             session_store: SessionStore::new(config.session_timeout_secs),
@@ -103,6 +123,10 @@ impl HttpTransportServer {
             message_sender,
             rate_limiter: rate_limiter.clone(),
             connection_pool: connection_pool.clone(),
+            performance_monitor: performance_monitor.clone(),
+            request_batcher: request_batcher.clone(),
+            response_optimizer: response_optimizer.clone(),
+            response_cache: response_cache.clone(),
             config,
             #[cfg(feature = "http")]
             token_validator: None,
@@ -256,6 +280,17 @@ impl HttpTransportServer {
                     }),
                 );
         }
+
+        // Add compression layer if enabled
+        if state.config.enable_compression {
+            router = router.layer(
+                CompressionLayer::new()
+                    .quality(tower_http::compression::CompressionLevel::Default)
+            );
+        }
+
+        // Note: Caching is implemented at the application level rather than middleware level
+        // for better control over cache invalidation and MCP-specific requirements
 
         if state.config.cors_enabled {
             router = router.layer(CorsLayer::permissive());
@@ -832,20 +867,23 @@ async fn handle_get_messages_stateless(
         return (StatusCode::BAD_REQUEST, "Invalid session").into_response();
     }
 
-    let messages = state
-        .message_queue
-        .get_pending_messages(&params.session_id)
-        .await
-        .into_iter()
-        .filter(|msg| {
-            if let Some(since) = params.since {
-                msg.timestamp > since
-            } else {
-                true
-            }
-        })
-        .map(|qm| qm.message)
-        .collect::<Vec<_>>();
+    let messages = if let Some(since) = params.since {
+        state
+            .message_queue
+            .get_messages_since(&params.session_id, since as u128)
+            .await
+            .into_iter()
+            .map(|qm| qm.message)
+            .collect::<Vec<_>>()
+    } else {
+        state
+            .message_queue
+            .get_pending_messages(&params.session_id)
+            .await
+            .into_iter()
+            .map(|qm| qm.message)
+            .collect::<Vec<_>>()
+    };
 
     let response = GetMessagesResponse {
         messages,

@@ -1,16 +1,12 @@
 [package]
 name = "ultrafast-mcp-server"
-version.workspace = true
-edition.workspace = true
-license.workspace = true
-repository.workspace = true
-homepage.workspace = true
-documentation.workspace = true
-authors.workspace = true
-keywords.workspace = true
-categories.workspace = true
-readme.workspace = true
-description = "Server implementation for UltraFast MCP"
+version = "0.1.0"
+edition = "2021"
+description = "High-performance server implementation for the Model Context Protocol (MCP)"
+authors = ["Your Name <you@example.com>"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/yourusername/ultrafast-mcp"
+documentation = "https://docs.rs/ultrafast-mcp-server"
 
 # docs.rs configuration
 [package.metadata.docs.rs]
@@ -19,26 +15,34 @@ rustdoc-args = ["--cfg", "docsrs"]
 targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
-# Internal dependencies
 ultrafast-mcp-core = { path = "../ultrafast-mcp-core" }
 ultrafast-mcp-transport = { path = "../ultrafast-mcp-transport" }
 ultrafast-mcp-monitoring = { path = "../ultrafast-mcp-monitoring", optional = true }
 
-# Core runtime dependencies
-tokio = { workspace = true }
-futures = { workspace = true }
-serde = { workspace = true }
-serde_json = { workspace = true }
-tracing = { workspace = true }
-async-trait = { workspace = true }
-uuid = { workspace = true }
-rand = { workspace = true }
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Error handling
+thiserror = "1.0"
+anyhow = "1.0"
+
+# Async traits
+async-trait = "0.1"
+
+# Logging
+tracing = "0.1"
+
+# Time handling
+chrono = { version = "0.4", features = ["serde"] }
+
+[dev-dependencies]
+tokio-test = "0.4"
 
 [features]
 default = []
 monitoring = ["ultrafast-mcp-monitoring"]
 http = ["ultrafast-mcp-transport/http"]
-
-[dev-dependencies]
-tokio-test = { workspace = true }
-tempfile = { workspace = true }
