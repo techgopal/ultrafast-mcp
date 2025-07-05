@@ -555,7 +555,7 @@ use clap::{{Parser, Subcommand}};
 use colored::*;
 use ultrafast_mcp_client::{{ClientBuilder, Connection}};
 use ultrafast_mcp_core::protocol::{{CallToolRequest, ListToolsRequest, Tool}};
-use ultrafast_mcp_transport::{{stdio::StdioTransport, http::HttpTransport}};
+use ultrafast_mcp_transport::{{stdio::StdioTransport, streamable_http::server::HttpTransportServer}};
 
 #[derive(Parser)]
 #[command(name = "{}", about = "A custom MCP client")]

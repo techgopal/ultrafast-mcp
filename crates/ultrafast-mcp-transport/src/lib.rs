@@ -14,7 +14,7 @@ pub mod middleware;
 pub mod stdio;
 
 #[cfg(feature = "http")]
-pub mod http;
+pub mod streamable_http;
 
 /// Result type for transport operations
 pub type Result<T> = std::result::Result<T, TransportError>;
@@ -452,14 +452,14 @@ pub async fn create_transport(config: TransportConfig) -> Result<Box<dyn Transpo
             auth_token,
             session_id,
         } => {
-            let client_config = http::streamable::StreamableHttpClientConfig {
+            let client_config = streamable_http::client::StreamableHttpClientConfig {
                 base_url,
                 auth_token,
                 session_id,
                 ..Default::default()
             };
 
-            let mut client = http::streamable::StreamableHttpClient::new(client_config)?;
+            let mut client = streamable_http::client::StreamableHttpClient::new(client_config)?;
             client.connect().await?;
             Ok(Box::new(client))
         }

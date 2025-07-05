@@ -1,28 +1,11 @@
 //! Streamable HTTP transport implementation
 //!
-//! This module implements a simple, correct Streamable HTTP transport that follows
+//! This module implements a MCP-compliant Streamable HTTP transport that follows
 //! the MCP specification for stateless request/response communication.
 
 use crate::{Result, Transport, TransportError};
 use async_trait::async_trait;
-use serde::{Deserialize, Serialize};
 use ultrafast_mcp_core::protocol::JsonRpcMessage;
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct StreamableMcpRequest {
-    pub session_id: Option<String>,
-    pub message: Option<JsonRpcMessage>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct StreamableMcpResponse {
-    pub session_id: String,
-    pub protocol_version: String,
-    pub message_id: Option<String>,
-    pub success: bool,
-    pub error: Option<String>,
-    pub pending_messages: Option<Vec<JsonRpcMessage>>,
-}
 
 /// Streamable HTTP client configuration
 #[derive(Debug, Clone)]
@@ -48,7 +31,7 @@ impl Default for StreamableHttpClientConfig {
     }
 }
 
-/// Streamable HTTP client - simple request/response implementation
+/// Streamable HTTP client - MCP-compliant request/response implementation
 pub struct StreamableHttpClient {
     client: reqwest::Client,
     config: StreamableHttpClientConfig,
@@ -75,19 +58,33 @@ impl StreamableHttpClient {
 
     /// Connect to the Streamable HTTP server
     pub async fn connect(&mut self) -> Result<String> {
-        // For Streamable HTTP, we just need to establish a session
-        // Send an empty request to get a session ID
-        let request_body = StreamableMcpRequest {
-            session_id: self.config.session_id.clone(),
-            message: None,
-        };
+        // For Streamable HTTP, we establish a session by sending an initialize request
+        let initialize_request = JsonRpcMessage::Request(ultrafast_mcp_core::protocol::JsonRpcRequest {
+            jsonrpc: "2.0".to_string(),
+            method: "initialize".to_string(),
+            params: Some(serde_json::json!({
+                "protocolVersion": self.config.protocol_version,
+                "capabilities": {},
+                "clientInfo": {
+                    "name": "ultrafast-mcp-client",
+                    "version": "1.0.0"
+                }
+            })),
+            id: Some(ultrafast_mcp_core::protocol::RequestId::String("1".to_string())),
+            meta: std::collections::HashMap::new(),
+        });
+
+        let session_id = self.config.session_id.clone()
+            .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
 
         let url = format!("{}/mcp", self.config.base_url);
         let response = self
             .client
             .post(&url)
             .header("content-type", "application/json")
-            .json(&request_body)
+            .header("mcp-session-id", &session_id)
+            .header("mcp-protocol-version", &self.config.protocol_version)
+            .json(&initialize_request)
             .send()
             .await
             .map_err(|e| TransportError::ConnectionError {
@@ -101,16 +98,19 @@ impl StreamableHttpClient {
             });
         }
 
-        // Parse the response to get session ID
-        let response_data: StreamableMcpResponse = response
+        // Parse the initialize response
+        let response_message: JsonRpcMessage = response
             .json()
             .await
             .map_err(|e| TransportError::SerializationError {
-                message: format!("Failed to parse connect response: {}", e),
+                message: format!("Failed to parse initialize response: {}", e),
             })?;
 
-        self.session_id = Some(response_data.session_id.clone());
-        Ok(response_data.session_id)
+        // Store session ID and response
+        self.session_id = Some(session_id.clone());
+        self.pending_response = Some(response_message);
+        
+        Ok(session_id)
     }
 
     /// Send a message and get immediate response
@@ -124,17 +124,14 @@ impl StreamableHttpClient {
             }
         })?;
 
-        let request_body = StreamableMcpRequest {
-            session_id: Some(session_id.clone()),
-            message: Some(message),
-        };
-
         let url = format!("{}/mcp", self.config.base_url);
         let response = self
             .client
             .post(&url)
             .header("content-type", "application/json")
-            .json(&request_body)
+            .header("mcp-session-id", session_id)
+            .header("mcp-protocol-version", &self.config.protocol_version)
+            .json(&message) // Send direct JSON-RPC message
             .send()
             .await
             .map_err(|e| TransportError::NetworkError {
@@ -181,19 +178,14 @@ impl Transport for StreamableHttpClient {
     }
 
     async fn close(&mut self) -> Result<()> {
-        // Close the session
+        // Close the session using DELETE method
         if let Some(session_id) = &self.session_id {
-            let request_body = StreamableMcpRequest {
-                session_id: Some(session_id.clone()),
-                message: None,
-            };
-
             let url = format!("{}/mcp", self.config.base_url);
             let _ = self
                 .client
-                .post(&url)
-                .header("content-type", "application/json")
-                .json(&request_body)
+                .delete(&url)
+                .header("mcp-session-id", session_id)
+                .header("mcp-protocol-version", &self.config.protocol_version)
                 .send()
                 .await;
         }

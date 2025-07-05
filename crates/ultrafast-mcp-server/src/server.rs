@@ -23,7 +23,7 @@ use ultrafast_mcp_core::{
     utils::{CancellationManager, PingManager},
 };
 #[cfg(feature = "http")]
-use ultrafast_mcp_transport::http::server::{HttpTransportConfig, HttpTransportServer};
+use ultrafast_mcp_transport::streamable_http::server::{HttpTransportConfig, HttpTransportServer};
 use ultrafast_mcp_transport::{create_transport, Transport, TransportConfig};
 
 use crate::context::{Context, LoggerConfig};

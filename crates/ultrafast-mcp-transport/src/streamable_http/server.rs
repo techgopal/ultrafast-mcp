@@ -7,7 +7,7 @@ use crate::{Result, Transport, TransportError};
 use async_trait::async_trait;
 use axum::{
     extract::State,
-    http::{HeaderValue, StatusCode, HeaderMap},
+    http::{StatusCode, HeaderMap},
     response::{IntoResponse, Response, sse::Event, Sse},
     Json, Router,
     body::Bytes,
@@ -197,8 +197,30 @@ async fn handle_mcp_post(
             )),
         ).into_response();
     }
-    let session_id = extract_session_id(&headers)
-        .unwrap_or_else(|| generate_session_id());
+
+    // Check if this is an initial connection (initialize request or empty body)
+    let is_initial_connection = body.is_empty() || {
+        if let Ok(message) = serde_json::from_slice::<JsonRpcMessage>(&body) {
+            matches!(message, JsonRpcMessage::Request(req) if req.method == "initialize")
+        } else {
+            false
+        }
+    };
+
+    let session_id = if is_initial_connection {
+        extract_session_id(&headers).unwrap_or_else(|| generate_session_id())
+    } else {
+        match extract_session_id(&headers) {
+            Some(id) => id,
+            None => {
+                return Json(JsonRpcResponse::error(
+                    JsonRpcError::new(-32000, "Missing session ID".to_string()),
+                    None,
+                )).into_response();
+            }
+        }
+    };
+
     // Try to parse the body as a JSON-RPC message
     let message: std::result::Result<JsonRpcMessage, serde_json::Error> = serde_json::from_slice(&body);
     let message = match message {
@@ -210,6 +232,7 @@ async fn handle_mcp_post(
             )).into_response();
         }
     };
+    
     info!("Processing POST request for session {}: {:?}", session_id, message);
     match message {
         JsonRpcMessage::Request(request) => {
@@ -288,7 +311,14 @@ async fn handle_jsonrpc_request(
                 // Return the actual response from the server
                 match response_message {
                     JsonRpcMessage::Response(response) => {
-                        Json(response).into_response()
+                        (
+                            StatusCode::OK,
+                            [
+                                ("mcp-session-id", response_session_id),
+                                ("mcp-protocol-version", state.config.protocol_version.clone()),
+                            ],
+                            Json(response),
+                        ).into_response()
                     }
                     _ => {
                         // Unexpected message type
@@ -365,13 +395,15 @@ fn create_sse_stream(
                     if msg_session_id == session_id || msg_session_id == "*" {
                         let event_data = serde_json::to_string(&message).unwrap_or_default();
                         Some((
-                            Ok(Event::default().data(event_data)),
+                            Ok(Event::default()
+                                .data(event_data)
+                                .comment("keep-alive")), // Use comment for keep-alive
                             (receiver, session_id),
                         ))
                     } else {
-                        // Continue waiting for messages for this session
+                        // Skip messages for other sessions, send keep-alive comment
                         Some((
-                            Ok(Event::default().data("")), // Empty event to keep connection alive
+                            Ok(Event::default().comment("keep-alive")),
                             (receiver, session_id),
                         ))
                     }
