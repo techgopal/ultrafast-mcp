@@ -72,13 +72,11 @@ client.connect_streamable_http("http://127.0.0.1:8080/mcp").await?;
 
 ### UltraFastServer
 - `run_streamable_http(host, port)` - **Recommended**: High-performance HTTP
-- `run_http_sse(host, port)` - Legacy HTTP+SSE compatibility
 - `run_with_config(config)` - Custom HTTP configuration
 - `run_stdio()` - Local stdio transport
 
 ### UltraFastClient
 - `connect_streamable_http(url)` - **Recommended**: High-performance HTTP
-- `connect_http_sse(url)` - Legacy HTTP+SSE compatibility
 - `connect()` - Generic connection (uses configured transport)
 - `connect_stdio()` - Local stdio transport
 - `with_transport(transport)` - Configure custom transport
@@ -109,7 +107,7 @@ client.connect_streamable_http("http://127.0.0.1:8080/mcp").await?;
 ## 🔍 Key Benefits
 
 ### **10x Performance Improvement**
-- Streamable HTTP provides 10x better performance than HTTP+SSE under load
+- Streamable HTTP provides 10x better performance than traditional HTTP transports under load
 - Efficient session management and connection pooling
 - Zero-copy message handling
 

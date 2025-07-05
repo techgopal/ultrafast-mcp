@@ -4,13 +4,18 @@ version = "0.1.0"
 edition = "2021"
 
 [[bin]]
-name = "basic-echo-server"
+name = "server"
 path = "src/server.rs"
 doc = false
 
 [[bin]]
-name = "basic-echo-client"
+name = "client"
 path = "src/client.rs"
+doc = false
+
+[[bin]]
+name = "basic-echo-server"
+path = "src/basic-echo-server.rs"
 doc = false
 
 [dependencies]

@@ -516,45 +516,20 @@ impl UltraFastServer {
         let transport_server = HttpTransportServer::new(config);
         let message_receiver = transport_server.get_message_receiver();
         let message_sender = transport_server.get_message_sender();
+        let response_sender = transport_server.get_response_sender();
 
         // Start message processing task
         let server_clone = self.clone();
-        let message_processor = tokio::spawn(async move {
+        let _message_processor = tokio::spawn(async move {
             server_clone
-                .process_http_messages(message_receiver, message_sender)
+                .process_http_messages(message_receiver, message_sender, response_sender)
                 .await;
         });
 
         // Start the HTTP server
-        let http_server = transport_server.run();
-
-        // Wait for either the HTTP server or message processor to complete
-        tokio::select! {
-            result = http_server => {
-                match result {
-                    Ok(_) => {
-                        info!("HTTP server completed successfully");
-                        Ok(())
-                    }
-                    Err(e) => {
-                        error!("HTTP server failed: {}", e);
-                        Err(MCPError::internal_error(format!("HTTP server failed: {}", e)))
-                    }
-                }
-            }
-            result = message_processor => {
-                match result {
-                    Ok(_) => {
-                        info!("Message processor completed");
-                        Ok(())
-                    }
-                    Err(e) => {
-                        error!("Message processor failed: {}", e);
-                        Err(MCPError::internal_error(format!("Message processor failed: {}", e)))
-                    }
-                }
-            }
-        }
+        transport_server.run().await.map_err(|e| {
+            MCPError::internal_error(format!("HTTP server failed: {}", e))
+        })
     }
 
     /// Process HTTP messages from the transport layer
@@ -562,7 +537,8 @@ impl UltraFastServer {
     async fn process_http_messages(
         &self,
         mut message_receiver: broadcast::Receiver<(String, JsonRpcMessage)>,
-        message_sender: broadcast::Sender<(String, JsonRpcMessage)>,
+        _message_sender: broadcast::Sender<(String, JsonRpcMessage)>,
+        response_sender: broadcast::Sender<(String, JsonRpcMessage)>,
     ) {
         info!("HTTP message processor started");
 
@@ -578,8 +554,8 @@ impl UltraFastServer {
                     let response = self.handle_request(request).await;
                     let response_message = JsonRpcMessage::Response(response);
 
-                    // Send response back through the transport
-                    if let Err(e) = message_sender.send((session_id_clone, response_message)) {
+                    // Send the response back through the response sender
+                    if let Err(e) = response_sender.send((session_id_clone, response_message)) {
                         error!("Failed to send response for session {}: {}", session_id, e);
                     }
                 }
@@ -595,6 +571,7 @@ impl UltraFastServer {
                             session_id, e
                         );
                     }
+                    // Notifications don't have responses, so no need to send anything back
                 }
                 JsonRpcMessage::Response(_) => {
                     warn!(
@@ -629,32 +606,50 @@ impl UltraFastServer {
         request: ultrafast_mcp_core::protocol::InitializeRequest,
     ) -> ultrafast_mcp_core::protocol::InitializeResponse {
         info!(
-            "Handling initialize request from client: {}",
-            request.client_info.name
+            "Handling initialize request from client: {} (version: {})",
+            request.client_info.name, request.protocol_version
         );
 
-        // Validate protocol version
+        // Negotiate protocol version
+        let negotiated_version = match ultrafast_mcp_core::protocol::version::negotiate_version(
+            &request.protocol_version
+        ) {
+            Ok(version) => {
+                info!("Protocol version negotiated: {} -> {}", request.protocol_version, version);
+                version
+            }
+            Err(e) => {
+                error!("Protocol version negotiation failed: {}", e);
+                // Return error response with detailed version information
+                return ultrafast_mcp_core::protocol::InitializeResponse {
+                    protocol_version: ultrafast_mcp_core::protocol::version::get_latest_version().to_string(),
+                    capabilities: self.capabilities.clone(),
+                    server_info: self.info.clone(),
+                    instructions: Some(format!(
+                        "Protocol version negotiation failed: {}. Supported versions: {:?}",
+                        e, ultrafast_mcp_core::protocol::version::SUPPORTED_VERSIONS
+                    )),
+                };
+            }
+        };
+
+        // Validate the initialize request
         if let Err(e) = request.validate_protocol_version() {
-            error!("Protocol version validation failed: {}", e);
-            // Return error response
-            return ultrafast_mcp_core::protocol::InitializeResponse {
-                protocol_version: "2025-06-18".to_string(),
-                capabilities: self.capabilities.clone(),
-                server_info: self.info.clone(),
-                instructions: Some(format!("Protocol version error: {}", e)),
-            };
+            warn!("Initialize request validation warning: {}", e);
+            // Continue with warning but don't fail
         }
 
-        // Update server state
+        // Update server state to Operating directly for better client compatibility
+        // This allows operations immediately after initialize without requiring initialized notification
         {
             let mut state = self.state.write().await;
-            *state = ServerState::Initializing;
+            *state = ServerState::Operating;
         }
 
-        info!("Server initialized successfully");
+        info!("Server initialized and ready for operations with protocol version: {}", negotiated_version);
 
         ultrafast_mcp_core::protocol::InitializeResponse {
-            protocol_version: request.protocol_version,
+            protocol_version: negotiated_version,
             capabilities: self.capabilities.clone(),
             server_info: self.info.clone(),
             instructions: None,
@@ -668,13 +663,13 @@ impl UltraFastServer {
     ) -> MCPResult<()> {
         info!("Received initialized notification from client");
 
-        // Update server state to operating
+        // Ensure server state is operating (it should already be from initialize)
         {
             let mut state = self.state.write().await;
             *state = ServerState::Operating;
         }
 
-        info!("Server is now operating");
+        info!("Server confirmed operating state via initialized notification");
         Ok(())
     }
 
@@ -800,13 +795,20 @@ impl UltraFastServer {
     ) -> MCPResult<()> {
         match message {
             JsonRpcMessage::Request(request) => {
-                let response = self.handle_request(request).await;
-                transport
-                    .send_message(JsonRpcMessage::Response(response))
-                    .await
-                    .map_err(|e| {
-                        MCPError::internal_error(format!("Failed to send message: {}", e))
-                    })?;
+                // Check if this is actually a notification (no ID)
+                if request.id.is_none() {
+                    // This is a notification, handle it as such
+                    self.handle_notification(request).await?;
+                } else {
+                    // This is a request, handle it and send response
+                    let response = self.handle_request(request).await;
+                    transport
+                        .send_message(JsonRpcMessage::Response(response))
+                        .await
+                        .map_err(|e| {
+                            MCPError::internal_error(format!("Failed to send message: {}", e))
+                        })?;
+                }
             }
             JsonRpcMessage::Notification(notification) => {
                 self.handle_notification(notification).await?;
@@ -839,17 +841,7 @@ impl UltraFastServer {
                         )
                     }
                     Err(e) => JsonRpcResponse::error(
-                        JsonRpcError::new(-32602, format!("Invalid initialize request: {}", e)),
-                        request.id,
-                    ),
-                }
-            }
-            "initialized" => {
-                let notification = ultrafast_mcp_core::protocol::InitializedNotification {};
-                match self.handle_initialized(notification).await {
-                    Ok(_) => JsonRpcResponse::success(serde_json::json!({}), request.id),
-                    Err(e) => JsonRpcResponse::error(
-                        JsonRpcError::new(-32603, format!("Initialized failed: {}", e)),
+                        JsonRpcError::invalid_params(Some(format!("Invalid initialize request: {}", e))),
                         request.id,
                     ),
                 }
@@ -866,7 +858,7 @@ impl UltraFastServer {
                 match self.handle_shutdown(shutdown_request).await {
                     Ok(_) => JsonRpcResponse::success(serde_json::json!({}), request.id),
                     Err(e) => JsonRpcResponse::error(
-                        JsonRpcError::new(-32603, format!("Shutdown failed: {}", e)),
+                        JsonRpcError::from(e),
                         request.id,
                     ),
                 }
@@ -876,7 +868,7 @@ impl UltraFastServer {
             "tools/list" => {
                 if !self.can_operate().await {
                     return JsonRpcResponse::error(
-                        JsonRpcError::new(-32603, "Server not ready".to_string()),
+                        JsonRpcError::internal_error(Some("Server not ready".to_string())),
                         request.id,
                     );
                 }
@@ -923,7 +915,7 @@ impl UltraFastServer {
             "tools/call" => {
                 if !self.can_operate().await {
                     return JsonRpcResponse::error(
-                        JsonRpcError::new(-32603, "Server not ready".to_string()),
+                        JsonRpcError::internal_error(Some("Server not ready".to_string())),
                         request.id,
                     );
                 }
@@ -953,18 +945,7 @@ impl UltraFastServer {
                             name: tool_name.to_string(),
                             arguments: Some(arguments.clone()),
                         };
-                        // If arguments are empty or invalid, return -32602
-                        if arguments.is_null()
-                            || (arguments.is_object() && arguments.as_object().unwrap().is_empty())
-                        {
-                            return JsonRpcResponse::error(
-                                JsonRpcError::new(
-                                    -32602,
-                                    "Tool call failed: Invalid or empty arguments".to_string(),
-                                ),
-                                request.id,
-                            );
-                        }
+                        // Arguments validation will be handled by the tool handler
                         match handler.handle_tool_call(tool_call).await {
                             Ok(result) => JsonRpcResponse::success(
                                 serde_json::to_value(result).unwrap(),
@@ -993,18 +974,7 @@ impl UltraFastServer {
                                 request.id,
                             );
                         }
-                        // If arguments are empty or invalid, return -32602
-                        if arguments.is_null()
-                            || (arguments.is_object() && arguments.as_object().unwrap().is_empty())
-                        {
-                            return JsonRpcResponse::error(
-                                JsonRpcError::new(
-                                    -32602,
-                                    "Tool call failed: Invalid or empty arguments".to_string(),
-                                ),
-                                request.id,
-                            );
-                        }
+                        // Arguments validation will be handled by the tool handler
                         match self.execute_tool_call(tool_name, arguments).await {
                             Ok(result) => JsonRpcResponse::success(
                                 serde_json::to_value(result).unwrap(),
@@ -1285,9 +1255,20 @@ impl UltraFastServer {
     }
 
     /// Handle incoming notifications
-    async fn handle_notification(&self, _notification: JsonRpcRequest) -> MCPResult<()> {
-        // Implementation will be moved to handlers module
-        Ok(())
+    async fn handle_notification(&self, notification: JsonRpcRequest) -> MCPResult<()> {
+        info!("Handling notification: {}", notification.method);
+        
+        match notification.method.as_str() {
+            "initialized" => {
+                let notification = ultrafast_mcp_core::protocol::InitializedNotification {};
+                self.handle_initialized(notification).await?;
+                Ok(())
+            }
+            _ => {
+                warn!("Unknown notification method: {}", notification.method);
+                Ok(())
+            }
+        }
     }
 }
 

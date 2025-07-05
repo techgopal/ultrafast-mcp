@@ -67,18 +67,19 @@ impl RequestId {
                         "Request ID string cannot be empty".to_string(),
                     ));
                 }
-                // Check for reasonable length
-                if s.len() > 100 {
+                // Relaxed length check - allow reasonable lengths up to 1000 chars
+                if s.len() > 1000 {
                     return Err(crate::error::ProtocolError::InvalidRequestId(
-                        "Request ID string too long".to_string(),
+                        "Request ID string too long (max 1000 characters)".to_string(),
                     ));
                 }
             }
             RequestId::Number(n) => {
-                // Check for reasonable range
-                if *n < -999999999 || *n > 999999999 {
+                // Reasonable range check - allow numbers within practical JSON-RPC limits
+                // This prevents overflow issues and keeps IDs manageable
+                if *n < -999_999_999 || *n > 999_999_999 {
                     return Err(crate::error::ProtocolError::InvalidRequestId(
-                        "Request ID number out of reasonable range".to_string(),
+                        "Request ID number out of range (-999,999,999 to 999,999,999)".to_string(),
                     ));
                 }
             }
@@ -219,6 +220,96 @@ impl JsonRpcError {
     pub fn with_data(mut self, data: Value) -> Self {
         self.data = Some(data);
         self
+    }
+
+    // Standard JSON-RPC error constructors
+    pub fn parse_error(message: Option<String>) -> Self {
+        Self::new(
+            error_codes::PARSE_ERROR,
+            message.unwrap_or_else(|| "Parse error".to_string()),
+        )
+    }
+
+    pub fn invalid_request(message: Option<String>) -> Self {
+        Self::new(
+            error_codes::INVALID_REQUEST,
+            message.unwrap_or_else(|| "Invalid Request".to_string()),
+        )
+    }
+
+    pub fn method_not_found(method: String) -> Self {
+        Self::new(
+            error_codes::METHOD_NOT_FOUND,
+            format!("Method not found: {}", method),
+        )
+    }
+
+    pub fn invalid_params(message: Option<String>) -> Self {
+        Self::new(
+            error_codes::INVALID_PARAMS,
+            message.unwrap_or_else(|| "Invalid params".to_string()),
+        )
+    }
+
+    pub fn internal_error(message: Option<String>) -> Self {
+        Self::new(
+            error_codes::INTERNAL_ERROR,
+            message.unwrap_or_else(|| "Internal error".to_string()),
+        )
+    }
+
+    // MCP-specific error constructors
+    pub fn initialization_failed(message: String) -> Self {
+        Self::new(mcp_error_codes::INITIALIZATION_FAILED, message)
+    }
+
+    pub fn capability_not_supported(capability: String) -> Self {
+        Self::new(
+            mcp_error_codes::CAPABILITY_NOT_SUPPORTED,
+            format!("Capability not supported: {}", capability),
+        )
+    }
+
+    pub fn resource_not_found(uri: String) -> Self {
+        Self::new(
+            mcp_error_codes::RESOURCE_NOT_FOUND,
+            format!("Resource not found: {}", uri),
+        )
+    }
+
+    pub fn tool_execution_error(tool_name: String, error: String) -> Self {
+        Self::new(
+            mcp_error_codes::TOOL_EXECUTION_ERROR,
+            format!("Tool execution failed for '{}': {}", tool_name, error),
+        )
+    }
+
+    pub fn invalid_uri(uri: String) -> Self {
+        Self::new(
+            mcp_error_codes::INVALID_URI,
+            format!("Invalid URI: {}", uri),
+        )
+    }
+
+    pub fn access_denied(resource: String) -> Self {
+        Self::new(
+            mcp_error_codes::ACCESS_DENIED,
+            format!("Access denied: {}", resource),
+        )
+    }
+
+    pub fn request_timeout() -> Self {
+        Self::new(
+            mcp_error_codes::REQUEST_TIMEOUT,
+            "Request timeout".to_string(),
+        )
+    }
+
+    pub fn protocol_version_not_supported(version: String) -> Self {
+        Self::new(
+            mcp_error_codes::PROTOCOL_VERSION_NOT_SUPPORTED,
+            format!("Protocol version not supported: {}", version),
+        )
     }
 }
 

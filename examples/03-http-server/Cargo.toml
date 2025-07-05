@@ -13,8 +13,13 @@ name = "http-client"
 path = "src/client.rs"
 doc = false
 
+[[bin]]
+name = "http-server-streamable"
+path = "src/http_server.rs"
+doc = false
+
 [dependencies]
-ultrafast-mcp = { path = "../../crates/ultrafast-mcp" }
+ultrafast-mcp = { path = "../../crates/ultrafast-mcp", features = ["http"] }
 ultrafast-mcp-transport = { path = "../../crates/ultrafast-mcp-transport" }
 tokio = { workspace = true }
 serde = { workspace = true }

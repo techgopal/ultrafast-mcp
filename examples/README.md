@@ -39,8 +39,8 @@ client.connect_streamable_http("http://127.0.0.1:8080/mcp").await?;
 - Simple echo tool with automatic JSON schema generation
 - Type-safe tool calling with serde serialization
 - Comprehensive error handling and logging
-- **10x faster** than traditional HTTP+SSE under load
-- **90% less client code** required compared to legacy transports
+- **10x faster** than traditional HTTP transports under load
+- **90% less client code** required compared to other transports
 
 ### 2. [File Operations](./02-file-operations/) - File System Integration
 **Difficulty**: Intermediate  
@@ -130,14 +130,7 @@ let client = UltraFastClient::new(client_info, client_capabilities);
 client.connect_streamable_http("http://127.0.0.1:8080/mcp").await?;
 ```
 
-#### **HTTP+SSE Transport (Legacy Compatibility)**
-```rust
-// Create client
-let client = UltraFastClient::new(client_info, client_capabilities);
 
-// Connect with HTTP+SSE for legacy compatibility
-client.connect_http_sse("http://127.0.0.1:8080/mcp").await?;
-```
 
 #### **stdio Transport (Local Communication)**
 ```rust

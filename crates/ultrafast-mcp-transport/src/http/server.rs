@@ -1,59 +1,32 @@
-use crate::http::{
-    optimization::{
-        OptimizationConfig, PerformanceMonitor, RequestBatcher, ResponseCache, ResponseOptimizer,
-    },
-    pool::{ConnectionPool, PoolConfig},
-    rate_limit::{RateLimitConfig, RateLimiter},
-};
-use crate::{
-    http::session::{MessageQueue, SessionStore},
-    Result, Transport, TransportError,
-};
-use async_trait::async_trait;
-use axum::response::sse::{Event, KeepAlive, Sse};
-use axum::{
-    extract::Query,
-    http::{HeaderMap, StatusCode},
-    response::{IntoResponse, Response},
-    routing::{any, get, post},
-    Json, Router,
-};
-use futures::stream::StreamExt;
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::sync::Arc;
-use std::time::Duration;
-use tokio::sync::broadcast;
-use tokio_stream::wrappers::BroadcastStream;
-use tower_http::{compression::CompressionLayer, cors::CorsLayer};
-use tracing::info;
-use ultrafast_mcp_core::protocol::JsonRpcMessage;
+//! HTTP transport server implementation
+//!
+//! This module provides a MCP-compliant Streamable HTTP server implementation
+//! that follows the MCP specification for stateless request/response communication.
 
-#[cfg(feature = "http")]
-use ultrafast_mcp_auth::{extract_bearer_token, TokenValidator};
+use crate::{Result, Transport, TransportError};
+use async_trait::async_trait;
+use axum::{
+    extract::State,
+    http::{HeaderValue, StatusCode, HeaderMap},
+    response::{IntoResponse, Response, sse::Event, Sse},
+    Json, Router,
+    body::Bytes,
+};
+use futures::stream::{self, Stream};
+use std::sync::Arc;
+use tokio::sync::broadcast;
+use tower_http::cors::CorsLayer;
+use tracing::{error, info};
+use ultrafast_mcp_core::protocol::{JsonRpcMessage, JsonRpcRequest, JsonRpcResponse, JsonRpcError};
 
 /// HTTP transport configuration
 #[derive(Debug, Clone)]
 pub struct HttpTransportConfig {
     pub host: String,
     pub port: u16,
-    pub session_timeout_secs: u64,
-    pub max_message_retries: u32,
     pub cors_enabled: bool,
-    pub auth_required: bool,
     pub protocol_version: String,
-    pub enable_streamable_http: bool,
-    pub enable_legacy_endpoints: bool,
-    // Production features
-    pub rate_limit_config: RateLimitConfig,
-    pub connection_pool_config: PoolConfig,
-    pub request_timeout: Duration,
-    pub max_request_size: usize,
-    pub enable_compression: bool,
-    pub enable_caching: bool,
-    pub compression_level: u32,
-    pub cache_ttl_seconds: u64,
-    pub optimization_config: OptimizationConfig,
+    pub allow_origin: Option<String>,
 }
 
 impl Default for HttpTransportConfig {
@@ -61,23 +34,9 @@ impl Default for HttpTransportConfig {
         Self {
             host: "127.0.0.1".to_string(),
             port: 8080,
-            session_timeout_secs: 300, // 5 minutes
-            max_message_retries: 3,
             cors_enabled: true,
-            auth_required: false,
             protocol_version: "2025-06-18".to_string(),
-            enable_streamable_http: true,
-            enable_legacy_endpoints: false,
-            // Production defaults
-            rate_limit_config: RateLimitConfig::default(),
-            connection_pool_config: PoolConfig::default(),
-            request_timeout: Duration::from_secs(30),
-            max_request_size: 1024 * 1024, // 1MB
-            enable_compression: true,
-            enable_caching: true,
-            compression_level: 6,   // Balanced compression level
-            cache_ttl_seconds: 300, // 5 minutes cache TTL
-            optimization_config: OptimizationConfig::default(),
+            allow_origin: Some("http://localhost:*".to_string()),
         }
     }
 }
@@ -85,18 +44,9 @@ impl Default for HttpTransportConfig {
 /// Shared state for HTTP transport
 #[derive(Clone)]
 pub struct HttpTransportState {
-    pub session_store: SessionStore,
-    pub message_queue: MessageQueue,
     pub message_sender: broadcast::Sender<(String, JsonRpcMessage)>,
+    pub response_sender: broadcast::Sender<(String, JsonRpcMessage)>,
     pub config: HttpTransportConfig,
-    pub rate_limiter: Arc<RateLimiter>,
-    pub connection_pool: Arc<ConnectionPool>,
-    pub performance_monitor: Arc<PerformanceMonitor>,
-    pub request_batcher: Arc<RequestBatcher>,
-    pub response_optimizer: Arc<ResponseOptimizer>,
-    pub response_cache: Arc<ResponseCache>,
-    #[cfg(feature = "http")]
-    pub token_validator: Option<TokenValidator>,
 }
 
 /// HTTP transport server implementation
@@ -108,33 +58,13 @@ pub struct HttpTransportServer {
 impl HttpTransportServer {
     pub fn new(config: HttpTransportConfig) -> Self {
         let (message_sender, message_receiver) = broadcast::channel(1000);
-
-        let rate_limiter = Arc::new(RateLimiter::new(config.rate_limit_config.clone()));
-        let connection_pool = Arc::new(ConnectionPool::new(config.connection_pool_config.clone()));
-        let performance_monitor = Arc::new(PerformanceMonitor::new());
-        let request_batcher = Arc::new(RequestBatcher::new(config.optimization_config.clone()));
-        let response_optimizer =
-            Arc::new(ResponseOptimizer::new(config.optimization_config.clone()));
-        let response_cache = Arc::new(ResponseCache::new(config.cache_ttl_seconds, 1000));
+        let (response_sender, _) = broadcast::channel(1000);
 
         let state = HttpTransportState {
-            session_store: SessionStore::new(config.session_timeout_secs),
-            message_queue: MessageQueue::new(config.max_message_retries),
             message_sender,
-            rate_limiter: rate_limiter.clone(),
-            connection_pool: connection_pool.clone(),
-            performance_monitor: performance_monitor.clone(),
-            request_batcher: request_batcher.clone(),
-            response_optimizer: response_optimizer.clone(),
-            response_cache: response_cache.clone(),
+            response_sender,
             config,
-            #[cfg(feature = "http")]
-            token_validator: None,
         };
-
-        // Start background cleanup tasks
-        crate::http::rate_limit::start_rate_limit_cleanup(rate_limiter);
-        crate::http::pool::start_pool_cleanup(connection_pool);
 
         Self {
             state,
@@ -143,7 +73,6 @@ impl HttpTransportServer {
     }
 
     /// Get a message receiver to subscribe to incoming messages
-    /// This enables the MCP server to process HTTP transport messages
     pub fn get_message_receiver(&self) -> broadcast::Receiver<(String, JsonRpcMessage)> {
         self.state.message_sender.subscribe()
     }
@@ -153,149 +82,52 @@ impl HttpTransportServer {
         self.state.message_sender.clone()
     }
 
-    /// Get the message queue for response delivery
-    pub fn get_message_queue(&self) -> MessageQueue {
-        self.state.message_queue.clone()
+    /// Get the response sender for sending responses back to clients
+    pub fn get_response_sender(&self) -> broadcast::Sender<(String, JsonRpcMessage)> {
+        self.state.response_sender.clone()
     }
 
-    /// Get the transport state for access to session management
+    /// Get the transport state
     pub fn get_state(&self) -> HttpTransportState {
         self.state.clone()
     }
 
-    #[cfg(feature = "http")]
-    pub fn with_auth(mut self, token_validator: TokenValidator) -> Self {
-        self.state.token_validator = Some(token_validator);
-        self.state.config.auth_required = true;
-        self
-    }
-
     /// Start the HTTP server
     pub async fn run(self) -> Result<()> {
+        info!(
+            "Starting HTTP transport server on {}:{}",
+            self.state.config.host, self.state.config.port
+        );
+
         let app = self.create_router();
+        let addr = (self.state.config.host.as_str(), self.state.config.port);
 
-        let addr = format!("{}:{}", self.state.config.host, self.state.config.port);
-        let listener = tokio::net::TcpListener::bind(&addr).await.map_err(|e| {
-            TransportError::ConnectionError {
-                message: format!("Failed to bind to {}: {}", addr, e),
-            }
-        })?;
+        let listener = tokio::net::TcpListener::bind(addr).await
+            .map_err(|e| TransportError::InitializationError {
+                message: format!("Failed to bind to address: {}", e),
+            })?;
 
-        tracing::info!("HTTP MCP server listening on {}", addr);
-
-        // Start session cleanup task
-        let cleanup_state = self.state.clone();
-        tokio::spawn(async move {
-            let mut interval = tokio::time::interval(Duration::from_secs(60));
-            loop {
-                interval.tick().await;
-                cleanup_state.session_store.cleanup_expired_sessions().await;
-            }
-        });
-
-        // Start message queueing task - listens to broadcast channel and queues messages
-        let queue_state = self.state.clone();
-        let mut message_receiver = self.message_receiver;
-        tokio::spawn(async move {
-            info!("Message queueing task started");
-            while let Ok((session_id, message)) = message_receiver.recv().await {
-                info!("Received message for session {}: {:?}", session_id, message);
-                match &message {
-                    JsonRpcMessage::Request(_) | JsonRpcMessage::Notification(_) => {
-                        // Forward to server for processing but DO NOT queue for client polling
-                        // The server will handle the request and queue the response
-                        info!(
-                            "Forwarding request/notification for session {} to server",
-                            session_id
-                        );
-                    }
-                    JsonRpcMessage::Response(_) => {
-                        // Only queue responses for client polling
-                        queue_state
-                            .message_queue
-                            .enqueue_message(session_id.clone(), message.clone())
-                            .await;
-                        info!("Queued response for session {}", session_id);
-                    }
-                }
-            }
-            info!("Message queueing task ended");
-        });
-
-        // Use into_make_service() for Axum 0.8 compatibility
         axum::serve(listener, app.into_make_service())
             .await
-            .map_err(|e| TransportError::ConnectionError {
-                message: format!("Server error: {}", e),
+            .map_err(|e| TransportError::InitializationError {
+                message: format!("Server failed: {}", e),
             })?;
 
         Ok(())
     }
 
     fn create_router(&self) -> Router {
-        let state = self.state.clone();
-        let mut router = Router::new();
+        let state = Arc::new(self.state.clone());
+        let mut router = Router::new()
+            .route("/mcp", axum::routing::post(handle_mcp_post))
+            .route("/mcp", axum::routing::get(handle_mcp_get))
+            .route("/mcp", axum::routing::delete(handle_mcp_delete));
 
-        if state.config.enable_streamable_http {
-            // Primary Streamable HTTP endpoint - unified POST/GET with optional SSE upgrade
-            let state_clone = state.clone();
-            router = router.route(
-                "/mcp",
-                any(move |headers, query, payload| {
-                    handle_streamable_mcp_stateless(headers, query, payload, state_clone)
-                }),
-            );
-        }
-
-        if state.config.enable_legacy_endpoints {
-            // Legacy endpoints for backward compatibility
-            let state_clone1 = state.clone();
-            let state_clone2 = state.clone();
-            let state_clone3 = state.clone();
-            let state_clone4 = state.clone();
-
-            router = router
-                .route(
-                    "/mcp/legacy",
-                    post(move |headers, payload| {
-                        handle_mcp_request_stateless(headers, payload, state_clone1)
-                    }),
-                )
-                .route(
-                    "/mcp/connect",
-                    get(move |headers, query| {
-                        handle_mcp_connect_stateless(headers, query, state_clone2)
-                    }),
-                )
-                .route(
-                    "/mcp/messages",
-                    get(move |headers, query| {
-                        handle_get_messages_stateless(headers, query, state_clone3)
-                    }),
-                )
-                .route(
-                    "/mcp/ack",
-                    post(move |headers, payload| {
-                        handle_acknowledge_message_stateless(headers, payload, state_clone4)
-                    }),
-                );
-        }
-
-        // Add compression layer if enabled
-        if state.config.enable_compression {
-            router = router.layer(
-                CompressionLayer::new().quality(tower_http::compression::CompressionLevel::Default),
-            );
-        }
-
-        // Note: Caching is implemented at the application level rather than middleware level
-        // for better control over cache invalidation and MCP-specific requirements
-
-        if state.config.cors_enabled {
+        if self.state.config.cors_enabled {
             router = router.layer(CorsLayer::permissive());
         }
 
-        router
+        router.with_state(state)
     }
 }
 
@@ -303,7 +135,6 @@ impl HttpTransportServer {
 impl Transport for HttpTransportServer {
     async fn send_message(&mut self, message: JsonRpcMessage) -> Result<()> {
         // Broadcast to all connected sessions
-        // In a real implementation, you'd want to target specific sessions
         let _ = self.state.message_sender.send(("*".to_string(), message));
         Ok(())
     }
@@ -316,614 +147,237 @@ impl Transport for HttpTransportServer {
     }
 
     async fn close(&mut self) -> Result<()> {
-        // HTTP transport doesn't need explicit closing
         Ok(())
     }
 }
 
-/// Request/response types for HTTP API
-#[derive(Debug, Serialize, Deserialize)]
-pub struct McpConnectQuery {
-    pub session_id: Option<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct McpConnectResponse {
-    pub session_id: String,
-    pub protocol_version: String,
-    pub pending_messages: Vec<JsonRpcMessage>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct McpRequest {
-    pub session_id: String,
-    pub message: JsonRpcMessage,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct McpResponse {
-    pub success: bool,
-    pub message_id: Option<String>,
-    pub error: Option<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct GetMessagesQuery {
-    pub session_id: String,
-    pub since: Option<u64>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct GetMessagesResponse {
-    pub messages: Vec<JsonRpcMessage>,
-    pub has_more: bool,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct AckMessageRequest {
-    pub session_id: String,
-    pub message_id: String,
-}
-
-/// Streamable HTTP request/response types
-#[derive(Debug, Serialize, Deserialize)]
-pub struct StreamableMcpRequest {
-    pub session_id: Option<String>,
-    pub message: Option<JsonRpcMessage>,
-    pub upgrade_to_stream: Option<bool>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct StreamableMcpResponse {
-    pub session_id: String,
-    pub protocol_version: String,
-    pub message_id: Option<String>,
-    pub success: bool,
-    pub error: Option<String>,
-    pub pending_messages: Option<Vec<JsonRpcMessage>>,
-}
-
-/// Handle unified Streamable HTTP endpoint (GET/POST /mcp)
-/// This implements the PRD specification for single unified endpoint with optional SSE upgrade
-/// Handle SSE upgrade for streaming communication
-async fn handle_sse_upgrade(
-    query: HashMap<String, String>,
-    _headers: HeaderMap,
-    state: HttpTransportState,
-) -> Response {
-    let session_id = query.get("session_id").cloned().unwrap_or_else(|| {
-        #[cfg(feature = "http")]
-        return ultrafast_mcp_auth::generate_session_id();
-        #[cfg(not(feature = "http"))]
-        return uuid::Uuid::new_v4().to_string();
-    });
-
-    // Create or retrieve session
-    let _session = state.session_store.create_session(session_id.clone()).await;
-
-    // Create SSE stream for this session
-    let message_stream =
-        BroadcastStream::new(state.message_sender.subscribe()).filter_map(move |result| {
-            let session_id = session_id.clone();
-            async move {
-                match result {
-                    Ok((target_session, message)) => {
-                        // Only send messages for this session or broadcast messages
-                        if target_session == session_id || target_session == "*" {
-                            let json_data = serde_json::to_string(&message).ok()?;
-                            Some(Ok::<Event, std::convert::Infallible>(
-                                Event::default().event("mcp-message").data(json_data),
-                            ))
-                        } else {
-                            None
-                        }
-                    }
-                    Err(_) => Some(Ok::<Event, std::convert::Infallible>(
-                        Event::default().event("error").data("Stream error"),
-                    )),
-                }
-            }
-        });
-
-    let sse = Sse::new(message_stream).keep_alive(KeepAlive::default());
-
-    sse.into_response()
-}
-
-/// Handle regular streamable connection (GET without streaming)
-async fn handle_streamable_connect(
-    query: HashMap<String, String>,
-    state: HttpTransportState,
-) -> Response {
-    let session_id = query.get("session_id").cloned().unwrap_or_else(|| {
-        #[cfg(feature = "http")]
-        return ultrafast_mcp_auth::generate_session_id();
-        #[cfg(not(feature = "http"))]
-        return uuid::Uuid::new_v4().to_string();
-    });
-
-    // Create or retrieve session
-    let _session = state.session_store.create_session(session_id.clone()).await;
-
-    // Get pending messages
-    let pending_messages = state
-        .message_queue
-        .get_pending_messages(&session_id)
-        .await
-        .into_iter()
-        .map(|qm| qm.message)
-        .collect();
-
-    let response = StreamableMcpResponse {
-        session_id,
-        protocol_version: state.config.protocol_version.clone(),
-        message_id: None,
-        success: true,
-        error: None,
-        pending_messages: Some(pending_messages),
-    };
-
-    Json(response).into_response()
-}
-
-/// Handle streamable message sending (POST without streaming)
-async fn handle_streamable_message(
-    request: StreamableMcpRequest,
-    state: HttpTransportState,
-) -> Response {
-    // Only generate a new session ID if session_id is missing
-    let session_id = if let Some(sid) = request.session_id.clone() {
-        tracing::debug!("Using provided session_id: {}", sid);
-        sid
-    } else {
-        let new_id = {
-            #[cfg(feature = "http")]
-            {
-                ultrafast_mcp_auth::generate_session_id()
-            }
-            #[cfg(not(feature = "http"))]
-            {
-                uuid::Uuid::new_v4().to_string()
-            }
-        };
-        tracing::debug!("Generated new session_id: {}", new_id);
-        new_id
-    };
-
-    // Only create session if it doesn't exist
-    if state.session_store.get_session(&session_id).await.is_none() {
-        tracing::debug!("Creating new session: {}", session_id);
-        let _session = state.session_store.create_session(session_id.clone()).await;
-    }
-
-    // Validate session
-    if state.session_store.get_session(&session_id).await.is_none() {
-        return (StatusCode::BAD_REQUEST, "Invalid session").into_response();
-    }
-
-    if let Some(message) = request.message {
-        // Extract message ID for response
-        let message_id = match &message {
-            JsonRpcMessage::Request(req) => req.id.as_ref().map(|id| format!("{:?}", id)),
-            JsonRpcMessage::Response(resp) => resp.id.as_ref().map(|id| format!("{:?}", id)),
-            JsonRpcMessage::Notification(_) => None,
-        };
-
-        // Broadcast message to transport handlers for processing
-        let _ = state.message_sender.send((session_id.clone(), message));
-
-        // Wait with exponential backoff for the server to process the message and queue the response
-        // Check for response multiple times with increasing delays
-        let mut check_delay = 10u64; // Start with 10ms
-        let max_delay = 500u64; // Cap at 500ms per check
-        let max_total_time = 2000u64; // Maximum 2 seconds total
-        let start_time = std::time::Instant::now();
-
-        loop {
-            tokio::time::sleep(std::time::Duration::from_millis(check_delay)).await;
-
-            // Check if we have a response yet
-            let current_pending = state.message_queue.get_pending_messages(&session_id).await;
-            let response_count = current_pending.len();
-
-            if response_count > 0 {
-                tracing::debug!(
-                    "Found {} pending messages after {}ms",
-                    response_count,
-                    start_time.elapsed().as_millis()
-                );
-                break;
-            }
-
-            // Exponential backoff
-            check_delay = (check_delay * 2).min(max_delay);
-
-            // Timeout check
-            if start_time.elapsed().as_millis() > max_total_time as u128 {
-                tracing::debug!(
-                    "Timed out waiting for response after {}ms",
-                    start_time.elapsed().as_millis()
-                );
-                break;
-            }
-        }
-
-        // Get any pending messages (excluding the original request message)
-        let pending_messages = state
-            .message_queue
-            .get_pending_messages(&session_id)
-            .await
-            .into_iter()
-            .filter(|qm| {
-                // Filter out the original request message to avoid loops
-                if let JsonRpcMessage::Request(req) = &qm.message {
-                    if let Some(req_id) = &req.id {
-                        if let Some(msg_id) = &message_id {
-                            // Compare IDs using Debug format
-                            format!("{:?}", req_id) != *msg_id
-                        } else {
-                            true
-                        }
-                    } else {
-                        true
-                    }
-                } else {
-                    true
-                }
-            })
-            .map(|qm| qm.message)
-            .collect();
-
-        let response = StreamableMcpResponse {
-            session_id,
-            protocol_version: state.config.protocol_version.clone(),
-            message_id,
-            success: true,
-            error: None,
-            pending_messages: Some(pending_messages),
-        };
-
-        Json(response).into_response()
-    } else {
-        // If no message, treat as connection request and return pending messages
-        let pending_messages = state
-            .message_queue
-            .get_pending_messages(&session_id)
-            .await
-            .into_iter()
-            .map(|qm| qm.message)
-            .collect();
-        let response = StreamableMcpResponse {
-            session_id,
-            protocol_version: state.config.protocol_version.clone(),
-            message_id: None,
-            success: true,
-            error: None,
-            pending_messages: Some(pending_messages),
-        };
-        Json(response).into_response()
-    }
-}
-
-/// Validate authentication and rate limiting for requests
-async fn validate_authentication_and_limits(
-    headers: &HeaderMap,
-    state: &HttpTransportState,
-    client_identifier: &str,
-) -> std::result::Result<(), Response> {
-    // Rate limiting check first
-    if let Err(e) = state.rate_limiter.check_rate_limit(client_identifier).await {
-        return Err((
-            StatusCode::TOO_MANY_REQUESTS,
-            format!("Rate limit exceeded: {}", e),
-        )
-            .into_response());
-    }
-
-    // Then authentication
-    #[cfg(feature = "http")]
-    if state.config.auth_required {
-        if let Some(validator) = &state.token_validator {
-            if let Some(auth_header) = headers.get("authorization") {
-                if let Ok(auth_str) = auth_header.to_str() {
-                    match extract_bearer_token(auth_str) {
-                        Ok(token) => {
-                            if let Err(e) = validator.validate_token(token).await {
-                                return Err((
-                                    StatusCode::UNAUTHORIZED,
-                                    format!("Authentication failed: {}", e),
-                                )
-                                    .into_response());
-                            }
-                        }
-                        Err(e) => {
-                            return Err((
-                                StatusCode::UNAUTHORIZED,
-                                format!("Invalid authorization header: {}", e),
-                            )
-                                .into_response());
-                        }
-                    }
-                } else {
-                    return Err(
-                        (StatusCode::UNAUTHORIZED, "Invalid authorization header").into_response()
-                    );
-                }
-            } else {
-                return Err((StatusCode::UNAUTHORIZED, "Authorization required").into_response());
-            }
-        }
-    }
-    Ok(())
-}
-
-/// Extract client identifier for rate limiting (IP address or session ID)
-fn extract_client_identifier(headers: &HeaderMap, query: &HashMap<String, String>) -> String {
-    // Try to get session ID first
-    if let Some(session_id) = query.get("session_id") {
-        return session_id.clone();
-    }
-
-    // Fall back to IP address
+/// Extract session ID from headers
+fn extract_session_id(headers: &HeaderMap) -> Option<String> {
     headers
-        .get("x-forwarded-for")
+        .get("mcp-session-id")
         .and_then(|v| v.to_str().ok())
-        .and_then(|s| s.split(',').next())
-        .map(|s| s.trim().to_string())
-        .or_else(|| {
-            headers
-                .get("x-real-ip")
-                .and_then(|v| v.to_str().ok())
-                .map(|s| s.to_string())
-        })
-        .unwrap_or_else(|| "unknown".to_string())
+        .map(|s| s.to_string())
 }
 
-/// Validate authentication for requests
-async fn validate_authentication(
-    headers: &HeaderMap,
-    state: &HttpTransportState,
-) -> std::result::Result<(), Response> {
-    #[cfg(feature = "http")]
-    if state.config.auth_required {
-        if let Some(validator) = &state.token_validator {
-            if let Some(auth_header) = headers.get("authorization") {
-                if let Ok(auth_str) = auth_header.to_str() {
-                    match extract_bearer_token(auth_str) {
-                        Ok(token) => {
-                            if let Err(e) = validator.validate_token(token).await {
-                                return Err((
-                                    StatusCode::UNAUTHORIZED,
-                                    format!("Authentication failed: {}", e),
-                                )
-                                    .into_response());
-                            }
-                        }
-                        Err(e) => {
-                            return Err((
-                                StatusCode::UNAUTHORIZED,
-                                format!("Invalid authorization header: {}", e),
-                            )
-                                .into_response());
-                        }
-                    }
-                } else {
-                    return Err(
-                        (StatusCode::UNAUTHORIZED, "Invalid authorization header").into_response()
-                    );
-                }
-            } else {
-                return Err((StatusCode::UNAUTHORIZED, "Authorization required").into_response());
+/// Validate Origin header for security
+fn validate_origin(headers: &HeaderMap, config: &HttpTransportConfig) -> bool {
+    if let Some(origin) = headers.get("origin") {
+        if let Ok(origin_str) = origin.to_str() {
+            // For localhost, allow any localhost origin
+            if config.host == "127.0.0.1" || config.host == "localhost" {
+                return origin_str.contains("localhost") || origin_str.contains("127.0.0.1");
+            }
+            // For production, check against allowed origin
+            if let Some(allowed_origin) = &config.allow_origin {
+                return origin_str == allowed_origin;
             }
         }
+        return false;
     }
-    Ok(())
+    // Allow requests without Origin header for local development
+    config.host == "127.0.0.1" || config.host == "localhost"
 }
 
-/// Handle MCP connection establishment (GET /mcp)
-/// Stateless handler functions for Axum 0.8 compatibility
-/// Stateless version of handle_streamable_mcp
-async fn handle_streamable_mcp_stateless(
-    headers: HeaderMap,
-    Query(query): Query<HashMap<String, String>>,
-    body: Option<Json<StreamableMcpRequest>>,
-    state: HttpTransportState,
-) -> Response {
-    // Check HTTP method from headers or body
-    let wants_streaming = headers
-        .get("upgrade")
-        .and_then(|v| v.to_str().ok())
-        .map(|v| v.to_lowercase().contains("sse"))
-        .unwrap_or(false)
-        || headers
-            .get("accept")
-            .and_then(|v| v.to_str().ok())
-            .map(|v| v.contains("text/event-stream"))
-            .unwrap_or(false);
+/// Generate a new session ID
+fn generate_session_id() -> String {
+    uuid::Uuid::new_v4().to_string()
+}
 
-    // For stateless handling, we'll treat it as a POST if body is present, otherwise GET
-    if let Some(Json(request)) = body {
-        if wants_streaming || request.upgrade_to_stream.unwrap_or(false) {
-            // Client requested streaming upgrade in POST
-            handle_sse_upgrade(query, headers, state).await
-        } else if request.message.is_none() {
-            // Initial connection - no message provided, treat as connection request
-            handle_streamable_connect(query, state).await
-        } else {
-            // Regular POST - send message and return response
-            handle_streamable_message(request, state).await
+async fn handle_mcp_post(
+    State(state): State<Arc<HttpTransportState>>,
+    headers: HeaderMap,
+    body: Bytes,
+) -> impl IntoResponse {
+    if !validate_origin(&headers, &state.config) {
+        return (
+            StatusCode::FORBIDDEN,
+            Json(JsonRpcResponse::error(
+                JsonRpcError::new(-32000, "Origin not allowed".to_string()),
+                None,
+            )),
+        ).into_response();
+    }
+    let session_id = extract_session_id(&headers)
+        .unwrap_or_else(|| generate_session_id());
+    // Try to parse the body as a JSON-RPC message
+    let message: std::result::Result<JsonRpcMessage, serde_json::Error> = serde_json::from_slice(&body);
+    let message = match message {
+        Ok(msg) => msg,
+        Err(_) => {
+            return Json(JsonRpcResponse::error(
+                JsonRpcError::new(-32700, "Parse error: Invalid JSON-RPC message".to_string()),
+                None,
+            )).into_response();
         }
-    } else if wants_streaming {
-        // Upgrade to SSE streaming
-        handle_sse_upgrade(query, headers, state).await
-    } else {
-        // Regular GET - establish session and return pending messages
-        handle_streamable_connect(query, state).await
+    };
+    info!("Processing POST request for session {}: {:?}", session_id, message);
+    match message {
+        JsonRpcMessage::Request(request) => {
+            handle_jsonrpc_request(state, session_id, request).await
+        }
+        JsonRpcMessage::Notification(_) | JsonRpcMessage::Response(_) => {
+            handle_notification_or_response(state, session_id, message).await
+        }
     }
 }
 
-/// Stateless version of handle_mcp_request
-async fn handle_mcp_request_stateless(
+async fn handle_mcp_get(
+    State(state): State<Arc<HttpTransportState>>,
     headers: HeaderMap,
-    Json(request): Json<McpRequest>,
-    state: HttpTransportState,
-) -> Response {
-    let client_id = extract_client_identifier(&headers, &HashMap::new());
-
-    // Validate authentication and rate limits
-    if let Err(auth_response) =
-        validate_authentication_and_limits(&headers, &state, &client_id).await
-    {
-        return auth_response;
+) -> impl IntoResponse {
+    if !validate_origin(&headers, &state.config) {
+        return (
+            StatusCode::FORBIDDEN,
+            Json(JsonRpcResponse::error(
+                JsonRpcError::new(-32000, "Origin not allowed".to_string()),
+                None,
+            )),
+        ).into_response();
     }
-
-    // Validate session
-    if state
-        .session_store
-        .get_session(&request.session_id)
-        .await
-        .is_none()
-    {
-        return (StatusCode::BAD_REQUEST, "Invalid session").into_response();
-    }
-
-    // Process the message (broadcast to message handlers)
-    let message_id = match &request.message {
-        JsonRpcMessage::Request(req) => req.id.as_ref().map(|id| format!("{:?}", id)),
-        JsonRpcMessage::Response(resp) => resp.id.as_ref().map(|id| format!("{:?}", id)),
-        JsonRpcMessage::Notification(_) => None,
-    };
-
-    // Broadcast message to transport handlers for processing
-    // Don't queue incoming messages - only responses should be queued
-    let _ = state
-        .message_sender
-        .send((request.session_id.clone(), request.message));
-
-    let response = McpResponse {
-        success: true,
-        message_id,
-        error: None,
-    };
-
-    Json(response).into_response()
+    let session_id = extract_session_id(&headers)
+        .unwrap_or_else(|| generate_session_id());
+    info!("Processing GET request for session {} (SSE stream)", session_id);
+    let stream = create_sse_stream(state, session_id);
+    Sse::new(stream).into_response()
 }
 
-/// Stateless version of handle_mcp_connect
-async fn handle_mcp_connect_stateless(
+async fn handle_mcp_delete(
+    State(state): State<Arc<HttpTransportState>>,
     headers: HeaderMap,
-    Query(params): Query<McpConnectQuery>,
-    state: HttpTransportState,
-) -> Response {
-    // Validate authentication if required
-    if let Err(auth_response) = validate_authentication(&headers, &state).await {
-        return auth_response;
+) -> impl IntoResponse {
+    if !validate_origin(&headers, &state.config) {
+        return (
+            StatusCode::FORBIDDEN,
+            Json(JsonRpcResponse::error(
+                JsonRpcError::new(-32000, "Origin not allowed".to_string()),
+                None,
+            )),
+        ).into_response();
     }
-
-    let session_id = params
-        .session_id
-        .unwrap_or_else(|| format!("session_{}", uuid::Uuid::new_v4()));
-
-    // Create or refresh session
-    let _session = state.session_store.create_session(session_id.clone()).await;
-
-    // Get any pending messages for this session
-    let pending_messages = state
-        .message_queue
-        .get_pending_messages(&session_id)
-        .await
-        .into_iter()
-        .map(|qm| qm.message)
-        .collect();
-
-    let response = McpConnectResponse {
-        session_id,
-        protocol_version: state.config.protocol_version.clone(),
-        pending_messages,
-    };
-
-    Json(response).into_response()
+    let session_id = extract_session_id(&headers)
+        .unwrap_or_else(|| generate_session_id());
+    info!("Terminating session: {}", session_id);
+    StatusCode::OK.into_response()
 }
 
-/// Stateless version of handle_get_messages
-async fn handle_get_messages_stateless(
-    headers: HeaderMap,
-    Query(params): Query<GetMessagesQuery>,
-    state: HttpTransportState,
+/// Handle JSON-RPC requests
+async fn handle_jsonrpc_request(
+    state: Arc<HttpTransportState>,
+    session_id: String,
+    request: JsonRpcRequest,
 ) -> Response {
-    // Validate authentication if required
-    if let Err(auth_response) = validate_authentication(&headers, &state).await {
-        return auth_response;
+    // Create a response receiver for this specific request
+    let mut response_receiver = state.response_sender.subscribe();
+    
+    // Send message to server for processing
+    if let Err(e) = state.message_sender.send((session_id.clone(), JsonRpcMessage::Request(request.clone()))) {
+        error!("Failed to send message to server: {}", e);
+        return Json(JsonRpcResponse::error(
+            JsonRpcError::new(-32000, format!("Failed to process message: {}", e)),
+            request.id,
+        )).into_response();
     }
 
-    // Validate session
-    if state
-        .session_store
-        .get_session(&params.session_id)
-        .await
-        .is_none()
-    {
-        return (StatusCode::BAD_REQUEST, "Invalid session").into_response();
+    // Wait for response from server with timeout
+    match tokio::time::timeout(
+        std::time::Duration::from_secs(5000), // 5 second timeout
+        response_receiver.recv()
+    ).await {
+        Ok(Ok((response_session_id, response_message))) => {
+            if response_session_id == session_id || response_session_id == "*" {
+                // Return the actual response from the server
+                match response_message {
+                    JsonRpcMessage::Response(response) => {
+                        Json(response).into_response()
+                    }
+                    _ => {
+                        // Unexpected message type
+                        Json(JsonRpcResponse::error(
+                            JsonRpcError::new(-32000, "Unexpected response type".to_string()),
+                            request.id,
+                        )).into_response()
+                    }
+                }
+            } else {
+                // Wrong session
+                error!("Received response for wrong session: expected {}, got {}", 
+                       session_id, response_session_id);
+                Json(JsonRpcResponse::error(
+                    JsonRpcError::new(-32000, "Session mismatch".to_string()),
+                    request.id,
+                )).into_response()
+            }
+        }
+        Ok(Err(e)) => {
+            error!("Failed to receive response: {}", e);
+            Json(JsonRpcResponse::error(
+                JsonRpcError::new(-32000, format!("Failed to receive response: {}", e)),
+                request.id,
+            )).into_response()
+        }
+        Err(_) => {
+            error!("Timeout waiting for response from server");
+            Json(JsonRpcResponse::error(
+                JsonRpcError::new(-32000, "Request timeout".to_string()),
+                request.id,
+            )).into_response()
+        }
     }
-
-    let messages = if let Some(since) = params.since {
-        state
-            .message_queue
-            .get_messages_since(&params.session_id, since as u128)
-            .await
-            .into_iter()
-            .map(|qm| qm.message)
-            .collect::<Vec<_>>()
-    } else {
-        state
-            .message_queue
-            .get_pending_messages(&params.session_id)
-            .await
-            .into_iter()
-            .map(|qm| qm.message)
-            .collect::<Vec<_>>()
-    };
-
-    let response = GetMessagesResponse {
-        messages,
-        has_more: false, // Simplified for now
-    };
-
-    Json(response).into_response()
 }
 
-/// Stateless version of handle_acknowledge_message
-async fn handle_acknowledge_message_stateless(
-    headers: HeaderMap,
-    Json(request): Json<AckMessageRequest>,
-    state: HttpTransportState,
+/// Handle notifications and responses
+async fn handle_notification_or_response(
+    state: Arc<HttpTransportState>,
+    session_id: String,
+    message: JsonRpcMessage,
 ) -> Response {
-    // Validate authentication if required
-    if let Err(auth_response) = validate_authentication(&headers, &state).await {
-        return auth_response;
+    // Send message to server for processing
+    if let Err(e) = state.message_sender.send((session_id.clone(), message)) {
+        error!("Failed to send message to server: {}", e);
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(JsonRpcResponse::error(
+                JsonRpcError::new(-32000, format!("Failed to process message: {}", e)),
+                None,
+            )),
+        ).into_response();
     }
 
-    // Validate session
-    if state
-        .session_store
-        .get_session(&request.session_id)
-        .await
-        .is_none()
-    {
-        return (StatusCode::BAD_REQUEST, "Invalid session").into_response();
-    }
+    // Return 202 Accepted for notifications and responses
+    (
+        StatusCode::ACCEPTED,
+        [("mcp-session-id", session_id)],
+    ).into_response()
+}
 
-    // Acknowledge the message
-    state
-        .message_queue
-        .acknowledge_message(&request.session_id, &request.message_id)
-        .await;
-
-    let response = McpResponse {
-        success: true,
-        message_id: Some(request.message_id),
-        error: None,
-    };
-
-    Json(response).into_response()
+/// Create SSE stream for server-to-client communication
+fn create_sse_stream(
+    state: Arc<HttpTransportState>,
+    session_id: String,
+) -> impl Stream<Item = std::result::Result<Event, axum::Error>> {
+    let response_receiver = state.response_sender.subscribe();
+    
+    stream::unfold(
+        (response_receiver, session_id),
+        |(mut receiver, session_id)| async move {
+            match receiver.recv().await {
+                Ok((msg_session_id, message)) => {
+                    if msg_session_id == session_id || msg_session_id == "*" {
+                        let event_data = serde_json::to_string(&message).unwrap_or_default();
+                        Some((
+                            Ok(Event::default().data(event_data)),
+                            (receiver, session_id),
+                        ))
+                    } else {
+                        // Continue waiting for messages for this session
+                        Some((
+                            Ok(Event::default().data("")), // Empty event to keep connection alive
+                            (receiver, session_id),
+                        ))
+                    }
+                }
+                Err(_) => None, // Connection closed
+            }
+        },
+    )
 }

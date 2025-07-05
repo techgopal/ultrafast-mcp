@@ -328,17 +328,7 @@ impl StreamableHttpTransport {
             .json(response)
     }
     
-    pub async fn handle_sse_upgrade(&self, request: HttpRequest) -> HttpResponse {
-        // Optional SSE upgrade for streaming
-        let session_id = extract_session_id(&request);
-        let stream = self.create_message_stream(session_id).await;
-        
-        HttpResponse::new()
-            .header("Content-Type", "text/event-stream")
-            .header("Cache-Control", "no-cache")
-            .header("Connection", "keep-alive")
-            .stream(stream)
-    }
+
 }
 ```
 
@@ -884,18 +874,7 @@ impl UltraFastServer {
 }
 ```
 
-### Legacy Transport Support
 
-```rust
-impl UltraFastServer {
-    pub async fn run_with_legacy_support(&self, config: HttpTransportConfig) -> Result<()> {
-        let mut config = config;
-        config.enable_legacy_endpoints = true;
-        
-        self.run_with_http_config(config).await
-    }
-}
-```
 
 ## 🎯 Compliance Checklist
 
@@ -920,12 +899,12 @@ impl UltraFastServer {
 
 ### ✅ Transport Layer Implementation
 - [x] stdio transport with subprocess management
-- [x] Streamable HTTP transport with SSE support
+- [x] Streamable HTTP transport
 - [x] Session management with secure session IDs
 - [x] Protocol version header for HTTP transports
 - [x] Multiple connection support
 - [x] Connection resumability and message redelivery
-- [x] Backwards compatibility with HTTP+SSE from 2024-11-05
+- [x] Backwards compatibility with HTTP transports from 2024-11-05
 - [x] Custom transport extensibility
 
 ### ✅ Authorization Framework (OAuth 2.1)

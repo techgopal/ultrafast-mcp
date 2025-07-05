@@ -393,12 +393,7 @@ impl StreamableHttpTransport {
             .send()
             .await?;
         
-        // Optional SSE upgrade for streaming
-        if response.headers().contains_key("upgrade") {
-            self.handle_sse_upgrade(response).await
-        } else {
-            response.json().await
-        }
+        response.json().await
     }
 }
 ```

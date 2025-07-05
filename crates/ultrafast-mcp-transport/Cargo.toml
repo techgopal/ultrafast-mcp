@@ -34,6 +34,7 @@ async-trait = { workspace = true }
 uuid = { workspace = true }
 thiserror = { workspace = true }
 anyhow = { workspace = true }
+rand = { workspace = true }
 
 # HTTP transport dependencies
 axum = { workspace = true, optional = true }
