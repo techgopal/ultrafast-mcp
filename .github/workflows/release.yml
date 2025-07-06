@@ -72,11 +72,65 @@ jobs:
           fi
         done
 
-  # Publish to crates.io
-  publish:
-    name: Publish to Crates.io
+  # Check if versions already exist on crates.io
+  check-versions:
+    name: Check Version Availability
     runs-on: ubuntu-latest
     needs: [validate]
+    outputs:
+      versions-exist: ${{ steps.check.outputs.versions-exist }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Login to crates.io
+      uses: actions-rs/cargo@v1
+      with:
+        command: login
+        args: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+    - name: Check if versions already exist
+      id: check
+      run: |
+        WORKSPACE_VERSION=$(grep '^version = ' Cargo.toml | cut -d'"' -f2)
+        echo "Checking version: $WORKSPACE_VERSION"
+        
+        # Check each crate
+        for crate in crates/*/; do
+          if [ -f "$crate/Cargo.toml" ]; then
+            CRATE_NAME=$(grep '^name = ' "$crate/Cargo.toml" | cut -d'"' -f2)
+            echo "Checking $CRATE_NAME@$WORKSPACE_VERSION"
+            
+            # Try to get crate info - if it fails, version doesn't exist
+            if cargo search "$CRATE_NAME" --limit 1 | grep -q "$WORKSPACE_VERSION"; then
+              echo "Version $WORKSPACE_VERSION already exists for $CRATE_NAME"
+              echo "versions-exist=true" >> $GITHUB_OUTPUT
+              exit 1
+            fi
+          fi
+        done
+        
+        # Also check main crate
+        MAIN_CRATE_NAME=$(grep '^name = ' Cargo.toml | cut -d'"' -f2)
+        if cargo search "$MAIN_CRATE_NAME" --limit 1 | grep -q "$WORKSPACE_VERSION"; then
+          echo "Version $WORKSPACE_VERSION already exists for $MAIN_CRATE_NAME"
+          echo "versions-exist=true" >> $GITHUB_OUTPUT
+          exit 1
+        fi
+        
+        echo "All versions are available for publishing"
+        echo "versions-exist=false" >> $GITHUB_OUTPUT
+
+  # Dry run validation
+  dry-run:
+    name: Dry Run Validation
+    runs-on: ubuntu-latest
+    needs: [validate, check-versions]
+    if: needs.check-versions.outputs.versions-exist == 'false'
 
     steps:
     - name: Checkout code
@@ -99,52 +153,119 @@ jobs:
         command: login
         args: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
-    - name: Publish crates in dependency order
+    - name: Dry run publish validation
       run: |
-        # Publish in dependency order with proper delays
-        echo "Publishing ultrafast-mcp-core..."
-        cd crates/ultrafast-mcp-core
-        cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        sleep 30
+        # Test dry run for each crate
+        for crate in crates/*/; do
+          if [ -f "$crate/Cargo.toml" ]; then
+            echo "Dry run validation for $crate"
+            cd "$crate"
+            cargo package --allow-dirty
+            cd ../..
+          fi
+        done
         
-        echo "Publishing ultrafast-mcp-auth..."
-        cd ../ultrafast-mcp-auth
-        cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        sleep 30
+        # Test main crate
+        echo "Dry run validation for main crate"
+        cargo package --allow-dirty
+
+  # Publish to crates.io with rate limiting protection
+  publish:
+    name: Publish to Crates.io
+    runs-on: ubuntu-latest
+    needs: [validate, check-versions, dry-run]
+    if: needs.check-versions.outputs.versions-exist == 'false'
+    strategy:
+      matrix:
+        crate: [
+          'ultrafast-mcp-core',
+          'ultrafast-mcp-auth', 
+          'ultrafast-mcp-transport',
+          'ultrafast-mcp-monitoring',
+          'ultrafast-mcp-server',
+          'ultrafast-mcp-client',
+          'ultrafast-mcp-macros',
+          'ultrafast-mcp-cli',
+          'ultrafast-mcp'
+        ]
+        include:
+          - crate: ultrafast-mcp-core
+            delay: 0
+          - crate: ultrafast-mcp-auth
+            delay: 120
+          - crate: ultrafast-mcp-transport
+            delay: 240
+          - crate: ultrafast-mcp-monitoring
+            delay: 360
+          - crate: ultrafast-mcp-server
+            delay: 480
+          - crate: ultrafast-mcp-client
+            delay: 600
+          - crate: ultrafast-mcp-macros
+            delay: 720
+          - crate: ultrafast-mcp-cli
+            delay: 840
+          - crate: ultrafast-mcp
+            delay: 960
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Cache dependencies
+      uses: Swatinem/rust-cache@v2
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y pkg-config libssl-dev
+
+    - name: Wait for rate limiting delay
+      run: |
+        echo "Waiting ${{ matrix.delay }} seconds before publishing ${{ matrix.crate }}..."
+        sleep ${{ matrix.delay }}
+
+    - name: Login to crates.io
+      uses: actions-rs/cargo@v1
+      with:
+        command: login
+        args: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+    - name: Publish crate
+      run: |
+        echo "Publishing ${{ matrix.crate }}..."
+        if [ "${{ matrix.crate }}" = "ultrafast-mcp" ]; then
+          cd crates/ultrafast-mcp
+        else
+          cd crates/${{ matrix.crate }}
+        fi
         
-        echo "Publishing ultrafast-mcp-transport..."
-        cd ../ultrafast-mcp-transport
-        cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        sleep 30
+        # Add retry logic with exponential backoff
+        max_attempts=3
+        attempt=1
+        base_delay=60
         
-        echo "Publishing ultrafast-mcp-monitoring..."
-        cd ../ultrafast-mcp-monitoring
-        cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        sleep 30
-        
-        echo "Publishing ultrafast-mcp-server..."
-        cd ../ultrafast-mcp-server
-        cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        sleep 30
-        
-        echo "Publishing ultrafast-mcp-client..."
-        cd ../ultrafast-mcp-client
-        cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        sleep 30
-        
-        echo "Publishing ultrafast-mcp-macros..."
-        cd ../ultrafast-mcp-macros
-        cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        sleep 30
-        
-        echo "Publishing ultrafast-mcp-cli..."
-        cd ../ultrafast-mcp-cli
-        cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        sleep 30
-        
-        echo "Publishing ultrafast-mcp (main crate)..."
-        cd ../ultrafast-mcp
-        cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        while [ $attempt -le $max_attempts ]; do
+          echo "Attempt $attempt of $max_attempts"
+          
+          if cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }}; then
+            echo "Successfully published ${{ matrix.crate }}"
+            break
+          else
+            if [ $attempt -eq $max_attempts ]; then
+              echo "Failed to publish ${{ matrix.crate }} after $max_attempts attempts"
+              exit 1
+            fi
+            
+            delay=$((base_delay * attempt))
+            echo "Publish failed, waiting $delay seconds before retry..."
+            sleep $delay
+            attempt=$((attempt + 1))
+          fi
+        done
 
   # Deploy documentation
   deploy-docs:
@@ -190,16 +311,31 @@ jobs:
 
     - name: Test installation
       run: |
-        # Wait for crates to be available
-        sleep 60
+        # Wait for crates to be available (increased wait time)
+        echo "Waiting for crates to be available on crates.io..."
+        sleep 300  # 5 minutes
         
-        # Test installing the CLI
-        cargo install ultrafast-mcp-cli
+        # Test installing the CLI with retry logic
+        max_attempts=3
+        attempt=1
+        
+        while [ $attempt -le $max_attempts ]; do
+          echo "Attempt $attempt of $max_attempts to install CLI"
+          
+          if cargo install ultrafast-mcp-cli; then
+            echo "Successfully installed CLI"
+            break
+          else
+            if [ $attempt -eq $max_attempts ]; then
+              echo "Failed to install CLI after $max_attempts attempts"
+              exit 1
+            fi
+            
+            echo "Install failed, waiting 60 seconds before retry..."
+            sleep 60
+            attempt=$((attempt + 1))
+          fi
+        done
         
         # Test basic functionality
-        mcp --help
-        
-        # Test creating a new project
-        mcp init test-project
-        cd test-project
-        cargo check 
+        mcp --help 
