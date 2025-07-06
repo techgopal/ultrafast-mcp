@@ -291,13 +291,8 @@ async fn test_transport_lifecycle() {
     // Test that we can create transport configurations
     let config = ultrafast_mcp_transport::TransportConfig::Stdio;
 
-    match config {
-        ultrafast_mcp_transport::TransportConfig::Stdio => {
-            // This is the only currently supported config
-            assert!(true);
-        }
-        #[allow(unreachable_patterns)]
-        _ => {}
+    if let ultrafast_mcp_transport::TransportConfig::Stdio = config {
+        // This is the only currently supported config
     }
 
     println!("✅ Transport lifecycle test passed!");

@@ -141,15 +141,15 @@ impl CapabilityNegotiator {
 
             // Check if client can handle subscriptions based on protocol version
             if let Some(ref server_res) = server_caps.resources {
-                if server_res.subscribe == Some(true) {
-                    if !Self::version_supports_feature(protocol_version, "resource_subscriptions") {
-                        // Disable subscriptions for older protocol versions
-                        negotiated_resources.subscribe = Some(false);
-                        warnings.push(format!(
-                            "Resource subscriptions disabled for protocol version {}",
-                            protocol_version
-                        ));
-                    }
+                if server_res.subscribe == Some(true)
+                    && !Self::version_supports_feature(protocol_version, "resource_subscriptions")
+                {
+                    // Disable subscriptions for older protocol versions
+                    negotiated_resources.subscribe = Some(false);
+                    warnings.push(format!(
+                        "Resource subscriptions disabled for protocol version {}",
+                        protocol_version
+                    ));
                 }
             }
 

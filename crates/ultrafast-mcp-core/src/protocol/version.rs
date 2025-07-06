@@ -10,7 +10,7 @@ pub const PROTOCOL_VERSION: &str = "2025-06-18";
 pub const SUPPORTED_VERSIONS: &[&str] = &["2025-06-18", "2024-11-05"];
 
 /// Protocol version representation for comparison
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ProtocolVersion {
     year: u32,
     month: u32,
@@ -36,22 +36,17 @@ impl ProtocolVersion {
             .map_err(|_| format!("Invalid day: {}", parts[2]))?;
 
         // Basic validation
-        if year < 2020 || year > 2099 {
+        if !(2020..=2099).contains(&year) {
             return Err(format!("Invalid year: {}", year));
         }
-        if month < 1 || month > 12 {
+        if !(1..=12).contains(&month) {
             return Err(format!("Invalid month: {}", month));
         }
-        if day < 1 || day > 31 {
+        if !(1..=31).contains(&day) {
             return Err(format!("Invalid day: {}", day));
         }
 
         Ok(ProtocolVersion { year, month, day })
-    }
-
-    /// Convert to string representation
-    pub fn to_string(&self) -> String {
-        format!("{}-{:02}-{:02}", self.year, self.month, self.day)
     }
 
     /// Check if this version supports a specific feature
@@ -125,7 +120,7 @@ impl ProtocolVersion {
     pub fn is_supported(&self) -> bool {
         SUPPORTED_VERSIONS
             .iter()
-            .any(|v| Self::parse(v).map_or(false, |version| version == *self))
+            .any(|v| Self::parse(v) == Ok(*self))
     }
 }
 

@@ -233,8 +233,8 @@ impl UltraFastServer {
     /// Enable health checks with default configuration
     #[cfg(feature = "monitoring")]
     pub fn with_health_checks(mut self) -> Self {
-        if let Some(monitoring) = &self.monitoring_system {
-            let _ = monitoring.init_health_checks();
+        if let Some(_monitoring) = &self.monitoring_system {
+            // Health checks are automatically initialized when monitoring system is created
             info!("Health checks enabled");
         } else {
             // Create monitoring system if not already present

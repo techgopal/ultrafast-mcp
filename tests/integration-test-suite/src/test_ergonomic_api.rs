@@ -278,17 +278,17 @@ async fn test_resource_handler() {
     };
     let read_response = handler.read_resource(read_request).await.unwrap();
     assert_eq!(read_response.contents.len(), 1);
-    match &read_response.contents[0] {
-        ResourceContent::Text {
-            uri,
-            text,
-            mime_type,
-        } => {
-            assert_eq!(uri, "test://status");
-            assert!(text.contains("Test Server"));
-            assert_eq!(mime_type.as_deref(), Some("text/plain"));
-        }
-        _ => panic!("Expected ResourceContent::Text variant"),
+    if let ResourceContent::Text {
+        uri,
+        text,
+        mime_type,
+    } = &read_response.contents[0]
+    {
+        assert_eq!(uri, "test://status");
+        assert!(text.contains("Test Server"));
+        assert_eq!(mime_type.as_deref(), Some("text/plain"));
+    } else {
+        panic!("Expected ResourceContent::Text variant");
     }
 
     // Test unknown resource
@@ -409,13 +409,8 @@ async fn test_transport_config() {
     // Test that we can create transport configurations
     let config = ultrafast_mcp_transport::TransportConfig::Stdio;
 
-    match config {
-        ultrafast_mcp_transport::TransportConfig::Stdio => {
-            // This is the only currently supported config
-            assert!(true);
-        }
-        #[allow(unreachable_patterns)]
-        _ => {}
+    if let ultrafast_mcp_transport::TransportConfig::Stdio = config {
+        // This is the only currently supported config
     }
 
     println!("✅ Transport config test passed!");

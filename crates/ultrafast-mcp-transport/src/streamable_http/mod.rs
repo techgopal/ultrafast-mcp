@@ -50,12 +50,10 @@ pub fn create_streamable_http_server_with_middleware(
     config: HttpTransportConfig,
     _middlewares: Vec<Box<dyn TransportMiddleware>>,
 ) -> HttpTransportServer {
-    let server = HttpTransportServer::new(config);
-
     // Note: Server middleware is applied at the HTTP handler level
     // Individual middleware can be added to the server state if needed
 
-    server
+    HttpTransportServer::new(config)
 }
 
 /// Create a Streamable HTTP server with default configuration

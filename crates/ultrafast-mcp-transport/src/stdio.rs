@@ -23,8 +23,10 @@ impl StdioTransport {
         let stdin = tokio::io::stdin();
         let stdout = tokio::io::stdout();
 
-        let mut health = TransportHealth::default();
-        health.state = ConnectionState::Connected;
+        let health = TransportHealth {
+            state: ConnectionState::Connected,
+            ..Default::default()
+        };
 
         let connected_at = Some(std::time::SystemTime::now());
 

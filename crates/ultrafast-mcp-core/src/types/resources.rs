@@ -592,15 +592,15 @@ pub struct UnsubscribeRequest {
     pub uri: String,
 }
 
-/// Subscribe to resource response
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// Response to a resource subscription request
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct SubscribeResponse {
     // Empty response as per MCP 2025-06-18 specification
 }
 
 impl SubscribeResponse {
     pub fn new() -> Self {
-        Self {}
+        Self::default()
     }
 }
 

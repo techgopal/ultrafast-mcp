@@ -239,11 +239,10 @@ async fn handle_mcp_post(
     body: Bytes,
 ) -> impl IntoResponse {
     // Start request timer for monitoring
-    let timer = if let Some(metrics) = &state.metrics {
-        Some(RequestTimer::start("mcp_post", metrics.clone()))
-    } else {
-        None
-    };
+    let timer = state
+        .metrics
+        .as_ref()
+        .map(|metrics| RequestTimer::start("mcp_post", metrics.clone()));
 
     let result = handle_mcp_post_internal(state, headers, body).await;
 
@@ -282,7 +281,7 @@ async fn handle_mcp_post_internal(
     };
 
     let session_id = if is_initial_connection {
-        extract_session_id(&headers).unwrap_or_else(|| generate_session_id())
+        extract_session_id(&headers).unwrap_or_else(generate_session_id)
     } else {
         match extract_session_id(&headers) {
             Some(id) => id,
@@ -338,7 +337,7 @@ async fn handle_mcp_get(
         )
             .into_response();
     }
-    let session_id = extract_session_id(&headers).unwrap_or_else(|| generate_session_id());
+    let session_id = extract_session_id(&headers).unwrap_or_else(generate_session_id);
     info!(
         "Processing GET request for session {} (SSE stream)",
         session_id
@@ -361,7 +360,7 @@ async fn handle_mcp_delete(
         )
             .into_response();
     }
-    let session_id = extract_session_id(&headers).unwrap_or_else(|| generate_session_id());
+    let session_id = extract_session_id(&headers).unwrap_or_else(generate_session_id);
     info!("Terminating session: {}", session_id);
     StatusCode::OK.into_response()
 }

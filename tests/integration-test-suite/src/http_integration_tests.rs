@@ -90,13 +90,8 @@ async fn test_http_transport_config() {
     // Test that we can create basic transport configurations
     let config = ultrafast_mcp_transport::TransportConfig::Stdio;
 
-    match config {
-        ultrafast_mcp_transport::TransportConfig::Stdio => {
-            // This is the only currently supported config
-            assert!(true);
-        }
-        #[allow(unreachable_patterns)]
-        _ => {}
+    if let ultrafast_mcp_transport::TransportConfig::Stdio = config {
+        // This is the only currently supported config
     }
 
     println!("✅ HTTP transport config test passed!");
