@@ -5,7 +5,7 @@
 use serde_json::Value;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
 use ultrafast_mcp_core::{
     error::{MCPError, MCPResult},
     protocol::{
@@ -66,6 +66,7 @@ pub struct UltraFastClient {
     state: Arc<RwLock<ClientState>>,
     server_info: Arc<RwLock<Option<ServerInfo>>>,
     server_capabilities: Arc<RwLock<Option<ServerCapabilities>>>,
+    negotiated_version: Arc<RwLock<Option<String>>>,
     transport: Arc<RwLock<Option<Box<dyn Transport>>>>,
     request_id_counter: Arc<RwLock<u64>>,
 }
@@ -79,6 +80,7 @@ impl UltraFastClient {
             state: Arc::new(RwLock::new(ClientState::Uninitialized)),
             server_info: Arc::new(RwLock::new(None)),
             server_capabilities: Arc::new(RwLock::new(None)),
+            negotiated_version: Arc::new(RwLock::new(None)),
             transport: Arc::new(RwLock::new(None)),
             request_id_counter: Arc::new(RwLock::new(1)),
         }
@@ -134,12 +136,28 @@ impl UltraFastClient {
             .send_request("initialize", Some(serde_json::to_value(init_request)?))
             .await?;
 
-        // Validate protocol version
-        if response.protocol_version != PROTOCOL_VERSION {
+        // Validate protocol version - accept any supported negotiated version
+        if !ultrafast_mcp_core::protocol::version::is_supported_version(&response.protocol_version) {
             return Err(MCPError::invalid_request(format!(
-                "Protocol version mismatch: expected {}, got {}",
-                PROTOCOL_VERSION, response.protocol_version
+                "Negotiated protocol version {} is not supported by client. Supported versions: {:?}",
+                response.protocol_version, ultrafast_mcp_core::protocol::version::SUPPORTED_VERSIONS
             )));
+        }
+
+        // Log version negotiation result
+        if response.protocol_version != PROTOCOL_VERSION {
+            info!(
+                "Protocol version negotiated: {} -> {}", 
+                PROTOCOL_VERSION, response.protocol_version
+            );
+        } else {
+            info!("Using requested protocol version: {}", response.protocol_version);
+        }
+
+        // Store the negotiated version
+        {
+            let mut negotiated_version = self.negotiated_version.write().await;
+            *negotiated_version = Some(response.protocol_version.clone());
         }
 
         // Store server info and capabilities
@@ -150,6 +168,11 @@ impl UltraFastClient {
         {
             let mut server_capabilities = self.server_capabilities.write().await;
             *server_capabilities = Some(response.capabilities);
+        }
+
+        // Log any warnings from server instructions
+        if let Some(ref instructions) = response.instructions {
+            warn!("Server instructions: {}", instructions);
         }
 
         // Send initialized notification
@@ -166,7 +189,7 @@ impl UltraFastClient {
             *state = ClientState::Operating;
         }
 
-        info!("MCP connection initialized successfully");
+        info!("MCP connection initialized successfully with protocol version: {}", response.protocol_version);
         Ok(())
     }
 
@@ -220,9 +243,45 @@ impl UltraFastClient {
         self.server_capabilities.read().await.clone()
     }
 
+    /// Get the negotiated protocol version
+    pub async fn get_negotiated_version(&self) -> Option<String> {
+        self.negotiated_version.read().await.clone()
+    }
+
+    /// Check if a server capability is supported
+    pub async fn check_server_capability(&self, capability: &str) -> MCPResult<bool> {
+        let server_caps = self.server_capabilities.read().await;
+        match server_caps.as_ref() {
+            Some(caps) => Ok(ultrafast_mcp_core::protocol::capabilities::CapabilityNegotiator::supports_capability(caps, capability)),
+            None => Err(MCPError::invalid_request("Server capabilities not available".to_string())),
+        }
+    }
+
+    /// Check if a specific feature within a capability is supported
+    pub async fn check_server_feature(&self, capability: &str, feature: &str) -> MCPResult<bool> {
+        let server_caps = self.server_capabilities.read().await;
+        match server_caps.as_ref() {
+            Some(caps) => Ok(ultrafast_mcp_core::protocol::capabilities::CapabilityNegotiator::supports_feature(caps, capability, feature)),
+            None => Err(MCPError::invalid_request("Server capabilities not available".to_string())),
+        }
+    }
+
+    /// Ensure a capability is supported before making a request
+    async fn ensure_capability_supported(&self, capability: &str) -> MCPResult<()> {
+        if !self.check_server_capability(capability).await? {
+            return Err(MCPError::Protocol(
+                ultrafast_mcp_core::error::ProtocolError::CapabilityNotSupported(
+                    format!("Server does not support {} capability", capability)
+                )
+            ));
+        }
+        Ok(())
+    }
+
     /// List available tools
     pub async fn list_tools(&self, request: ListToolsRequest) -> MCPResult<ListToolsResponse> {
         self.ensure_operational().await?;
+        self.ensure_capability_supported("tools").await?;
         self.send_request("tools/list", Some(serde_json::to_value(request)?))
             .await
     }
@@ -235,6 +294,7 @@ impl UltraFastClient {
     /// Call a tool
     pub async fn call_tool(&self, tool_call: ToolCall) -> MCPResult<ToolResult> {
         self.ensure_operational().await?;
+        self.ensure_capability_supported("tools").await?;
         self.send_request("tools/call", Some(serde_json::to_value(tool_call)?))
             .await
     }
@@ -245,6 +305,7 @@ impl UltraFastClient {
         request: ListResourcesRequest,
     ) -> MCPResult<ListResourcesResponse> {
         self.ensure_operational().await?;
+        self.ensure_capability_supported("resources").await?;
         self.send_request("resources/list", Some(serde_json::to_value(request)?))
             .await
     }
@@ -255,8 +316,27 @@ impl UltraFastClient {
         request: ReadResourceRequest,
     ) -> MCPResult<ReadResourceResponse> {
         self.ensure_operational().await?;
+        self.ensure_capability_supported("resources").await?;
         self.send_request("resources/read", Some(serde_json::to_value(request)?))
             .await
+    }
+
+    /// Subscribe to a resource (if supported)
+    pub async fn subscribe_resource(&self, uri: String) -> MCPResult<()> {
+        self.ensure_operational().await?;
+        self.ensure_capability_supported("resources").await?;
+        
+        // Check if resource subscriptions are supported
+        if !self.check_server_feature("resources", "subscribe").await? {
+            return Err(MCPError::Protocol(
+                ultrafast_mcp_core::error::ProtocolError::CapabilityNotSupported(
+                    "Server does not support resource subscriptions".to_string()
+                )
+            ));
+        }
+        
+        let request = serde_json::json!({ "uri": uri });
+        self.send_request::<()>("resources/subscribe", Some(request)).await
     }
 
     /// List available prompts
@@ -265,6 +345,7 @@ impl UltraFastClient {
         request: ListPromptsRequest,
     ) -> MCPResult<ListPromptsResponse> {
         self.ensure_operational().await?;
+        self.ensure_capability_supported("prompts").await?;
         self.send_request("prompts/list", Some(serde_json::to_value(request)?))
             .await
     }
@@ -272,6 +353,7 @@ impl UltraFastClient {
     /// Get a specific prompt
     pub async fn get_prompt(&self, request: GetPromptRequest) -> MCPResult<GetPromptResponse> {
         self.ensure_operational().await?;
+        self.ensure_capability_supported("prompts").await?;
         self.send_request("prompts/get", Some(serde_json::to_value(request)?))
             .await
     }
@@ -282,6 +364,22 @@ impl UltraFastClient {
         request: CreateMessageRequest,
     ) -> MCPResult<CreateMessageResponse> {
         self.ensure_operational().await?;
+        
+        // Sampling requires tools capability on the server
+        self.ensure_capability_supported("tools").await?;
+        
+        // Check protocol version support for sampling
+        let negotiated_version = self.get_negotiated_version().await
+            .ok_or_else(|| MCPError::invalid_request("Protocol version not negotiated".to_string()))?;
+        
+        if !ultrafast_mcp_core::protocol::capabilities::CapabilityNegotiator::version_supports_feature(&negotiated_version, "sampling") {
+            return Err(MCPError::Protocol(
+                ultrafast_mcp_core::error::ProtocolError::CapabilityNotSupported(
+                    format!("Sampling not supported in protocol version {}", negotiated_version)
+                )
+            ));
+        }
+        
         self.send_request(
             "sampling/createMessage",
             Some(serde_json::to_value(request)?),
@@ -292,6 +390,7 @@ impl UltraFastClient {
     /// Complete a request
     pub async fn complete(&self, request: CompleteRequest) -> MCPResult<CompleteResponse> {
         self.ensure_operational().await?;
+        self.ensure_capability_supported("completion").await?;
         self.send_request("completion/complete", Some(serde_json::to_value(request)?))
             .await
     }
@@ -302,6 +401,19 @@ impl UltraFastClient {
         request: ElicitationRequest,
     ) -> MCPResult<ElicitationResponse> {
         self.ensure_operational().await?;
+        
+        // Check protocol version support for elicitation
+        let negotiated_version = self.get_negotiated_version().await
+            .ok_or_else(|| MCPError::invalid_request("Protocol version not negotiated".to_string()))?;
+        
+        if !ultrafast_mcp_core::protocol::capabilities::CapabilityNegotiator::version_supports_feature(&negotiated_version, "elicitation") {
+            return Err(MCPError::Protocol(
+                ultrafast_mcp_core::error::ProtocolError::CapabilityNotSupported(
+                    format!("Elicitation not supported in protocol version {}", negotiated_version)
+                )
+            ));
+        }
+        
         self.send_request("elicitation/request", Some(serde_json::to_value(request)?))
             .await
     }

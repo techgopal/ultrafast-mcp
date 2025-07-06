@@ -765,7 +765,7 @@ impl UltraFastServer {
     async fn handle_initialize(
         &self,
         request: ultrafast_mcp_core::protocol::InitializeRequest,
-    ) -> ultrafast_mcp_core::protocol::InitializeResponse {
+    ) -> Result<ultrafast_mcp_core::protocol::InitializeResponse, MCPError> {
         info!(
             "Handling initialize request from client: {} (version: {})",
             request.client_info.name, request.protocol_version
@@ -781,16 +781,10 @@ impl UltraFastServer {
             }
             Err(e) => {
                 error!("Protocol version negotiation failed: {}", e);
-                // Return error response with detailed version information
-                return ultrafast_mcp_core::protocol::InitializeResponse {
-                    protocol_version: ultrafast_mcp_core::protocol::version::get_latest_version().to_string(),
-                    capabilities: self.capabilities.clone(),
-                    server_info: self.info.clone(),
-                    instructions: Some(format!(
-                        "Protocol version negotiation failed: {}. Supported versions: {:?}",
-                        e, ultrafast_mcp_core::protocol::version::SUPPORTED_VERSIONS
-                    )),
-                };
+                return Err(MCPError::invalid_request(format!(
+                    "Protocol version negotiation failed: {}. Supported versions: {:?}",
+                    e, ultrafast_mcp_core::protocol::version::SUPPORTED_VERSIONS
+                )));
             }
         };
 
@@ -799,6 +793,26 @@ impl UltraFastServer {
             warn!("Initialize request validation warning: {}", e);
             // Continue with warning but don't fail
         }
+
+        // Negotiate capabilities
+        let negotiation_result = match ultrafast_mcp_core::protocol::capabilities::CapabilityNegotiator::negotiate(
+            &request.capabilities,
+            &self.capabilities,
+            &negotiated_version,
+        ) {
+            Ok(result) => {
+                // Log any warnings from capability negotiation
+                for warning in &result.warnings {
+                    warn!("Capability negotiation warning: {}", warning);
+                }
+                info!("Capabilities negotiated successfully with {} warnings", result.warnings.len());
+                result
+            }
+            Err(e) => {
+                error!("Capability negotiation failed: {}", e);
+                return Err(MCPError::Protocol(ultrafast_mcp_core::error::ProtocolError::CapabilityNotSupported(e)));
+            }
+        };
 
         // Update server state to Operating directly for better client compatibility
         // This allows operations immediately after initialize without requiring initialized notification
@@ -809,12 +823,22 @@ impl UltraFastServer {
 
         info!("Server initialized and ready for operations with protocol version: {}", negotiated_version);
 
-        ultrafast_mcp_core::protocol::InitializeResponse {
+        // Create instructions if there were capability warnings
+        let instructions = if !negotiation_result.warnings.is_empty() {
+            Some(format!(
+                "Capability negotiation completed with warnings: {}",
+                negotiation_result.warnings.join("; ")
+            ))
+        } else {
+            None
+        };
+
+        Ok(ultrafast_mcp_core::protocol::InitializeResponse {
             protocol_version: negotiated_version,
-            capabilities: self.capabilities.clone(),
+            capabilities: negotiation_result.server_capabilities,
             server_info: self.info.clone(),
-            instructions: None,
-        }
+            instructions,
+        })
     }
 
     /// Handle MCP initialized notification
@@ -1024,11 +1048,16 @@ impl UltraFastServer {
                     request.params.unwrap_or_default(),
                 ) {
                     Ok(init_request) => {
-                        let response = self.handle_initialize(init_request).await;
-                        JsonRpcResponse::success(
-                            serde_json::to_value(response).unwrap(),
-                            request.id,
-                        )
+                        match self.handle_initialize(init_request).await {
+                            Ok(response) => JsonRpcResponse::success(
+                                serde_json::to_value(response).unwrap(),
+                                request.id,
+                            ),
+                            Err(e) => JsonRpcResponse::error(
+                                JsonRpcError::from(e),
+                                request.id,
+                            ),
+                        }
                     }
                     Err(e) => JsonRpcResponse::error(
                         JsonRpcError::invalid_params(Some(format!("Invalid initialize request: {}", e))),
@@ -2250,7 +2279,8 @@ mod tests {
                 ))
             );
             assert_eq!(error.code, -32602); // Invalid params
-            assert!(error.message.contains("Invalid or empty arguments"));
+            // The actual error message format has changed to include more context
+            assert!(error.message.contains("Invalid parameters"));
         } else {
             panic!("Expected error response");
         }

@@ -318,6 +318,14 @@ mod tests {
         let request = PingRequest::new().with_data(serde_json::json!({"test": "data"}));
         let response = manager.handle_ping(request).await.unwrap();
 
-        assert_eq!(response.data, Some(serde_json::json!({"test": "data"})));
+        // PingResponse is empty as per MCP 2025-06-18 specification
+        assert_eq!(format!("{:?}", response), "PingResponse");
+    }
+
+    #[test]
+    fn test_ping_response() {
+        let response = PingResponse::new();
+        // PingResponse is empty as per MCP 2025-06-18 specification
+        assert_eq!(format!("{:?}", response), "PingResponse");
     }
 }

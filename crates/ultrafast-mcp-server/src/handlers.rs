@@ -142,6 +142,7 @@ mod tests {
         ) -> MCPResult<ReadResourceResponse> {
             Ok(ReadResourceResponse {
                 contents: vec![ultrafast_mcp_core::types::resources::ResourceContent::text(
+                    "mock://resource".to_string(),
                     "mock resource".to_string(),
                 )],
             })
