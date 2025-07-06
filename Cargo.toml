@@ -14,6 +14,7 @@ members = [
     "examples/02-file-operations",
     "examples/03-http-server",
     "examples/04-advanced-features", "examples/everything-server-stdio", "examples/everything-server-streamable-http",
+    "tests/integration-test-suite",
 ]
 
 # Workspace-wide profile configurations

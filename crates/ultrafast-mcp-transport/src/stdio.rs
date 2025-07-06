@@ -25,7 +25,7 @@ impl StdioTransport {
 
         let mut health = TransportHealth::default();
         health.state = ConnectionState::Connected;
-        
+
         let connected_at = Some(std::time::SystemTime::now());
 
         Ok(Self {
@@ -53,14 +53,13 @@ impl Transport for StdioTransport {
         }
 
         // Serialize the message to JSON
-        let json_str =
-            serde_json::to_string(&message).map_err(|e| {
-                self.health.error_count += 1;
-                self.health.last_error = Some(format!("Serialization error: {}", e));
-                TransportError::SerializationError {
-                    message: format!("Failed to serialize message: {}", e),
-                }
-            })?;
+        let json_str = serde_json::to_string(&message).map_err(|e| {
+            self.health.error_count += 1;
+            self.health.last_error = Some(format!("Serialization error: {}", e));
+            TransportError::SerializationError {
+                message: format!("Failed to serialize message: {}", e),
+            }
+        })?;
 
         trace!("Sending message: {}", json_str);
 
@@ -78,29 +77,23 @@ impl Transport for StdioTransport {
             })?;
 
         // Add newline to delimit the message
-        self.stdout
-            .write_all(b"\n")
-            .await
-            .map_err(|e| {
-                self.health.error_count += 1;
-                self.health.last_error = Some(format!("Write newline error: {}", e));
-                self.health.state = ConnectionState::Failed(format!("Write newline failed: {}", e));
-                TransportError::NetworkError {
-                    message: format!("Failed to write newline: {}", e),
-                }
-            })?;
+        self.stdout.write_all(b"\n").await.map_err(|e| {
+            self.health.error_count += 1;
+            self.health.last_error = Some(format!("Write newline error: {}", e));
+            self.health.state = ConnectionState::Failed(format!("Write newline failed: {}", e));
+            TransportError::NetworkError {
+                message: format!("Failed to write newline: {}", e),
+            }
+        })?;
 
-        self.stdout
-            .flush()
-            .await
-            .map_err(|e| {
-                self.health.error_count += 1;
-                self.health.last_error = Some(format!("Flush error: {}", e));
-                self.health.state = ConnectionState::Failed(format!("Flush failed: {}", e));
-                TransportError::NetworkError {
-                    message: format!("Failed to flush stdout: {}", e),
-                }
-            })?;
+        self.stdout.flush().await.map_err(|e| {
+            self.health.error_count += 1;
+            self.health.last_error = Some(format!("Flush error: {}", e));
+            self.health.state = ConnectionState::Failed(format!("Flush failed: {}", e));
+            TransportError::NetworkError {
+                message: format!("Failed to flush stdout: {}", e),
+            }
+        })?;
 
         // Update health metrics
         self.health.messages_sent += 1;
@@ -148,14 +141,13 @@ impl Transport for StdioTransport {
         trace!("Received message: {}", message_str);
 
         // Parse the JSON message
-        let message: JsonRpcMessage =
-            serde_json::from_str(message_str).map_err(|e| {
-                self.health.error_count += 1;
-                self.health.last_error = Some(format!("Parse error: {}", e));
-                TransportError::SerializationError {
-                    message: format!("Failed to parse JSON message: {}", e),
-                }
-            })?;
+        let message: JsonRpcMessage = serde_json::from_str(message_str).map_err(|e| {
+            self.health.error_count += 1;
+            self.health.last_error = Some(format!("Parse error: {}", e));
+            TransportError::SerializationError {
+                message: format!("Failed to parse JSON message: {}", e),
+            }
+        })?;
 
         // Update health metrics
         self.health.messages_received += 1;

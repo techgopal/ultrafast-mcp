@@ -351,15 +351,15 @@ pub use handlers::*;
 pub use server::{ServerLoggingConfig, ServerState, ToolRegistrationError, UltraFastServer};
 
 // Re-export transport types for convenience
-pub use ultrafast_mcp_transport::{
-    Transport, TransportConfig, create_transport,
-};
+pub use ultrafast_mcp_transport::{create_transport, Transport, TransportConfig};
 
 #[cfg(feature = "http")]
 pub use ultrafast_mcp_transport::streamable_http::server::HttpTransportConfig;
 
 #[cfg(feature = "monitoring")]
-pub use ultrafast_mcp_monitoring::{MonitoringConfig, MonitoringSystem, HealthStatus, RequestTimer};
+pub use ultrafast_mcp_monitoring::{
+    HealthStatus, MonitoringConfig, MonitoringSystem, RequestTimer,
+};
 
 pub use ultrafast_mcp_core::{
     error::{MCPError, MCPResult},

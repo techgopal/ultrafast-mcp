@@ -6,19 +6,19 @@
 use crate::{Result, Transport, TransportError};
 use async_trait::async_trait;
 use axum::{
-    extract::State,
-    http::{StatusCode, HeaderMap},
-    response::{IntoResponse, Response, sse::Event, Sse},
-    Json, Router,
     body::Bytes,
+    extract::State,
+    http::{HeaderMap, StatusCode},
+    response::{sse::Event, IntoResponse, Response, Sse},
+    Json, Router,
 };
 use futures::stream::{self, Stream};
 use std::sync::Arc;
 use tokio::sync::broadcast;
 use tower_http::cors::CorsLayer;
 use tracing::{error, info};
-use ultrafast_mcp_core::protocol::{JsonRpcMessage, JsonRpcRequest, JsonRpcResponse, JsonRpcError};
-use ultrafast_mcp_monitoring::{MonitoringSystem, MetricsCollector, RequestTimer};
+use ultrafast_mcp_core::protocol::{JsonRpcError, JsonRpcMessage, JsonRpcRequest, JsonRpcResponse};
+use ultrafast_mcp_monitoring::{MetricsCollector, MonitoringSystem, RequestTimer};
 
 /// HTTP transport configuration
 #[derive(Debug, Clone)]
@@ -67,7 +67,9 @@ impl HttpTransportServer {
 
         // Initialize monitoring if enabled
         let (metrics, monitoring) = if config.monitoring_enabled {
-            let monitoring = Arc::new(MonitoringSystem::new(ultrafast_mcp_monitoring::MonitoringConfig::default()));
+            let monitoring = Arc::new(MonitoringSystem::new(
+                ultrafast_mcp_monitoring::MonitoringConfig::default(),
+            ));
             let metrics = monitoring.metrics();
             (Some(metrics), Some(monitoring))
         } else {
@@ -128,19 +130,21 @@ impl HttpTransportServer {
         let app = self.create_router();
         let addr = (self.state.config.host.as_str(), self.state.config.port);
 
-        let listener = tokio::net::TcpListener::bind(addr).await
-            .map_err(|e| TransportError::InitializationError {
+        let listener = tokio::net::TcpListener::bind(addr).await.map_err(|e| {
+            TransportError::InitializationError {
                 message: format!("Failed to bind to address: {}", e),
-            })?;
+            }
+        })?;
 
         // Start monitoring HTTP server if enabled
         if let Some(monitoring) = &self.state.monitoring {
-            let monitoring_addr = format!("{}:{}", self.state.config.host, self.state.config.port + 1)
-                .parse()
-                .map_err(|e| TransportError::InitializationError {
-                    message: format!("Failed to parse monitoring address: {}", e),
-                })?;
-            
+            let monitoring_addr =
+                format!("{}:{}", self.state.config.host, self.state.config.port + 1)
+                    .parse()
+                    .map_err(|e| TransportError::InitializationError {
+                        message: format!("Failed to parse monitoring address: {}", e),
+                    })?;
+
             let monitoring_clone = monitoring.clone();
             tokio::spawn(async move {
                 if let Err(e) = monitoring_clone.start_http_server(monitoring_addr).await {
@@ -213,7 +217,8 @@ fn validate_origin(headers: &HeaderMap, config: &HttpTransportConfig) -> bool {
                 return origin_str == allowed_origin;
             }
             // For localhost, allow any localhost origin
-            if config.host == "127.0.0.1" || config.host == "localhost" || config.host == "0.0.0.0" {
+            if config.host == "127.0.0.1" || config.host == "localhost" || config.host == "0.0.0.0"
+            {
                 return origin_str.contains("localhost") || origin_str.contains("127.0.0.1");
             }
         }
@@ -263,7 +268,8 @@ async fn handle_mcp_post_internal(
                 JsonRpcError::new(-32000, "Origin not allowed".to_string()),
                 None,
             )),
-        ).into_response();
+        )
+            .into_response();
     }
 
     // Check if this is an initial connection (initialize request or empty body)
@@ -284,24 +290,30 @@ async fn handle_mcp_post_internal(
                 return Json(JsonRpcResponse::error(
                     JsonRpcError::new(-32000, "Missing session ID".to_string()),
                     None,
-                )).into_response();
+                ))
+                .into_response();
             }
         }
     };
 
     // Try to parse the body as a JSON-RPC message
-    let message: std::result::Result<JsonRpcMessage, serde_json::Error> = serde_json::from_slice(&body);
+    let message: std::result::Result<JsonRpcMessage, serde_json::Error> =
+        serde_json::from_slice(&body);
     let message = match message {
         Ok(msg) => msg,
         Err(_) => {
             return Json(JsonRpcResponse::error(
                 JsonRpcError::new(-32700, "Parse error: Invalid JSON-RPC message".to_string()),
                 None,
-            )).into_response();
+            ))
+            .into_response();
         }
     };
-    
-    info!("Processing POST request for session {}: {:?}", session_id, message);
+
+    info!(
+        "Processing POST request for session {}: {:?}",
+        session_id, message
+    );
     match message {
         JsonRpcMessage::Request(request) => {
             handle_jsonrpc_request(state, session_id, request).await
@@ -323,11 +335,14 @@ async fn handle_mcp_get(
                 JsonRpcError::new(-32000, "Origin not allowed".to_string()),
                 None,
             )),
-        ).into_response();
+        )
+            .into_response();
     }
-    let session_id = extract_session_id(&headers)
-        .unwrap_or_else(|| generate_session_id());
-    info!("Processing GET request for session {} (SSE stream)", session_id);
+    let session_id = extract_session_id(&headers).unwrap_or_else(|| generate_session_id());
+    info!(
+        "Processing GET request for session {} (SSE stream)",
+        session_id
+    );
     let stream = create_sse_stream(state, session_id);
     Sse::new(stream).into_response()
 }
@@ -343,10 +358,10 @@ async fn handle_mcp_delete(
                 JsonRpcError::new(-32000, "Origin not allowed".to_string()),
                 None,
             )),
-        ).into_response();
+        )
+            .into_response();
     }
-    let session_id = extract_session_id(&headers)
-        .unwrap_or_else(|| generate_session_id());
+    let session_id = extract_session_id(&headers).unwrap_or_else(|| generate_session_id());
     info!("Terminating session: {}", session_id);
     StatusCode::OK.into_response()
 }
@@ -359,51 +374,63 @@ async fn handle_jsonrpc_request(
 ) -> Response {
     // Create a response receiver for this specific request
     let mut response_receiver = state.response_sender.subscribe();
-    
+
     // Send message to server for processing
-    if let Err(e) = state.message_sender.send((session_id.clone(), JsonRpcMessage::Request(request.clone()))) {
+    if let Err(e) = state
+        .message_sender
+        .send((session_id.clone(), JsonRpcMessage::Request(request.clone())))
+    {
         error!("Failed to send message to server: {}", e);
         return Json(JsonRpcResponse::error(
             JsonRpcError::new(-32000, format!("Failed to process message: {}", e)),
             request.id,
-        )).into_response();
+        ))
+        .into_response();
     }
 
     // Wait for response from server with timeout
     match tokio::time::timeout(
         std::time::Duration::from_secs(5000), // 5 second timeout
-        response_receiver.recv()
-    ).await {
+        response_receiver.recv(),
+    )
+    .await
+    {
         Ok(Ok((response_session_id, response_message))) => {
             if response_session_id == session_id || response_session_id == "*" {
                 // Return the actual response from the server
                 match response_message {
-                    JsonRpcMessage::Response(response) => {
-                        (
-                            StatusCode::OK,
-                            [
-                                ("mcp-session-id", response_session_id),
-                                ("mcp-protocol-version", state.config.protocol_version.clone()),
-                            ],
-                            Json(response),
-                        ).into_response()
-                    }
+                    JsonRpcMessage::Response(response) => (
+                        StatusCode::OK,
+                        [
+                            ("mcp-session-id", response_session_id),
+                            (
+                                "mcp-protocol-version",
+                                state.config.protocol_version.clone(),
+                            ),
+                        ],
+                        Json(response),
+                    )
+                        .into_response(),
                     _ => {
                         // Unexpected message type
                         Json(JsonRpcResponse::error(
                             JsonRpcError::new(-32000, "Unexpected response type".to_string()),
                             request.id,
-                        )).into_response()
+                        ))
+                        .into_response()
                     }
                 }
             } else {
                 // Wrong session
-                error!("Received response for wrong session: expected {}, got {}", 
-                       session_id, response_session_id);
+                error!(
+                    "Received response for wrong session: expected {}, got {}",
+                    session_id, response_session_id
+                );
                 Json(JsonRpcResponse::error(
                     JsonRpcError::new(-32000, "Session mismatch".to_string()),
                     request.id,
-                )).into_response()
+                ))
+                .into_response()
             }
         }
         Ok(Err(e)) => {
@@ -411,14 +438,16 @@ async fn handle_jsonrpc_request(
             Json(JsonRpcResponse::error(
                 JsonRpcError::new(-32000, format!("Failed to receive response: {}", e)),
                 request.id,
-            )).into_response()
+            ))
+            .into_response()
         }
         Err(_) => {
             error!("Timeout waiting for response from server");
             Json(JsonRpcResponse::error(
                 JsonRpcError::new(-32000, "Request timeout".to_string()),
                 request.id,
-            )).into_response()
+            ))
+            .into_response()
         }
     }
 }
@@ -438,14 +467,12 @@ async fn handle_notification_or_response(
                 JsonRpcError::new(-32000, format!("Failed to process message: {}", e)),
                 None,
             )),
-        ).into_response();
+        )
+            .into_response();
     }
 
     // Return 202 Accepted for notifications and responses
-    (
-        StatusCode::ACCEPTED,
-        [("mcp-session-id", session_id)],
-    ).into_response()
+    (StatusCode::ACCEPTED, [("mcp-session-id", session_id)]).into_response()
 }
 
 /// Create SSE stream for server-to-client communication
@@ -454,7 +481,7 @@ fn create_sse_stream(
     session_id: String,
 ) -> impl Stream<Item = std::result::Result<Event, axum::Error>> {
     let response_receiver = state.response_sender.subscribe();
-    
+
     stream::unfold(
         (response_receiver, session_id),
         |(mut receiver, session_id)| async move {
@@ -463,9 +490,7 @@ fn create_sse_stream(
                     if msg_session_id == session_id || msg_session_id == "*" {
                         let event_data = serde_json::to_string(&message).unwrap_or_default();
                         Some((
-                            Ok(Event::default()
-                                .data(event_data)
-                                .comment("keep-alive")), // Use comment for keep-alive
+                            Ok(Event::default().data(event_data).comment("keep-alive")), // Use comment for keep-alive
                             (receiver, session_id),
                         ))
                     } else {

@@ -658,7 +658,11 @@ impl ResourceContent {
     }
 
     pub fn blob(uri: String, blob: String, mime_type: String) -> Self {
-        Self::Blob { uri, blob, mime_type }
+        Self::Blob {
+            uri,
+            blob,
+            mime_type,
+        }
     }
 }
 
@@ -1042,9 +1046,14 @@ mod tests {
 
     #[test]
     fn test_resource_content_creation() {
-        let text_content = ResourceContent::text("Hello, World!".to_string(), "Hello, World!".to_string());
+        let text_content =
+            ResourceContent::text("Hello, World!".to_string(), "Hello, World!".to_string());
         match text_content {
-            ResourceContent::Text { uri, text, mime_type } => {
+            ResourceContent::Text {
+                uri,
+                text,
+                mime_type,
+            } => {
                 assert_eq!(uri, "Hello, World!".to_string());
                 assert_eq!(text, "Hello, World!");
                 assert_eq!(mime_type, Some("text/plain".to_string()));
@@ -1058,7 +1067,11 @@ mod tests {
         let json_value = serde_json::json!({"key": "value"});
         let json_content = ResourceContent::json("Hello, World!".to_string(), &json_value);
         match json_content {
-            ResourceContent::Text { uri, text, mime_type } => {
+            ResourceContent::Text {
+                uri,
+                text,
+                mime_type,
+            } => {
                 assert_eq!(uri, "Hello, World!".to_string());
                 assert!(text.contains("key"));
                 assert!(text.contains("value"));
@@ -1070,9 +1083,17 @@ mod tests {
 
     #[test]
     fn test_resource_content_blob() {
-        let blob_content = ResourceContent::blob("Hello, World!".to_string(), "base64data".to_string(), "image/png".to_string());
+        let blob_content = ResourceContent::blob(
+            "Hello, World!".to_string(),
+            "base64data".to_string(),
+            "image/png".to_string(),
+        );
         match blob_content {
-            ResourceContent::Blob { uri, blob, mime_type } => {
+            ResourceContent::Blob {
+                uri,
+                blob,
+                mime_type,
+            } => {
                 assert_eq!(uri, "Hello, World!".to_string());
                 assert_eq!(blob, "base64data");
                 assert_eq!(mime_type, "image/png");

@@ -89,10 +89,7 @@ pub enum PromptContent {
     Resource { resource: EmbeddedResourceReference },
 
     #[serde(rename = "resource_link")]
-    ResourceLink {
-        name: String,
-        uri: String,
-    },
+    ResourceLink { name: String, uri: String },
 }
 
 /// Enhanced embedded resource reference for prompts

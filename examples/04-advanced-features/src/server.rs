@@ -14,25 +14,55 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tracing::{error, info, warn};
 use ultrafast_mcp::{
-    ListToolsRequest, ListToolsResponse, MCPError, MCPResult, ServerCapabilities, ServerInfo, Tool,
-    ToolCall, ToolContent, ToolHandler, ToolResult, ToolsCapability, UltraFastServer,
-    ResourceHandler, ReadResourceRequest, ReadResourceResponse,
-    PromptHandler, GetPromptRequest, GetPromptResponse,
-    Resource, ResourceContent, Prompt, PromptContent,
-    ListResourcesRequest, ListResourcesResponse, ListPromptsRequest, ListPromptsResponse,
-    ResourceTemplate,
-    // Import types for handler implementations
-    types::{sampling, completion, roots, elicitation, resources, prompts},
-    // Import handler traits
-    SamplingHandler, CompletionHandler, RootsHandler, ElicitationHandler, ResourceSubscriptionHandler,
-    // Import monitoring types
-    MonitoringSystem, MonitoringConfig, HealthStatus, RequestTimer,
-    // Import transport types
-    HttpTransportServer, HttpTransportConfig,
     // Import health types
     health::{HealthCheck, HealthCheckResult},
+    // Import types for handler implementations
+    types::{completion, elicitation, prompts, resources, roots, sampling},
+    CompletionHandler,
+    ElicitationHandler,
+    GetPromptRequest,
+    GetPromptResponse,
+    HealthStatus,
+    HttpTransportConfig,
+    // Import transport types
+    HttpTransportServer,
+    ListPromptsRequest,
+    ListPromptsResponse,
+    ListResourcesRequest,
+    ListResourcesResponse,
+    ListToolsRequest,
+    ListToolsResponse,
+    MCPError,
+    MCPResult,
+    MonitoringConfig,
+    // Import monitoring types
+    MonitoringSystem,
+    Prompt,
+    PromptContent,
+    PromptHandler,
+    PromptsCapability,
+    ReadResourceRequest,
+    ReadResourceResponse,
+    RequestTimer,
+    Resource,
+    ResourceContent,
+    ResourceHandler,
+    ResourceSubscriptionHandler,
+    ResourceTemplate,
     // Import capability types
-    ResourcesCapability, PromptsCapability,
+    ResourcesCapability,
+    RootsHandler,
+    // Import handler traits
+    SamplingHandler,
+    ServerCapabilities,
+    ServerInfo,
+    Tool,
+    ToolCall,
+    ToolContent,
+    ToolHandler,
+    ToolResult,
+    ToolsCapability,
+    UltraFastServer,
 };
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -78,17 +108,16 @@ impl AdvancedToolHandler {
 impl ToolHandler for AdvancedToolHandler {
     async fn handle_tool_call(&self, call: ToolCall) -> MCPResult<ToolResult> {
         let timer = RequestTimer::start(&call.name, self.monitoring.metrics());
-        
+
         info!("Handling tool call: {}", call.name);
 
         let result = match call.name.as_str() {
             "calculate" => {
-                let request: CalculatorRequest = serde_json::from_value(
-                    call.arguments.unwrap_or_default()
-                ).map_err(|e| {
-                    error!("Failed to parse calculator request: {}", e);
-                    MCPError::invalid_params(format!("Invalid request format: {}", e))
-                })?;
+                let request: CalculatorRequest =
+                    serde_json::from_value(call.arguments.unwrap_or_default()).map_err(|e| {
+                        error!("Failed to parse calculator request: {}", e);
+                        MCPError::invalid_params(format!("Invalid request format: {}", e))
+                    })?;
 
                 let result = match request.operation.as_str() {
                     "add" => request.a + request.b,
@@ -100,9 +129,12 @@ impl ToolHandler for AdvancedToolHandler {
                         }
                         request.a / request.b
                     }
-                    _ => return Err(MCPError::invalid_params(
-                        format!("Unknown operation: {}", request.operation)
-                    )),
+                    _ => {
+                        return Err(MCPError::invalid_params(format!(
+                            "Unknown operation: {}",
+                            request.operation
+                        )))
+                    }
                 };
 
                 let response = CalculatorResponse {
@@ -122,12 +154,11 @@ impl ToolHandler for AdvancedToolHandler {
                 })
             }
             "weather" => {
-                let request: WeatherRequest = serde_json::from_value(
-                    call.arguments.unwrap_or_default()
-                ).map_err(|e| {
-                    error!("Failed to parse weather request: {}", e);
-                    MCPError::invalid_params(format!("Invalid request format: {}", e))
-                })?;
+                let request: WeatherRequest =
+                    serde_json::from_value(call.arguments.unwrap_or_default()).map_err(|e| {
+                        error!("Failed to parse weather request: {}", e);
+                        MCPError::invalid_params(format!("Invalid request format: {}", e))
+                    })?;
 
                 // Simulate weather API call
                 let response = WeatherResponse {
@@ -225,38 +256,42 @@ impl ResourceHandler for FileResourceHandler {
 
         if request.uri.starts_with("file://") {
             let path = request.uri.strip_prefix("file://").unwrap();
-            
+
             match std::fs::read_to_string(path) {
-                Ok(content) => {
-                    Ok(ReadResourceResponse {
-                        contents: vec![ResourceContent::text(request.uri.clone(), content)],
-                    })
-                }
+                Ok(content) => Ok(ReadResourceResponse {
+                    contents: vec![ResourceContent::text(request.uri.clone(), content)],
+                }),
                 Err(e) => {
                     error!("Failed to read file {}: {}", path, e);
                     Err(MCPError::not_found(format!("File not found: {}", path)))
                 }
             }
         } else {
-            Err(MCPError::invalid_params("Unsupported URI scheme".to_string()))
+            Err(MCPError::invalid_params(
+                "Unsupported URI scheme".to_string(),
+            ))
         }
     }
 
-    async fn list_resources(&self, _request: ListResourcesRequest) -> MCPResult<ListResourcesResponse> {
+    async fn list_resources(
+        &self,
+        _request: ListResourcesRequest,
+    ) -> MCPResult<ListResourcesResponse> {
         Ok(ListResourcesResponse {
-            resources: vec![
-                Resource {
-                    uri: "file:///tmp/example.txt".to_string(),
-                    name: "Example File".to_string(),
-                    description: Some("An example text file".to_string()),
-                    mime_type: Some("text/plain".to_string()),
-                },
-            ],
+            resources: vec![Resource {
+                uri: "file:///tmp/example.txt".to_string(),
+                name: "Example File".to_string(),
+                description: Some("An example text file".to_string()),
+                mime_type: Some("text/plain".to_string()),
+            }],
             next_cursor: None,
         })
     }
 
-    async fn list_resource_templates(&self, _request: resources::ListResourceTemplatesRequest) -> MCPResult<resources::ListResourceTemplatesResponse> {
+    async fn list_resource_templates(
+        &self,
+        _request: resources::ListResourceTemplatesRequest,
+    ) -> MCPResult<resources::ListResourceTemplatesResponse> {
         Ok(resources::ListResourceTemplatesResponse {
             resource_templates: vec![
                 ResourceTemplate {
@@ -287,12 +322,13 @@ impl PromptHandler for TemplatePromptHandler {
         match request.name.as_str() {
             "greeting" => {
                 let messages = vec![
-                    prompts::PromptMessage::system(
-                        prompts::PromptContent::text("You are a helpful assistant that creates personalized greetings.".to_string())
-                    ),
-                    prompts::PromptMessage::user(
-                        prompts::PromptContent::text("Create a greeting for {name}".to_string())
-                    ),
+                    prompts::PromptMessage::system(prompts::PromptContent::text(
+                        "You are a helpful assistant that creates personalized greetings."
+                            .to_string(),
+                    )),
+                    prompts::PromptMessage::user(prompts::PromptContent::text(
+                        "Create a greeting for {name}".to_string(),
+                    )),
                 ];
 
                 Ok(GetPromptResponse {
@@ -302,12 +338,13 @@ impl PromptHandler for TemplatePromptHandler {
             }
             "weather" => {
                 let messages = vec![
-                    prompts::PromptMessage::system(
-                        prompts::PromptContent::text("You are a weather assistant that provides weather information.".to_string())
-                    ),
-                    prompts::PromptMessage::user(
-                        prompts::PromptContent::text("Provide weather information for {text}".to_string())
-                    ),
+                    prompts::PromptMessage::system(prompts::PromptContent::text(
+                        "You are a weather assistant that provides weather information."
+                            .to_string(),
+                    )),
+                    prompts::PromptMessage::user(prompts::PromptContent::text(
+                        "Provide weather information for {text}".to_string(),
+                    )),
                 ];
 
                 Ok(GetPromptResponse {
@@ -315,7 +352,10 @@ impl PromptHandler for TemplatePromptHandler {
                     messages,
                 })
             }
-            _ => Err(MCPError::not_found(format!("Prompt not found: {}", request.name))),
+            _ => Err(MCPError::not_found(format!(
+                "Prompt not found: {}",
+                request.name
+            ))),
         }
     }
 
@@ -326,14 +366,14 @@ impl PromptHandler for TemplatePromptHandler {
                     name: "greeting".to_string(),
                     description: Some("Generate a personalized greeting".to_string()),
                     arguments: Some(vec![
-                        prompts::PromptArgument::new("name".to_string()).required(true),
+                        prompts::PromptArgument::new("name".to_string()).required(true)
                     ]),
                 },
                 Prompt {
                     name: "summarize".to_string(),
                     description: Some("Summarize text content".to_string()),
                     arguments: Some(vec![
-                        prompts::PromptArgument::new("text".to_string()).required(true),
+                        prompts::PromptArgument::new("text".to_string()).required(true)
                     ]),
                 },
             ],
@@ -359,13 +399,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize monitoring system
     let monitoring_config = MonitoringConfig::default();
     let monitoring = Arc::new(MonitoringSystem::new(monitoring_config));
-    
+
     // Initialize health checker
     let health_checker = monitoring.health();
-    
+
     // Add custom health checks
-    health_checker.add_check(Box::new(DatabaseHealthCheck)).await;
-    health_checker.add_check(Box::new(FileSystemHealthCheck)).await;
+    health_checker
+        .add_check(Box::new(DatabaseHealthCheck))
+        .await;
+    health_checker
+        .add_check(Box::new(FileSystemHealthCheck))
+        .await;
 
     // Create server capabilities with all features
     let capabilities = ServerCapabilities {
@@ -384,10 +428,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Create server info
     let server_info = ServerInfo {
-            name: "advanced-features-server".to_string(),
-            version: "1.0.0".to_string(),
-            description: Some(
-            "Advanced MCP server demonstrating all features with monitoring and authentication".to_string(),
+        name: "advanced-features-server".to_string(),
+        version: "1.0.0".to_string(),
+        description: Some(
+            "Advanced MCP server demonstrating all features with monitoring and authentication"
+                .to_string(),
         ),
         authors: Some(vec!["ULTRAFAST_MCP Team".to_string()]),
         homepage: Some("https://github.com/ultrafast-mcp/ultrafast-mcp".to_string()),
@@ -405,10 +450,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_roots_handler(Arc::new(AdvancedRootsHandler))
         .with_elicitation_handler(Arc::new(AdvancedElicitationHandler))
         .with_subscription_handler(Arc::new(AdvancedSubscriptionHandler))
-        .with_full_monitoring()  // Enable all monitoring features
-        .with_middleware()       // Enable middleware support
-        .with_recovery()         // Enable recovery mechanisms
-        .with_oauth()            // Enable OAuth authentication
+        .with_full_monitoring() // Enable all monitoring features
+        .with_middleware() // Enable middleware support
+        .with_recovery() // Enable recovery mechanisms
+        .with_oauth() // Enable OAuth authentication
         .with_rate_limiting(100) // Enable rate limiting (100 requests per minute)
         .with_request_validation() // Enable request validation
         .with_response_caching(); // Enable response caching
@@ -420,7 +465,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tokio::spawn(async move {
         loop {
             tokio::time::sleep(tokio::time::Duration::from_secs(30)).await;
-            
+
             match health_monitor.health().check_all().await {
                 HealthStatus::Healthy => {
                     info!("System health check: All systems healthy");
@@ -454,19 +499,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             allow_origin: Some("http://localhost:*".to_string()),
             monitoring_enabled: true,
         };
-        
+
         let transport_server = HttpTransportServer::new(transport_config);
-        
+
         info!("Starting HTTP transport server on 127.0.0.1:8080");
         info!("Monitoring dashboard available at http://127.0.0.1:8081");
-        
+
         // Run the transport server (this will block until shutdown)
         if let Err(e) = transport_server.run().await {
             error!("Transport server error: {}", e);
             return Err(e);
         }
 
-    Ok(())
+        Ok(())
     };
 
     // Wait for either shutdown signal or server error
@@ -498,12 +543,12 @@ struct DatabaseHealthCheck;
 impl HealthCheck for DatabaseHealthCheck {
     async fn check(&self) -> HealthCheckResult {
         let start = std::time::Instant::now();
-        
+
         // Simulate database health check
         tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
-        
+
         let status = HealthStatus::Healthy;
-        
+
         HealthCheckResult {
             status,
             duration: start.elapsed(),
@@ -522,13 +567,13 @@ struct FileSystemHealthCheck;
 impl HealthCheck for FileSystemHealthCheck {
     async fn check(&self) -> HealthCheckResult {
         let start = std::time::Instant::now();
-        
+
         // Check if /tmp directory is writable
         let status = match std::fs::metadata("/tmp") {
             Ok(metadata) if metadata.is_dir() => HealthStatus::Healthy,
             _ => HealthStatus::Unhealthy("Cannot access /tmp directory".to_string()),
         };
-        
+
         HealthCheckResult {
             status,
             duration: start.elapsed(),
@@ -570,9 +615,9 @@ impl CompletionHandler for AdvancedCompletionHandler {
         _request: completion::CompleteRequest,
     ) -> MCPResult<completion::CompleteResponse> {
         Ok(completion::CompleteResponse {
-            completion: completion::Completion::new(vec![
-                completion::CompletionValue::new("completion")
-            ]),
+            completion: completion::Completion::new(vec![completion::CompletionValue::new(
+                "completion",
+            )]),
         })
     }
 }
@@ -582,13 +627,11 @@ struct AdvancedRootsHandler;
 #[async_trait::async_trait]
 impl RootsHandler for AdvancedRootsHandler {
     async fn list_roots(&self) -> MCPResult<Vec<roots::Root>> {
-        Ok(vec![
-            roots::Root {
-                uri: "file:///".to_string(),
-                name: Some("File System Root".to_string()),
-                security: None,
-            },
-        ])
+        Ok(vec![roots::Root {
+            uri: "file:///".to_string(),
+            name: Some("File System Root".to_string()),
+            security: None,
+        }])
     }
 }
 

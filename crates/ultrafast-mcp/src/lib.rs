@@ -200,7 +200,7 @@
 //!         let content = std::fs::read_to_string(&request.uri)?;
 //!         
 //!         Ok(ReadResourceResponse {
-//!             contents: vec![ResourceContent::text(content)],
+//!             contents: vec![ResourceContent::text(request.uri.clone(), content)],
 //!         })
 //!     }
 //!
@@ -386,6 +386,8 @@
 // =========================
 // Re-export core protocol types, errors, schema, and utilities
 pub use ultrafast_mcp_core::{
+    // Errors (re-export as McpCoreError to avoid conflicts)
+    error as McpCoreError,
     // Protocol types
     protocol,
     // Schema
@@ -394,46 +396,52 @@ pub use ultrafast_mcp_core::{
     types,
     // Utils
     utils,
-    // Errors (re-export as McpCoreError to avoid conflicts)
-    error as McpCoreError,
     // Re-export specific error types
-    MCPError, MCPResult,
+    MCPError,
+    MCPResult,
 };
 
 // Re-export commonly used types directly for convenience
 pub use ultrafast_mcp_core::types::{
     // Client types
-    client::{ClientInfo, ClientCapabilities},
-    // Server types
-    server::{ServerInfo, ServerCapabilities},
-    // Tool types
-    tools::{Tool, ToolCall, ToolContent, ToolResult, ListToolsRequest, ListToolsResponse},
-    // Resource types
-    resources::{Resource, ResourceContent, ResourceTemplate, ReadResourceRequest, ReadResourceResponse, ListResourcesRequest, ListResourcesResponse},
-    // Prompt types
-    prompts::{Prompt, PromptContent, GetPromptRequest, GetPromptResponse, ListPromptsRequest, ListPromptsResponse},
+    client::{ClientCapabilities, ClientInfo},
     // Completion types
     completion::{CompleteRequest, CompleteResponse, Completion, CompletionValue},
-    // Sampling types
-    sampling::{CreateMessageRequest, CreateMessageResponse, SamplingResponse, SamplingContent},
-    // Roots types
-    roots::Root,
     // Elicitation types
     elicitation::{ElicitationRequest, ElicitationResponse},
+    // Prompt types
+    prompts::{
+        GetPromptRequest, GetPromptResponse, ListPromptsRequest, ListPromptsResponse, Prompt,
+        PromptContent,
+    },
+    // Resource types
+    resources::{
+        ListResourcesRequest, ListResourcesResponse, ReadResourceRequest, ReadResourceResponse,
+        Resource, ResourceContent, ResourceTemplate,
+    },
+    // Roots types
+    roots::Root,
+    // Sampling types
+    sampling::{CreateMessageRequest, CreateMessageResponse, SamplingContent, SamplingResponse},
+    // Server types
+    server::{ServerCapabilities, ServerInfo},
+    // Tool types
+    tools::{ListToolsRequest, ListToolsResponse, Tool, ToolCall, ToolContent, ToolResult},
 };
 
 // Re-export capability types from protocol
 pub use ultrafast_mcp_core::protocol::capabilities::{
-    ToolsCapability, ResourcesCapability, PromptsCapability, CompletionCapability, LoggingCapability,
+    CompletionCapability, LoggingCapability, PromptsCapability, ResourcesCapability,
+    ToolsCapability,
 };
 
 // =========================
 // Server API
 // =========================
 pub use ultrafast_mcp_server::{
-    UltraFastServer,
-    Context, ContextLogger, LoggerConfig, ServerLoggingConfig, ServerState, ToolRegistrationError,
-    ToolHandler, ResourceHandler, PromptHandler, SamplingHandler, CompletionHandler, RootsHandler, ElicitationHandler, ResourceSubscriptionHandler,
+    CompletionHandler, Context, ContextLogger, ElicitationHandler, LoggerConfig, PromptHandler,
+    ResourceHandler, ResourceSubscriptionHandler, RootsHandler, SamplingHandler,
+    ServerLoggingConfig, ServerState, ToolHandler, ToolRegistrationError, UltraFastServer,
 };
 
 // =========================
@@ -448,22 +456,26 @@ pub use ultrafast_mcp_client::{
 // Transport Layer
 // =========================
 pub use ultrafast_mcp_transport::{
-    Transport, TransportConfig, create_transport, create_recovering_transport,
-    // STDIO
-    stdio::StdioTransport,
+    create_recovering_transport,
+    create_transport,
     // Middleware
     middleware::{
-        TransportMiddleware, LoggingMiddleware, RateLimitMiddleware, ProgressMiddleware, ValidationMiddleware, MiddlewareTransport
+        LoggingMiddleware, MiddlewareTransport, ProgressMiddleware, RateLimitMiddleware,
+        TransportMiddleware, ValidationMiddleware,
     },
+    // STDIO
+    stdio::StdioTransport,
+    Transport,
+    TransportConfig,
 };
 
 // Streamable HTTP (feature = "http")
 #[cfg(feature = "http")]
 pub use ultrafast_mcp_transport::streamable_http::{
-    StreamableHttpClient, StreamableHttpClientConfig,
-    HttpTransportConfig, HttpTransportServer, HttpTransportState,
-    create_streamable_http_client_with_middleware, create_streamable_http_client_default,
-    create_streamable_http_server_with_middleware, create_streamable_http_server_default,
+    create_streamable_http_client_default, create_streamable_http_client_with_middleware,
+    create_streamable_http_server_default, create_streamable_http_server_with_middleware,
+    HttpTransportConfig, HttpTransportServer, HttpTransportState, StreamableHttpClient,
+    StreamableHttpClientConfig,
 };
 
 // =========================
@@ -473,16 +485,26 @@ pub use ultrafast_mcp_transport::streamable_http::{
 pub use ultrafast_mcp_auth::{
     // Re-export auth types (avoiding conflicts with core types)
     error as McpAuthError,
+    extract_bearer_token,
+    generate_pkce_params,
+    generate_session_id,
+    generate_state,
     oauth,
     pkce,
     types as AuthTypes,
     validation,
+    AuthError,
+    AuthResult,
+    AuthorizationServerMetadata,
+    ClientRegistrationRequest,
+    ClientRegistrationResponse,
+    OAuthClient,
     // Re-export specific types
-    OAuthConfig, TokenResponse, PkceParams, AuthorizationServerMetadata,
-    ClientRegistrationRequest, ClientRegistrationResponse, TokenClaims,
-    OAuthClient, AuthError, AuthResult,
-    generate_pkce_params, generate_session_id, generate_state,
-    extract_bearer_token, TokenValidator,
+    OAuthConfig,
+    PkceParams,
+    TokenClaims,
+    TokenResponse,
+    TokenValidator,
 };
 
 // =========================

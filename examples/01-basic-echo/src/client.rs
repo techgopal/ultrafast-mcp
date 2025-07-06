@@ -70,7 +70,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             auth_token: None,
             oauth_config: None,
         };
-        
+
         let mut transport = ultrafast_mcp::StreamableHttpClient::new(config).unwrap();
         // Connect the transport before passing to client
         match transport.connect().await {

@@ -7,10 +7,7 @@ use std::fmt;
 pub const PROTOCOL_VERSION: &str = "2025-06-18";
 
 /// All supported protocol versions (latest first)
-pub const SUPPORTED_VERSIONS: &[&str] = &[
-    "2025-06-18",
-    "2024-11-05",
-];
+pub const SUPPORTED_VERSIONS: &[&str] = &["2025-06-18", "2024-11-05"];
 
 /// Protocol version representation for comparison
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -28,11 +25,14 @@ impl ProtocolVersion {
             return Err(format!("Invalid version format: {}", version));
         }
 
-        let year = parts[0].parse::<u32>()
+        let year = parts[0]
+            .parse::<u32>()
             .map_err(|_| format!("Invalid year: {}", parts[0]))?;
-        let month = parts[1].parse::<u32>()
+        let month = parts[1]
+            .parse::<u32>()
             .map_err(|_| format!("Invalid month: {}", parts[1]))?;
-        let day = parts[2].parse::<u32>()
+        let day = parts[2]
+            .parse::<u32>()
             .map_err(|_| format!("Invalid day: {}", parts[2]))?;
 
         // Basic validation
@@ -123,9 +123,9 @@ impl ProtocolVersion {
 
     /// Check if this version is supported
     pub fn is_supported(&self) -> bool {
-        SUPPORTED_VERSIONS.iter().any(|v| {
-            Self::parse(v).map_or(false, |version| version == *self)
-        })
+        SUPPORTED_VERSIONS
+            .iter()
+            .any(|v| Self::parse(v).map_or(false, |version| version == *self))
     }
 }
 
@@ -137,7 +137,8 @@ impl PartialOrd for ProtocolVersion {
 
 impl Ord for ProtocolVersion {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.year.cmp(&other.year)
+        self.year
+            .cmp(&other.year)
             .then_with(|| self.month.cmp(&other.month))
             .then_with(|| self.day.cmp(&other.day))
     }
@@ -158,10 +159,10 @@ pub fn negotiate_version(requested: &str) -> Result<String, String> {
 
     // If not supported, try to negotiate a compatible version
     let requested_version = ProtocolVersion::parse(requested)?;
-    
+
     // Find the highest supported version that's less than or equal to requested
     let mut best_version: Option<ProtocolVersion> = None;
-    
+
     for supported in SUPPORTED_VERSIONS {
         if let Ok(version) = ProtocolVersion::parse(supported) {
             if version <= requested_version {
@@ -176,7 +177,7 @@ pub fn negotiate_version(requested: &str) -> Result<String, String> {
             }
         }
     }
-    
+
     if let Some(version) = best_version {
         Ok(version.to_string())
     } else {
@@ -244,10 +245,10 @@ mod tests {
     fn test_version_negotiation() {
         // Test exact match
         assert_eq!(negotiate_version("2025-06-18").unwrap(), "2025-06-18");
-        
+
         // Test fallback
         assert_eq!(negotiate_version("2024-11-05").unwrap(), "2024-11-05");
-        
+
         // Test unknown version
         let result = negotiate_version("2023-01-01");
         assert!(result.is_ok());
@@ -280,8 +281,14 @@ mod tests {
 
     #[test]
     fn test_version_supports_feature_function() {
-        assert!(version_supports_feature("2025-06-18", "resource_subscriptions"));
-        assert!(!version_supports_feature("2024-11-05", "resource_subscriptions"));
+        assert!(version_supports_feature(
+            "2025-06-18",
+            "resource_subscriptions"
+        ));
+        assert!(!version_supports_feature(
+            "2024-11-05",
+            "resource_subscriptions"
+        ));
         assert!(version_supports_feature("2024-11-05", "tools"));
         assert!(version_supports_feature("2025-06-18", "tools"));
     }

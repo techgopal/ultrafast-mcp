@@ -39,7 +39,9 @@ impl ToolHandler for EchoToolHandler {
             .map_err(|e| MCPError::invalid_params(format!("Invalid request format: {}", e)))?;
 
         if request.message.is_empty() {
-            return Err(MCPError::invalid_params("Message cannot be empty".to_string()));
+            return Err(MCPError::invalid_params(
+                "Message cannot be empty".to_string(),
+            ));
         }
 
         let response = EchoResponse {
@@ -133,4 +135,4 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     info!("Server shutdown completed");
     Ok(())
-} 
+}

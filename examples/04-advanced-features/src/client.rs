@@ -14,10 +14,20 @@ use serde_json::json;
 use std::sync::Arc;
 use tracing::{error, info, warn};
 use ultrafast_mcp::{
-    UltraFastClient, ClientCapabilities, ClientInfo, MCPError, MCPResult,
-    ToolCall, ListToolsRequest, ListResourcesRequest, ListPromptsRequest, GetPromptRequest,
+    ClientCapabilities,
+    ClientInfo,
+    GetPromptRequest,
+    ListPromptsRequest,
+    ListResourcesRequest,
+    ListToolsRequest,
+    MCPError,
+    MCPResult,
     // Import OAuth and HTTP types
-    OAuthConfig, StreamableHttpClient, StreamableHttpClientConfig,
+    OAuthConfig,
+    StreamableHttpClient,
+    StreamableHttpClientConfig,
+    ToolCall,
+    UltraFastClient,
 };
 
 struct AdvancedClient {
@@ -61,7 +71,7 @@ impl AdvancedClient {
 
     async fn connect(&mut self) -> MCPResult<()> {
         info!("🔗 Connecting to MCP server via HTTP...");
-        
+
         // Create HTTP transport configuration
         let transport_config = StreamableHttpClientConfig {
             base_url: "http://127.0.0.1:8080".to_string(),
@@ -72,21 +82,25 @@ impl AdvancedClient {
             auth_token: None,
             oauth_config: None,
         };
-        
+
         // Create HTTP transport
         let mut transport = StreamableHttpClient::new(transport_config)
             .map_err(|e| MCPError::invalid_request(format!("Transport creation failed: {}", e)))?;
-        
+
         // Connect the transport first
-        transport.connect().await
-            .map_err(|e| MCPError::invalid_request(format!("Transport connection failed: {}", e)))?;
-        
-        // Connect using HTTP transport
-        self.client.connect(Box::new(transport)).await.map_err(|e| {
-            error!("Failed to initialize client: {}", e);
-            MCPError::invalid_request(format!("Initialization failed: {}", e))
+        transport.connect().await.map_err(|e| {
+            MCPError::invalid_request(format!("Transport connection failed: {}", e))
         })?;
-        
+
+        // Connect using HTTP transport
+        self.client
+            .connect(Box::new(transport))
+            .await
+            .map_err(|e| {
+                error!("Failed to initialize client: {}", e);
+                MCPError::invalid_request(format!("Initialization failed: {}", e))
+            })?;
+
         info!("✅ Connected to MCP server successfully");
         Ok(())
     }
@@ -96,7 +110,10 @@ impl AdvancedClient {
         // List available tools
         let tools_req = ListToolsRequest { cursor: None };
         let tools = self.client.list_tools(tools_req).await?;
-        info!("Available tools: {:?}", tools.tools.iter().map(|t| &t.name).collect::<Vec<_>>());
+        info!(
+            "Available tools: {:?}",
+            tools.tools.iter().map(|t| &t.name).collect::<Vec<_>>()
+        );
         // Call calculator tool
         let calculator_call = ToolCall {
             name: "calculate".to_string(),
@@ -127,7 +144,14 @@ impl AdvancedClient {
         info!("📁 Demonstrating resource access...");
         let req = ListResourcesRequest { cursor: None };
         let resources = self.client.list_resources(req).await?;
-        info!("Available resources: {:?}", resources.resources.iter().map(|r| &r.uri).collect::<Vec<_>>());
+        info!(
+            "Available resources: {:?}",
+            resources
+                .resources
+                .iter()
+                .map(|r| &r.uri)
+                .collect::<Vec<_>>()
+        );
         Ok(())
     }
 
@@ -135,7 +159,10 @@ impl AdvancedClient {
         info!("💬 Demonstrating prompt generation...");
         let req = ListPromptsRequest { cursor: None };
         let prompts = self.client.list_prompts(req).await?;
-        info!("Available prompts: {:?}", prompts.prompts.iter().map(|p| &p.name).collect::<Vec<_>>());
+        info!(
+            "Available prompts: {:?}",
+            prompts.prompts.iter().map(|p| &p.name).collect::<Vec<_>>()
+        );
         let get_req = GetPromptRequest {
             name: "greeting".to_string(),
             arguments: Some(json!({"name": "Alice"})),

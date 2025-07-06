@@ -130,13 +130,15 @@ impl CapabilityNegotiator {
         if server_caps.tools.is_some() {
             negotiated_server.tools = server_caps.tools.clone();
         } else if client_caps.sampling.is_some() {
-            warnings.push("Client supports sampling but server does not provide tools capability".to_string());
+            warnings.push(
+                "Client supports sampling but server does not provide tools capability".to_string(),
+            );
         }
 
         // Negotiate resources capability
         if server_caps.resources.is_some() {
             let mut negotiated_resources = server_caps.resources.clone().unwrap();
-            
+
             // Check if client can handle subscriptions based on protocol version
             if let Some(ref server_res) = server_caps.resources {
                 if server_res.subscribe == Some(true) {
@@ -144,13 +146,13 @@ impl CapabilityNegotiator {
                         // Disable subscriptions for older protocol versions
                         negotiated_resources.subscribe = Some(false);
                         warnings.push(format!(
-                            "Resource subscriptions disabled for protocol version {}", 
+                            "Resource subscriptions disabled for protocol version {}",
                             protocol_version
                         ));
                     }
                 }
             }
-            
+
             negotiated_server.resources = Some(negotiated_resources);
         }
 
@@ -178,7 +180,9 @@ impl CapabilityNegotiator {
             // Client can only use sampling if server supports tools
             negotiated_client.sampling = client_caps.sampling.clone();
         } else if client_caps.sampling.is_some() {
-            warnings.push("Client sampling capability disabled - server does not support tools".to_string());
+            warnings.push(
+                "Client sampling capability disabled - server does not support tools".to_string(),
+            );
         }
 
         if client_caps.elicitation.is_some() {
@@ -186,9 +190,10 @@ impl CapabilityNegotiator {
         }
 
         // Validate that we have at least one compatible capability
-        if negotiated_server.tools.is_none() 
-            && negotiated_server.resources.is_none() 
-            && negotiated_server.prompts.is_none() {
+        if negotiated_server.tools.is_none()
+            && negotiated_server.resources.is_none()
+            && negotiated_server.prompts.is_none()
+        {
             return Err("No compatible capabilities found between client and server".to_string());
         }
 
@@ -224,26 +229,26 @@ impl CapabilityNegotiator {
     /// Check if a specific feature is supported within a capability
     pub fn supports_feature(caps: &ServerCapabilities, capability: &str, feature: &str) -> bool {
         match (capability, feature) {
-            ("resources", "subscribe") => {
-                caps.resources.as_ref()
-                    .and_then(|r| r.subscribe)
-                    .unwrap_or(false)
-            }
-            ("tools", "list_changed") => {
-                caps.tools.as_ref()
-                    .and_then(|t| t.list_changed)
-                    .unwrap_or(false)
-            }
-            ("resources", "list_changed") => {
-                caps.resources.as_ref()
-                    .and_then(|r| r.list_changed)
-                    .unwrap_or(false)
-            }
-            ("prompts", "list_changed") => {
-                caps.prompts.as_ref()
-                    .and_then(|p| p.list_changed)
-                    .unwrap_or(false)
-            }
+            ("resources", "subscribe") => caps
+                .resources
+                .as_ref()
+                .and_then(|r| r.subscribe)
+                .unwrap_or(false),
+            ("tools", "list_changed") => caps
+                .tools
+                .as_ref()
+                .and_then(|t| t.list_changed)
+                .unwrap_or(false),
+            ("resources", "list_changed") => caps
+                .resources
+                .as_ref()
+                .and_then(|r| r.list_changed)
+                .unwrap_or(false),
+            ("prompts", "list_changed") => caps
+                .prompts
+                .as_ref()
+                .and_then(|p| p.list_changed)
+                .unwrap_or(false),
             _ => false,
         }
     }
@@ -261,12 +266,14 @@ impl CapabilityNegotiator {
     ) -> Result<(), String> {
         // Check if client requires sampling but server doesn't support tools
         if client_caps.sampling.is_some() && server_caps.tools.is_none() {
-            return Err("Client requires sampling capability but server does not support tools".to_string());
+            return Err(
+                "Client requires sampling capability but server does not support tools".to_string(),
+            );
         }
 
         // Check if we have at least one overlapping capability
-        let has_overlap = server_caps.tools.is_some() 
-            || server_caps.resources.is_some() 
+        let has_overlap = server_caps.tools.is_some()
+            || server_caps.resources.is_some()
             || server_caps.prompts.is_some()
             || server_caps.logging.is_some()
             || server_caps.completion.is_some();
@@ -306,7 +313,8 @@ mod tests {
             completion: None,
         };
 
-        let result = CapabilityNegotiator::negotiate(&client_caps, &server_caps, "2025-06-18").unwrap();
+        let result =
+            CapabilityNegotiator::negotiate(&client_caps, &server_caps, "2025-06-18").unwrap();
 
         assert!(CapabilityNegotiator::client_supports_capability(
             &result.client_capabilities,
@@ -329,10 +337,22 @@ mod tests {
 
     #[test]
     fn test_version_based_feature_support() {
-        assert!(CapabilityNegotiator::version_supports_feature("2025-06-18", "resource_subscriptions"));
-        assert!(!CapabilityNegotiator::version_supports_feature("2024-11-05", "resource_subscriptions"));
-        assert!(CapabilityNegotiator::version_supports_feature("2025-06-18", "progress_tracking"));
-        assert!(!CapabilityNegotiator::version_supports_feature("2024-11-05", "progress_tracking"));
+        assert!(CapabilityNegotiator::version_supports_feature(
+            "2025-06-18",
+            "resource_subscriptions"
+        ));
+        assert!(!CapabilityNegotiator::version_supports_feature(
+            "2024-11-05",
+            "resource_subscriptions"
+        ));
+        assert!(CapabilityNegotiator::version_supports_feature(
+            "2025-06-18",
+            "progress_tracking"
+        ));
+        assert!(!CapabilityNegotiator::version_supports_feature(
+            "2024-11-05",
+            "progress_tracking"
+        ));
     }
 
     #[test]
@@ -347,9 +367,14 @@ mod tests {
             ..Default::default()
         };
 
-        let result = CapabilityNegotiator::validate_compatibility(&client_with_sampling, &server_without_tools);
+        let result = CapabilityNegotiator::validate_compatibility(
+            &client_with_sampling,
+            &server_without_tools,
+        );
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("sampling capability but server does not support tools"));
+        assert!(result
+            .unwrap_err()
+            .contains("sampling capability but server does not support tools"));
     }
 
     #[test]
@@ -359,6 +384,8 @@ mod tests {
 
         let result = CapabilityNegotiator::negotiate(&client_caps, &server_caps, "2025-06-18");
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("No compatible capabilities found"));
+        assert!(result
+            .unwrap_err()
+            .contains("No compatible capabilities found"));
     }
 }

@@ -311,7 +311,10 @@ impl RecoveringTransport {
 
     fn calculate_retry_delay(&self) -> std::time::Duration {
         let base_delay = self.recovery_config.initial_delay.as_millis() as f64;
-        let multiplier = self.recovery_config.backoff_multiplier.powi(self.retry_count as i32);
+        let multiplier = self
+            .recovery_config
+            .backoff_multiplier
+            .powi(self.retry_count as i32);
         let mut delay_ms = base_delay * multiplier;
 
         // Add jitter if enabled
@@ -343,9 +346,12 @@ impl Transport for RecoveringTransport {
                 }
                 Err(e) => {
                     self.emit_event(TransportEvent::Error(e.to_string())).await;
-                    
+
                     // Try recovery for connection errors
-                    if matches!(e, TransportError::ConnectionClosed | TransportError::ConnectionError { .. }) {
+                    if matches!(
+                        e,
+                        TransportError::ConnectionClosed | TransportError::ConnectionError { .. }
+                    ) {
                         match self.attempt_recovery().await {
                             Ok(()) => continue, // Retry the send
                             Err(recovery_err) => return Err(recovery_err),
@@ -369,9 +375,12 @@ impl Transport for RecoveringTransport {
                 }
                 Err(e) => {
                     self.emit_event(TransportEvent::Error(e.to_string())).await;
-                    
+
                     // Try recovery for connection errors
-                    if matches!(e, TransportError::ConnectionClosed | TransportError::ConnectionError { .. }) {
+                    if matches!(
+                        e,
+                        TransportError::ConnectionClosed | TransportError::ConnectionError { .. }
+                    ) {
                         match self.attempt_recovery().await {
                             Ok(()) => continue, // Retry the receive
                             Err(recovery_err) => return Err(recovery_err),
@@ -387,12 +396,12 @@ impl Transport for RecoveringTransport {
     async fn close(&mut self) -> Result<()> {
         self.health.state = ConnectionState::ShuttingDown;
         self.emit_event(TransportEvent::ShutdownRequested).await;
-        
+
         let result = self.inner.close().await;
-        
+
         self.health.state = ConnectionState::Disconnected;
         self.emit_event(TransportEvent::ShutdownComplete).await;
-        
+
         result
     }
 

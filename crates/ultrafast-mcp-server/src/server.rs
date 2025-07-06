@@ -335,7 +335,10 @@ impl UltraFastServer {
 
     /// Enable rate limiting
     pub fn with_rate_limiting(self, requests_per_minute: u32) -> Self {
-        info!("Rate limiting enabled: {} requests per minute", requests_per_minute);
+        info!(
+            "Rate limiting enabled: {} requests per minute",
+            requests_per_minute
+        );
         self
     }
 
@@ -688,9 +691,10 @@ impl UltraFastServer {
         });
 
         // Start the HTTP server
-        transport_server.run().await.map_err(|e| {
-            MCPError::internal_error(format!("HTTP server failed: {}", e))
-        })
+        transport_server
+            .run()
+            .await
+            .map_err(|e| MCPError::internal_error(format!("HTTP server failed: {}", e)))
     }
 
     /// Process HTTP messages from the transport layer
@@ -773,17 +777,21 @@ impl UltraFastServer {
 
         // Negotiate protocol version
         let negotiated_version = match ultrafast_mcp_core::protocol::version::negotiate_version(
-            &request.protocol_version
+            &request.protocol_version,
         ) {
             Ok(version) => {
-                info!("Protocol version negotiated: {} -> {}", request.protocol_version, version);
+                info!(
+                    "Protocol version negotiated: {} -> {}",
+                    request.protocol_version, version
+                );
                 version
             }
             Err(e) => {
                 error!("Protocol version negotiation failed: {}", e);
                 return Err(MCPError::invalid_request(format!(
                     "Protocol version negotiation failed: {}. Supported versions: {:?}",
-                    e, ultrafast_mcp_core::protocol::version::SUPPORTED_VERSIONS
+                    e,
+                    ultrafast_mcp_core::protocol::version::SUPPORTED_VERSIONS
                 )));
             }
         };
@@ -795,24 +803,30 @@ impl UltraFastServer {
         }
 
         // Negotiate capabilities
-        let negotiation_result = match ultrafast_mcp_core::protocol::capabilities::CapabilityNegotiator::negotiate(
-            &request.capabilities,
-            &self.capabilities,
-            &negotiated_version,
-        ) {
-            Ok(result) => {
-                // Log any warnings from capability negotiation
-                for warning in &result.warnings {
-                    warn!("Capability negotiation warning: {}", warning);
+        let negotiation_result =
+            match ultrafast_mcp_core::protocol::capabilities::CapabilityNegotiator::negotiate(
+                &request.capabilities,
+                &self.capabilities,
+                &negotiated_version,
+            ) {
+                Ok(result) => {
+                    // Log any warnings from capability negotiation
+                    for warning in &result.warnings {
+                        warn!("Capability negotiation warning: {}", warning);
+                    }
+                    info!(
+                        "Capabilities negotiated successfully with {} warnings",
+                        result.warnings.len()
+                    );
+                    result
                 }
-                info!("Capabilities negotiated successfully with {} warnings", result.warnings.len());
-                result
-            }
-            Err(e) => {
-                error!("Capability negotiation failed: {}", e);
-                return Err(MCPError::Protocol(ultrafast_mcp_core::error::ProtocolError::CapabilityNotSupported(e)));
-            }
-        };
+                Err(e) => {
+                    error!("Capability negotiation failed: {}", e);
+                    return Err(MCPError::Protocol(
+                        ultrafast_mcp_core::error::ProtocolError::CapabilityNotSupported(e),
+                    ));
+                }
+            };
 
         // Update server state to Operating directly for better client compatibility
         // This allows operations immediately after initialize without requiring initialized notification
@@ -821,7 +835,10 @@ impl UltraFastServer {
             *state = ServerState::Operating;
         }
 
-        info!("Server initialized and ready for operations with protocol version: {}", negotiated_version);
+        info!(
+            "Server initialized and ready for operations with protocol version: {}",
+            negotiated_version
+        );
 
         // Create instructions if there were capability warnings
         let instructions = if !negotiation_result.warnings.is_empty() {
@@ -970,9 +987,7 @@ impl UltraFastServer {
         params: Option<serde_json::Value>,
     ) -> ultrafast_mcp_core::types::resources::SubscribeRequest {
         serde_json::from_value(params.unwrap_or_default()).unwrap_or_else(|_| {
-            ultrafast_mcp_core::types::resources::SubscribeRequest {
-                uri: String::new(),
-            }
+            ultrafast_mcp_core::types::resources::SubscribeRequest { uri: String::new() }
         })
     }
 
@@ -981,9 +996,7 @@ impl UltraFastServer {
         params: Option<serde_json::Value>,
     ) -> ultrafast_mcp_core::types::resources::UnsubscribeRequest {
         serde_json::from_value(params.unwrap_or_default()).unwrap_or_else(|_| {
-            ultrafast_mcp_core::types::resources::UnsubscribeRequest {
-                uri: String::new(),
-            }
+            ultrafast_mcp_core::types::resources::UnsubscribeRequest { uri: String::new() }
         })
     }
 
@@ -1047,20 +1060,18 @@ impl UltraFastServer {
                 match serde_json::from_value::<ultrafast_mcp_core::protocol::InitializeRequest>(
                     request.params.unwrap_or_default(),
                 ) {
-                    Ok(init_request) => {
-                        match self.handle_initialize(init_request).await {
-                            Ok(response) => JsonRpcResponse::success(
-                                serde_json::to_value(response).unwrap(),
-                                request.id,
-                            ),
-                            Err(e) => JsonRpcResponse::error(
-                                JsonRpcError::from(e),
-                                request.id,
-                            ),
-                        }
-                    }
+                    Ok(init_request) => match self.handle_initialize(init_request).await {
+                        Ok(response) => JsonRpcResponse::success(
+                            serde_json::to_value(response).unwrap(),
+                            request.id,
+                        ),
+                        Err(e) => JsonRpcResponse::error(JsonRpcError::from(e), request.id),
+                    },
                     Err(e) => JsonRpcResponse::error(
-                        JsonRpcError::invalid_params(Some(format!("Invalid initialize request: {}", e))),
+                        JsonRpcError::invalid_params(Some(format!(
+                            "Invalid initialize request: {}",
+                            e
+                        ))),
                         request.id,
                     ),
                 }
@@ -1076,10 +1087,7 @@ impl UltraFastServer {
 
                 match self.handle_shutdown(shutdown_request).await {
                     Ok(_) => JsonRpcResponse::success(serde_json::json!({}), request.id),
-                    Err(e) => JsonRpcResponse::error(
-                        JsonRpcError::from(e),
-                        request.id,
-                    ),
+                    Err(e) => JsonRpcResponse::error(JsonRpcError::from(e), request.id),
                 }
             }
 
@@ -1288,7 +1296,8 @@ impl UltraFastServer {
                     );
                 }
 
-                let list_request = self.deserialize_list_resource_templates_request(request.params.clone());
+                let list_request =
+                    self.deserialize_list_resource_templates_request(request.params.clone());
 
                 if let Some(handler) = &self.resource_handler {
                     match handler.list_resource_templates(list_request).await {
@@ -1297,7 +1306,10 @@ impl UltraFastServer {
                             request.id,
                         ),
                         Err(e) => JsonRpcResponse::error(
-                            JsonRpcError::new(-32603, format!("Resource templates list failed: {}", e)),
+                            JsonRpcError::new(
+                                -32603,
+                                format!("Resource templates list failed: {}", e),
+                            ),
                             request.id,
                         ),
                     }
@@ -1328,7 +1340,7 @@ impl UltraFastServer {
                                 serde_json::to_value(SubscribeResponse::new()).unwrap(),
                                 request.id,
                             )
-                        },
+                        }
                         Err(e) => JsonRpcResponse::error(
                             JsonRpcError::new(-32603, format!("Resource subscribe failed: {}", e)),
                             request.id,
@@ -1336,7 +1348,10 @@ impl UltraFastServer {
                     }
                 } else {
                     JsonRpcResponse::error(
-                        JsonRpcError::new(-32601, "Resource subscriptions not supported".to_string()),
+                        JsonRpcError::new(
+                            -32601,
+                            "Resource subscriptions not supported".to_string(),
+                        ),
                         request.id,
                     )
                 }
@@ -1349,22 +1364,26 @@ impl UltraFastServer {
                     );
                 }
 
-                let unsubscribe_request = self.deserialize_unsubscribe_request(request.params.clone());
+                let unsubscribe_request =
+                    self.deserialize_unsubscribe_request(request.params.clone());
 
                 if let Some(handler) = &self.subscription_handler {
                     match handler.unsubscribe(unsubscribe_request.uri).await {
-                        Ok(_) => JsonRpcResponse::success(
-                            serde_json::Value::Null,
-                            request.id,
-                        ),
+                        Ok(_) => JsonRpcResponse::success(serde_json::Value::Null, request.id),
                         Err(e) => JsonRpcResponse::error(
-                            JsonRpcError::new(-32603, format!("Resource unsubscribe failed: {}", e)),
+                            JsonRpcError::new(
+                                -32603,
+                                format!("Resource unsubscribe failed: {}", e),
+                            ),
                             request.id,
                         ),
                     }
                 } else {
                     JsonRpcResponse::error(
-                        JsonRpcError::new(-32601, "Resource subscriptions not supported".to_string()),
+                        JsonRpcError::new(
+                            -32601,
+                            "Resource subscriptions not supported".to_string(),
+                        ),
                         request.id,
                     )
                 }
@@ -1553,9 +1572,10 @@ impl UltraFastServer {
 
             // Ping method for connection health monitoring
             "ping" => {
-                let ping_request = match serde_json::from_value::<ultrafast_mcp_core::types::notifications::PingRequest>(
-                    request.params.unwrap_or_default(),
-                ) {
+                let ping_request = match serde_json::from_value::<
+                    ultrafast_mcp_core::types::notifications::PingRequest,
+                >(request.params.unwrap_or_default())
+                {
                     Ok(req) => req,
                     Err(_) => ultrafast_mcp_core::types::notifications::PingRequest { data: None },
                 };
@@ -1586,7 +1606,7 @@ impl UltraFastServer {
     /// Handle incoming notifications
     async fn handle_notification(&self, notification: JsonRpcRequest) -> MCPResult<()> {
         info!("Handling notification: {}", notification.method);
-        
+
         match notification.method.as_str() {
             "initialized" => {
                 let notification = ultrafast_mcp_core::protocol::InitializedNotification {};
@@ -2279,7 +2299,7 @@ mod tests {
                 ))
             );
             assert_eq!(error.code, -32602); // Invalid params
-            // The actual error message format has changed to include more context
+                                            // The actual error message format has changed to include more context
             assert!(error.message.contains("Invalid parameters"));
         } else {
             panic!("Expected error response");

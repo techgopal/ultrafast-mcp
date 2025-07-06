@@ -116,7 +116,7 @@
 //!
 //! // Create a read response
 //! let read_response = ReadResourceResponse {
-//!     contents: vec![ResourceContent::text("Document content".to_string())],
+//!     contents: vec![ResourceContent::text("file:///path/to/document.txt".to_string(), "Document content".to_string())],
 //! };
 //! ```
 //!

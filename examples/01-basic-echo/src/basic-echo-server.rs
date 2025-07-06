@@ -127,9 +127,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let server_info = ServerInfo {
         name: "basic-echo-server".to_string(),
         version: "1.0.0".to_string(),
-        description: Some(
-            "A simple echo server for MCP Inspector testing".to_string(),
-        ),
+        description: Some("A simple echo server for MCP Inspector testing".to_string()),
         authors: Some(vec!["ULTRAFAST_MCP Team".to_string()]),
         homepage: Some("https://github.com/ultrafast-mcp/ultrafast-mcp".to_string()),
         license: Some("MIT OR Apache-2.0".to_string()),
@@ -147,4 +145,4 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     info!("Server shutdown completed");
     Ok(())
-} 
+}

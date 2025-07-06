@@ -11,8 +11,8 @@ pub use server::{HttpTransportConfig, HttpTransportServer, HttpTransportState};
 
 // Re-export middleware types for convenience
 pub use crate::middleware::{
-    TransportMiddleware, LoggingMiddleware, RateLimitMiddleware, 
-    ProgressMiddleware, ValidationMiddleware, MiddlewareTransport
+    LoggingMiddleware, MiddlewareTransport, ProgressMiddleware, RateLimitMiddleware,
+    TransportMiddleware, ValidationMiddleware,
 };
 
 /// Create a Streamable HTTP client with middleware
@@ -22,11 +22,11 @@ pub async fn create_streamable_http_client_with_middleware(
 ) -> crate::Result<MiddlewareTransport<StreamableHttpClient>> {
     let client = StreamableHttpClient::new(config)?;
     let mut transport = MiddlewareTransport::new(client);
-    
+
     for middleware in middlewares {
         transport = transport.with_middleware(middleware);
     }
-    
+
     Ok(transport)
 }
 
@@ -35,13 +35,13 @@ pub async fn create_streamable_http_client_default(
     config: StreamableHttpClientConfig,
 ) -> crate::Result<MiddlewareTransport<StreamableHttpClient>> {
     let client = StreamableHttpClient::new(config)?;
-    
+
     let transport = MiddlewareTransport::new(client)
         .add_logging()
         .add_rate_limiting(100) // 100 requests per minute
         .add_progress_tracking(30) // 30 second timeout
         .add_validation(true); // strict validation
-    
+
     Ok(transport)
 }
 
@@ -51,18 +51,15 @@ pub fn create_streamable_http_server_with_middleware(
     _middlewares: Vec<Box<dyn TransportMiddleware>>,
 ) -> HttpTransportServer {
     let server = HttpTransportServer::new(config);
-    
+
     // Note: Server middleware is applied at the HTTP handler level
     // Individual middleware can be added to the server state if needed
-    
+
     server
 }
 
 /// Create a Streamable HTTP server with default configuration
-pub fn create_streamable_http_server_default(
-    host: &str,
-    port: u16,
-) -> HttpTransportServer {
+pub fn create_streamable_http_server_default(host: &str, port: u16) -> HttpTransportServer {
     let config = HttpTransportConfig {
         host: host.to_string(),
         port,
@@ -71,6 +68,6 @@ pub fn create_streamable_http_server_default(
         allow_origin: Some("*".to_string()), // Allow all origins for development
         monitoring_enabled: true,
     };
-    
+
     HttpTransportServer::new(config)
-} 
+}

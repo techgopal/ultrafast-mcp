@@ -5,8 +5,8 @@
 
 use crate::{Result, Transport, TransportError};
 use async_trait::async_trait;
-use ultrafast_mcp_core::protocol::JsonRpcMessage;
 use ultrafast_mcp_auth::{OAuthClient, OAuthConfig};
+use ultrafast_mcp_core::protocol::JsonRpcMessage;
 
 /// Streamable HTTP client configuration
 #[derive(Debug, Clone)]
@@ -54,7 +54,9 @@ impl StreamableHttpClient {
                 message: format!("Failed to create HTTP client: {}", e),
             })?;
 
-        let oauth_client = config.oauth_config.as_ref()
+        let oauth_client = config
+            .oauth_config
+            .as_ref()
             .map(|config| OAuthClient::from_config(config.clone()));
 
         let access_token = config.auth_token.clone();
@@ -74,16 +76,18 @@ impl StreamableHttpClient {
     pub async fn authenticate(&mut self) -> Result<()> {
         if let Some(oauth_client) = &self.oauth_client {
             // Generate PKCE parameters
-            let pkce_params = ultrafast_mcp_auth::generate_pkce_params()
-                .map_err(|e| TransportError::AuthenticationError {
+            let pkce_params = ultrafast_mcp_auth::generate_pkce_params().map_err(|e| {
+                TransportError::AuthenticationError {
                     message: format!("Failed to generate PKCE: {}", e),
-                })?;
+                }
+            })?;
 
             // Generate state for CSRF protection
             let state = ultrafast_mcp_auth::generate_state();
 
             // Get authorization URL
-            let auth_url = oauth_client.get_authorization_url_with_pkce(state, pkce_params.clone())
+            let auth_url = oauth_client
+                .get_authorization_url_with_pkce(state, pkce_params.clone())
                 .await
                 .map_err(|e| TransportError::AuthenticationError {
                     message: format!("Failed to get auth URL: {}", e),
@@ -94,13 +98,14 @@ impl StreamableHttpClient {
             // 2. Wait for user to complete authorization
             // 3. Receive the authorization code via callback
             // For now, we'll simulate this with a placeholder
-            
+
             tracing::info!("OAuth authentication URL: {}", auth_url);
             tracing::warn!("OAuth authentication requires manual user interaction. Please complete the flow manually.");
-            
+
             // For testing purposes, we'll use a mock token
             self.access_token = Some("mock_oauth_token".to_string());
-            self.token_expiry = Some(std::time::SystemTime::now() + std::time::Duration::from_secs(3600));
+            self.token_expiry =
+                Some(std::time::SystemTime::now() + std::time::Duration::from_secs(3600));
         }
 
         Ok(())
@@ -140,30 +145,37 @@ impl StreamableHttpClient {
         }
 
         // For Streamable HTTP, we establish a session by sending an initialize request
-        let initialize_request = JsonRpcMessage::Request(ultrafast_mcp_core::protocol::JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
-            method: "initialize".to_string(),
-            params: Some(serde_json::json!({
-                "protocolVersion": self.config.protocol_version,
-                "capabilities": {},
-                "clientInfo": {
-                    "name": "ultrafast-mcp-client",
-                    "version": "1.0.0"
-                }
-            })),
-            id: Some(ultrafast_mcp_core::protocol::RequestId::String("1".to_string())),
-            meta: std::collections::HashMap::new(),
-        });
+        let initialize_request =
+            JsonRpcMessage::Request(ultrafast_mcp_core::protocol::JsonRpcRequest {
+                jsonrpc: "2.0".to_string(),
+                method: "initialize".to_string(),
+                params: Some(serde_json::json!({
+                    "protocolVersion": self.config.protocol_version,
+                    "capabilities": {},
+                    "clientInfo": {
+                        "name": "ultrafast-mcp-client",
+                        "version": "1.0.0"
+                    }
+                })),
+                id: Some(ultrafast_mcp_core::protocol::RequestId::String(
+                    "1".to_string(),
+                )),
+                meta: std::collections::HashMap::new(),
+            });
 
-        let session_id = self.config.session_id.clone()
+        let session_id = self
+            .config
+            .session_id
+            .clone()
             .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
 
         let url = format!("{}/mcp", self.config.base_url);
-        
+
         // Get authentication headers
         let auth_headers = self.get_auth_headers().await?;
-        
-        let mut request_builder = self.client
+
+        let mut request_builder = self
+            .client
             .post(&url)
             .header("content-type", "application/json")
             .header("mcp-session-id", &session_id)
@@ -175,12 +187,13 @@ impl StreamableHttpClient {
             request_builder = request_builder.header(key, value);
         }
 
-        let response = request_builder
-            .send()
-            .await
-            .map_err(|e| TransportError::ConnectionError {
-                message: format!("Failed to connect: {}", e),
-            })?;
+        let response =
+            request_builder
+                .send()
+                .await
+                .map_err(|e| TransportError::ConnectionError {
+                    message: format!("Failed to connect: {}", e),
+                })?;
 
         if !response.status().is_success() {
             let error_text = response.text().await.unwrap_or_default();
@@ -190,37 +203,37 @@ impl StreamableHttpClient {
         }
 
         // Parse the initialize response
-        let response_message: JsonRpcMessage = response
-            .json()
-            .await
-            .map_err(|e| TransportError::SerializationError {
-                message: format!("Failed to parse initialize response: {}", e),
-            })?;
+        let response_message: JsonRpcMessage =
+            response
+                .json()
+                .await
+                .map_err(|e| TransportError::SerializationError {
+                    message: format!("Failed to parse initialize response: {}", e),
+                })?;
 
         // Store session ID and response
         self.session_id = Some(session_id.clone());
         self.pending_response = Some(response_message);
-        
+
         Ok(session_id)
     }
 
     /// Send a message and get immediate response
-    async fn send_message_internal(
-        &mut self,
-        message: JsonRpcMessage,
-    ) -> Result<JsonRpcMessage> {
-        let session_id = self.session_id.clone().ok_or_else(|| {
-            TransportError::ConnectionError {
-                message: "Not connected".to_string(),
-            }
-        })?;
+    async fn send_message_internal(&mut self, message: JsonRpcMessage) -> Result<JsonRpcMessage> {
+        let session_id =
+            self.session_id
+                .clone()
+                .ok_or_else(|| TransportError::ConnectionError {
+                    message: "Not connected".to_string(),
+                })?;
 
         let url = format!("{}/mcp", self.config.base_url);
-        
+
         // Get authentication headers
         let auth_headers = self.get_auth_headers().await?;
-        
-        let mut request_builder = self.client
+
+        let mut request_builder = self
+            .client
             .post(&url)
             .header("content-type", "application/json")
             .header("mcp-session-id", session_id)
@@ -247,12 +260,13 @@ impl StreamableHttpClient {
         }
 
         // Parse the response - it should be a single JSON-RPC message
-        let response_message: JsonRpcMessage = response
-            .json()
-            .await
-            .map_err(|e| TransportError::SerializationError {
-                message: format!("Failed to parse response: {}", e),
-            })?;
+        let response_message: JsonRpcMessage =
+            response
+                .json()
+                .await
+                .map_err(|e| TransportError::SerializationError {
+                    message: format!("Failed to parse response: {}", e),
+                })?;
 
         Ok(response_message)
     }
@@ -266,11 +280,11 @@ impl StreamableHttpClient {
                 crate::ConnectionState::Disconnected
             },
             last_activity: None, // TODO: Track last activity
-            messages_sent: 0, // TODO: Track message counts
+            messages_sent: 0,    // TODO: Track message counts
             messages_received: 0,
             connection_duration: None, // TODO: Track connection duration
-            error_count: 0, // TODO: Track error count
-            last_error: None, // TODO: Track last error
+            error_count: 0,            // TODO: Track error count
+            last_error: None,          // TODO: Track last error
         }
     }
 
@@ -282,14 +296,14 @@ impl StreamableHttpClient {
     /// Attempt to reconnect the client
     pub async fn reconnect(&mut self) -> Result<()> {
         tracing::info!("Attempting to reconnect Streamable HTTP client");
-        
+
         // Clear current session
         self.session_id = None;
         self.pending_response = None;
-        
+
         // Attempt to connect again
         self.connect().await?;
-        
+
         tracing::info!("Successfully reconnected Streamable HTTP client");
         Ok(())
     }
@@ -297,16 +311,16 @@ impl StreamableHttpClient {
     /// Reset the client state
     pub async fn reset(&mut self) -> Result<()> {
         tracing::info!("Resetting Streamable HTTP client");
-        
+
         // Close current connection
         self.close().await?;
-        
+
         // Clear all state
         self.session_id = None;
         self.pending_response = None;
         self.access_token = None;
         self.token_expiry = None;
-        
+
         tracing::info!("Streamable HTTP client reset completed");
         Ok(())
     }
@@ -336,11 +350,12 @@ impl Transport for StreamableHttpClient {
         // Close the session using DELETE method
         if let Some(session_id) = self.session_id.clone() {
             let url = format!("{}/mcp", self.config.base_url);
-            
+
             // Get authentication headers
             let auth_headers = self.get_auth_headers().await?;
-            
-            let mut request_builder = self.client
+
+            let mut request_builder = self
+                .client
                 .delete(&url)
                 .header("mcp-session-id", session_id)
                 .header("mcp-protocol-version", &self.config.protocol_version);
