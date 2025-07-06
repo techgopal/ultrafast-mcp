@@ -20,11 +20,11 @@ targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
 # Internal dependencies
-ultrafast-mcp-core = { path = "../ultrafast-mcp-core", version = "202506018.1.0-rc.1.4" }
-ultrafast-mcp-server = { path = "../ultrafast-mcp-server", version = "202506018.1.0-rc.1.4" }
-ultrafast-mcp-client = { path = "../ultrafast-mcp-client", version = "202506018.1.0-rc.1.4" }
-ultrafast-mcp-transport = { path = "../ultrafast-mcp-transport", version = "202506018.1.0-rc.1.4" }
-ultrafast-mcp-auth = { path = "../ultrafast-mcp-auth", version = "202506018.1.0-rc.1.4", optional = true }
+ultrafast-mcp-core = { path = "../ultrafast-mcp-core", version = "202506018.1.0-rc.1.5" }
+ultrafast-mcp-server = { path = "../ultrafast-mcp-server", version = "202506018.1.0-rc.1.5" }
+ultrafast-mcp-client = { path = "../ultrafast-mcp-client", version = "202506018.1.0-rc.1.5" }
+ultrafast-mcp-transport = { path = "../ultrafast-mcp-transport", version = "202506018.1.0-rc.1.5" }
+ultrafast-mcp-auth = { path = "../ultrafast-mcp-auth", version = "202506018.1.0-rc.1.5", optional = true }
 
 # Runtime dependencies
 tokio = { workspace = true }
@@ -59,7 +59,7 @@ tracing = { workspace = true }
 schemars = { workspace = true }
 
 # Monitoring and observability
-ultrafast-mcp-monitoring = { path = "../ultrafast-mcp-monitoring", version = "202506018.1.0-rc.1.4", optional = true }
+ultrafast-mcp-monitoring = { path = "../ultrafast-mcp-monitoring", version = "202506018.1.0-rc.1.5", optional = true }
 opentelemetry = { workspace = true, optional = true }
 opentelemetry_sdk = { workspace = true, optional = true }
 tracing-opentelemetry = { workspace = true, optional = true }
