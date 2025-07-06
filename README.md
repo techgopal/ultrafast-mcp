@@ -12,7 +12,7 @@
 
 ## ⚠️ Release Candidate Status
 
-This is **Release Candidate 2 (v202506018.1.0-rc.2)** of UltraFast MCP. While the framework is feature-complete and well-tested, it should be considered **pre-production** software. We recommend thorough testing in your environment before deploying to production.
+This is **Release Candidate 2 (v20250618.1.0-rc.2)** of UltraFast MCP. While the framework is feature-complete and well-tested, it should be considered **pre-production** software. We recommend thorough testing in your environment before deploying to production.
 
 ## ✨ Features
 
@@ -56,7 +56,7 @@ cargo add ultrafast-mcp --features="http,oauth"
 
 ```toml
 [dependencies]
-ultrafast-mcp = { version = "202506018.1.0-rc.2", features = [
+ultrafast-mcp = { version = "20250618.1.0-rc.2", features = [
     "http",               # HTTP/HTTPS transport
     "oauth",              # OAuth 2.1 authentication
     "monitoring",         # OpenTelemetry observability

@@ -1,6 +1,6 @@
 [package]
 name = "ultrafast-mcp-transport"
-version = "202506018.1.0-rc.2"
+version = "20250618.1.0-rc.2"
 edition = "2021"
 description = "Transport layer for UltraFast MCP"
 license = "MIT OR Apache-2.0"
@@ -9,9 +9,9 @@ keywords = ["mcp", "model-context-protocol", "transport", "http", "stdio"]
 categories = ["network-programming", "asynchronous"]
 
 [dependencies]
-ultrafast-mcp-core = { path = "../ultrafast-mcp-core", version = "202506018.1.0-rc.2" }
-ultrafast-mcp-auth = { path = "../ultrafast-mcp-auth", version = "202506018.1.0-rc.2" }
-ultrafast-mcp-monitoring = { path = "../ultrafast-mcp-monitoring", version = "202506018.1.0-rc.2" }
+ultrafast-mcp-core = { path = "../ultrafast-mcp-core", version = "20250618.1.0-rc.2" }
+ultrafast-mcp-auth = { path = "../ultrafast-mcp-auth", version = "20250618.1.0-rc.2" }
+ultrafast-mcp-monitoring = { path = "../ultrafast-mcp-monitoring", version = "20250618.1.0-rc.2" }
 
 # Async runtime
 tokio = { version = "1.0", features = ["full"] }

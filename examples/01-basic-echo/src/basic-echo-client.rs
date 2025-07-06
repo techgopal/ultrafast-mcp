@@ -27,7 +27,8 @@ async fn main() -> MCPResult<()> {
     info!("Client created, connecting to server");
 
     // Create STDIO transport
-    let mut transport = ultrafast_mcp::StreamableHttpClient::new(config).unwrap();
+    let mut transport = ultrafast_mcp::StreamableHttpClient::new(config)
+        .map_err(|e| anyhow::anyhow!("Failed to create transport: {}", e))?;
     
     // Connect to server
     client.connect(Box::new(transport)).await?;

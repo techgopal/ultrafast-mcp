@@ -71,7 +71,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             oauth_config: None,
         };
 
-        let mut transport = ultrafast_mcp::StreamableHttpClient::new(config).unwrap();
+        let mut transport = ultrafast_mcp::StreamableHttpClient::new(config)
+        .map_err(|e| anyhow::anyhow!("Failed to create transport: {}", e))?;
         // Connect the transport before passing to client
         match transport.connect().await {
             Ok(_) => match client.connect(Box::new(transport)).await {

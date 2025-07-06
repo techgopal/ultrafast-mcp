@@ -2,6 +2,18 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 
+/// Configuration constants for JSON-RPC protocol
+pub mod config {
+    /// Maximum length for request ID strings
+    pub const MAX_REQUEST_ID_LENGTH: usize = 1000;
+    /// Minimum value for numeric request IDs
+    pub const MIN_REQUEST_ID_NUMBER: i64 = -999_999_999;
+    /// Maximum value for numeric request IDs
+    pub const MAX_REQUEST_ID_NUMBER: i64 = 999_999_999;
+    /// JSON-RPC version string
+    pub const JSONRPC_VERSION: &str = "2.0";
+}
+
 /// Standard JSON-RPC 2.0 error codes
 pub mod error_codes {
     /// Parse error (invalid JSON)
@@ -40,10 +52,33 @@ pub mod mcp_error_codes {
 }
 
 /// JSON-RPC 2.0 request ID can be string or number (null is not supported in MCP)
+/// 
+/// This enum represents the request ID field in JSON-RPC messages. According to the
+/// JSON-RPC 2.0 specification, request IDs can be strings, numbers, or null. However,
+/// the MCP specification does not support null request IDs, so this implementation
+/// only supports strings and numbers.
+/// 
+/// # Examples
+/// 
+/// ```rust
+/// use ultrafast_mcp_core::protocol::jsonrpc::RequestId;
+/// 
+/// // String-based request ID
+/// let string_id = RequestId::string("request-123");
+/// 
+/// // Number-based request ID
+/// let number_id = RequestId::number(42);
+/// 
+/// // Validation
+/// assert!(string_id.validate().is_ok());
+/// assert!(number_id.validate().is_ok());
+/// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum RequestId {
+    /// String-based request ID
     String(String),
+    /// Number-based request ID
     Number(i64),
 }
 
@@ -67,19 +102,19 @@ impl RequestId {
                         "Request ID string cannot be empty".to_string(),
                     ));
                 }
-                // Relaxed length check - allow reasonable lengths up to 1000 chars
-                if s.len() > 1000 {
+                // Relaxed length check - allow reasonable lengths up to configurable limit
+                if s.len() > config::MAX_REQUEST_ID_LENGTH {
                     return Err(crate::error::ProtocolError::InvalidRequestId(
-                        "Request ID string too long (max 1000 characters)".to_string(),
+                        format!("Request ID string too long (max {} characters)", config::MAX_REQUEST_ID_LENGTH),
                     ));
                 }
             }
             RequestId::Number(n) => {
                 // Reasonable range check - allow numbers within practical JSON-RPC limits
                 // This prevents overflow issues and keeps IDs manageable
-                if *n < -999_999_999 || *n > 999_999_999 {
+                if *n < config::MIN_REQUEST_ID_NUMBER || *n > config::MAX_REQUEST_ID_NUMBER {
                     return Err(crate::error::ProtocolError::InvalidRequestId(
-                        "Request ID number out of range (-999,999,999 to 999,999,999)".to_string(),
+                        format!("Request ID number out of range ({} to {})", config::MIN_REQUEST_ID_NUMBER, config::MAX_REQUEST_ID_NUMBER),
                     ));
                 }
             }
@@ -116,14 +151,50 @@ impl From<u64> for RequestId {
 }
 
 /// JSON-RPC 2.0 Request
+/// 
+/// Represents a JSON-RPC 2.0 request message. This struct contains all the required
+/// fields for a valid JSON-RPC request according to the specification.
+/// 
+/// # Fields
+/// 
+/// - `jsonrpc`: The JSON-RPC version string (always "2.0")
+/// - `method`: The name of the method to be invoked
+/// - `params`: Optional parameters for the method
+/// - `id`: Optional request ID (null for notifications)
+/// - `meta`: Additional metadata fields (flattened)
+/// 
+/// # Examples
+/// 
+/// ```rust
+/// use ultrafast_mcp_core::protocol::jsonrpc::{JsonRpcRequest, RequestId};
+/// use serde_json::json;
+/// 
+/// // Create a request with parameters
+/// let request = JsonRpcRequest::new(
+///     "tools/call".to_string(),
+///     Some(json!({"name": "echo", "arguments": {"message": "hello"}})),
+///     Some(RequestId::number(1))
+/// );
+/// 
+/// // Create a notification (no ID)
+/// let notification = JsonRpcRequest::notification(
+///     "initialized".to_string(),
+///     None
+/// );
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JsonRpcRequest {
+    /// JSON-RPC version string (always "2.0")
     pub jsonrpc: String,
+    /// The name of the method to be invoked
     pub method: String,
+    /// Optional parameters for the method
     #[serde(skip_serializing_if = "Option::is_none")]
     pub params: Option<Value>,
+    /// Optional request ID (null for notifications)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<RequestId>,
+    /// Additional metadata fields (flattened)
     #[serde(flatten)]
     pub meta: HashMap<String, Value>,
 }
@@ -131,7 +202,7 @@ pub struct JsonRpcRequest {
 impl JsonRpcRequest {
     pub fn new(method: String, params: Option<Value>, id: Option<RequestId>) -> Self {
         Self {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: config::JSONRPC_VERSION.to_string(),
             method,
             params,
             id,
@@ -141,7 +212,7 @@ impl JsonRpcRequest {
 
     pub fn notification(method: String, params: Option<Value>) -> Self {
         Self {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: config::JSONRPC_VERSION.to_string(),
             method,
             params,
             id: None,
@@ -175,7 +246,7 @@ pub struct JsonRpcResponse {
 impl JsonRpcResponse {
     pub fn success(result: Value, id: Option<RequestId>) -> Self {
         Self {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: config::JSONRPC_VERSION.to_string(),
             result: Some(result),
             error: None,
             id,
@@ -185,7 +256,7 @@ impl JsonRpcResponse {
 
     pub fn error(error: JsonRpcError, id: Option<RequestId>) -> Self {
         Self {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: config::JSONRPC_VERSION.to_string(),
             result: None,
             error: Some(error),
             id,

@@ -84,29 +84,45 @@ impl ToolHandler for FileOperationsHandler {
 
         match call.name.as_str() {
             "read_file" => {
+                let arguments = call.arguments.ok_or_else(|| {
+                    MCPError::invalid_params("Missing arguments".to_string())
+                })?;
+                
                 let request: ReadFileRequest =
-                    serde_json::from_value(call.arguments.unwrap_or_default())
+                    serde_json::from_value(arguments)
                         .map_err(|e| MCPError::serialization_error(e.to_string()))?;
 
                 self.handle_read_file(request).await
             }
             "write_file" => {
+                let arguments = call.arguments.ok_or_else(|| {
+                    MCPError::invalid_params("Missing arguments".to_string())
+                })?;
+                
                 let request: WriteFileRequest =
-                    serde_json::from_value(call.arguments.unwrap_or_default())
+                    serde_json::from_value(arguments)
                         .map_err(|e| ultrafast_mcp::MCPError::serialization_error(e.to_string()))?;
 
                 self.handle_write_file(request).await
             }
             "list_files" => {
+                let arguments = call.arguments.ok_or_else(|| {
+                    MCPError::invalid_params("Missing arguments".to_string())
+                })?;
+                
                 let request: ListFilesRequest =
-                    serde_json::from_value(call.arguments.unwrap_or_default())
+                    serde_json::from_value(arguments)
                         .map_err(|e| ultrafast_mcp::MCPError::serialization_error(e.to_string()))?;
 
                 self.handle_list_files(request).await
             }
             "delete_file" => {
+                let arguments = call.arguments.ok_or_else(|| {
+                    MCPError::invalid_params("Missing arguments".to_string())
+                })?;
+                
                 let request: DeleteFileRequest =
-                    serde_json::from_value(call.arguments.unwrap_or_default())
+                    serde_json::from_value(arguments)
                         .map_err(|e| ultrafast_mcp::MCPError::serialization_error(e.to_string()))?;
 
                 self.handle_delete_file(request).await
@@ -233,7 +249,7 @@ impl FileOperationsHandler {
             content,
             size: metadata.len(),
             modified: chrono::DateTime::<chrono::Utc>::from(
-                metadata.modified().unwrap_or(std::time::SystemTime::now()),
+                metadata.modified().unwrap_or_else(|| std::time::SystemTime::now()),
             )
             .to_rfc3339(),
             path: request.path,
@@ -265,7 +281,7 @@ impl FileOperationsHandler {
 
         let content = if request.append.unwrap_or(false) {
             let existing = if path.exists() {
-                fs::read_to_string(&path).await.unwrap_or_default()
+                fs::read_to_string(&path).await.unwrap_or_else(|_| String::new())
             } else {
                 String::new()
             };
@@ -342,7 +358,7 @@ impl FileOperationsHandler {
                     None
                 },
                 modified: chrono::DateTime::<chrono::Utc>::from(
-                    metadata.modified().unwrap_or(std::time::SystemTime::now()),
+                    metadata.modified().unwrap_or_else(|| std::time::SystemTime::now()),
                 )
                 .to_rfc3339()
                 .into(),

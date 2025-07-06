@@ -164,10 +164,16 @@
 //! #[async_trait::async_trait]
 //! impl ToolHandler for AdvancedToolHandler {
 //!     async fn handle_tool_call(&self, _call: ToolCall) -> MCPResult<ToolResult> {
-//!         todo!()
+//!         Ok(ToolResult {
+//!             content: vec![ToolContent::text("Tool executed successfully".to_string())],
+//!             is_error: Some(false),
+//!         })
 //!     }
 //!     async fn list_tools(&self, _request: ListToolsRequest) -> MCPResult<ListToolsResponse> {
-//!         todo!()
+//!         Ok(ListToolsResponse {
+//!             tools: vec![],
+//!             next_cursor: None,
+//!         })
 //!     }
 //! }
 //!
@@ -176,13 +182,22 @@
 //! #[async_trait::async_trait]
 //! impl ResourceHandler for FileResourceHandler {
 //!     async fn read_resource(&self, _request: ReadResourceRequest) -> MCPResult<ReadResourceResponse> {
-//!         todo!()
+//!         Ok(ReadResourceResponse {
+//!             contents: vec![],
+//!             mime_type: "text/plain".to_string(),
+//!         })
 //!     }
 //!     async fn list_resources(&self, _request: ultrafast_mcp_core::types::resources::ListResourcesRequest) -> MCPResult<ultrafast_mcp_core::types::resources::ListResourcesResponse> {
-//!         todo!()
+//!         Ok(ultrafast_mcp_core::types::resources::ListResourcesResponse {
+//!             resources: vec![],
+//!             next_cursor: None,
+//!         })
 //!     }
 //!     async fn list_resource_templates(&self, _request: ultrafast_mcp_core::types::resources::ListResourceTemplatesRequest) -> MCPResult<ultrafast_mcp_core::types::resources::ListResourceTemplatesResponse> {
-//!         todo!()
+//!         Ok(ultrafast_mcp_core::types::resources::ListResourceTemplatesResponse {
+//!             resource_templates: vec![],
+//!             next_cursor: None,
+//!         })
 //!     }
 //! }
 //!
@@ -191,10 +206,15 @@
 //! #[async_trait::async_trait]
 //! impl PromptHandler for TemplatePromptHandler {
 //!     async fn get_prompt(&self, _request: GetPromptRequest) -> MCPResult<GetPromptResponse> {
-//!         todo!()
+//!         Ok(GetPromptResponse {
+//!             messages: vec![],
+//!         })
 //!     }
 //!     async fn list_prompts(&self, _request: ultrafast_mcp_core::types::prompts::ListPromptsRequest) -> MCPResult<ultrafast_mcp_core::types::prompts::ListPromptsResponse> {
-//!         todo!()
+//!         Ok(ultrafast_mcp_core::types::prompts::ListPromptsResponse {
+//!             prompts: vec![],
+//!             next_cursor: None,
+//!         })
 //!     }
 //! }
 //!

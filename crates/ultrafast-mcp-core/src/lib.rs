@@ -177,6 +177,7 @@
 //! - Consider performance implications
 //! - Maintain backward compatibility
 
+pub mod config;
 pub mod error;
 pub mod protocol;
 pub mod schema;
