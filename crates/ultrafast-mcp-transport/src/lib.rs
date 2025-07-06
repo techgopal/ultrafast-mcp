@@ -317,7 +317,8 @@ impl RecoveringTransport {
         // Add jitter if enabled
         if self.recovery_config.enable_jitter {
             use rand::Rng;
-            let jitter = rand::rng().random_range(0.8..1.2);
+            let mut rng = rand::thread_rng();
+            let jitter: f64 = rng.gen_range(0.8..1.2);
             delay_ms *= jitter;
         }
 

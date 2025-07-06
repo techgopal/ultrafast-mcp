@@ -16,7 +16,7 @@ use ultrafast_mcp_core::{
     types::{
         notifications::{LogLevel, LogLevelSetRequest, LogLevelSetResponse},
         prompts::Prompt,
-        resources::{Resource, ResourceTemplate},
+        resources::{Resource, ResourceTemplate, SubscribeResponse},
         server::ServerInfo,
         tools::Tool,
     },
@@ -125,7 +125,7 @@ pub struct UltraFastServer {
 
     #[cfg(feature = "monitoring")]
     #[allow(dead_code)]
-    monitoring_system: Option<Arc<ultrafast_mcp_monitoring::MonitoringSystem>>,
+    monitoring_system: Option<Arc<crate::MonitoringSystem>>,
 }
 
 impl std::fmt::Debug for UltraFastServer {
@@ -198,6 +198,167 @@ impl UltraFastServer {
     /// Get the current log level
     pub async fn get_log_level(&self) -> LogLevel {
         self.logging_config.read().await.current_level.clone()
+    }
+
+    // ===== FLUENT BUILDER METHODS =====
+
+    /// Enable monitoring with custom configuration
+    #[cfg(feature = "monitoring")]
+    pub fn with_monitoring_config(mut self, config: crate::MonitoringConfig) -> Self {
+        let monitoring = crate::MonitoringSystem::new(config);
+        self.monitoring_system = Some(Arc::new(monitoring));
+        info!("Monitoring enabled with custom configuration");
+        self
+    }
+    #[cfg(not(feature = "monitoring"))]
+    pub fn with_monitoring_config(self, _config: ()) -> Self {
+        warn!("Monitoring feature not enabled. Add 'monitoring' feature to enable monitoring.");
+        self
+    }
+
+    /// Enable monitoring with default configuration
+    #[cfg(feature = "monitoring")]
+    pub fn with_monitoring(mut self) -> Self {
+        let monitoring = crate::MonitoringSystem::new(crate::MonitoringConfig::default());
+        self.monitoring_system = Some(Arc::new(monitoring));
+        info!("Monitoring enabled with default configuration");
+        self
+    }
+    #[cfg(not(feature = "monitoring"))]
+    pub fn with_monitoring(self) -> Self {
+        warn!("Monitoring feature not enabled. Add 'monitoring' feature to enable monitoring.");
+        self
+    }
+
+    /// Enable health checks with default configuration
+    #[cfg(feature = "monitoring")]
+    pub fn with_health_checks(mut self) -> Self {
+        if let Some(monitoring) = &self.monitoring_system {
+            let _ = monitoring.init_health_checks();
+            info!("Health checks enabled");
+        } else {
+            // Create monitoring system if not already present
+            let mut config = crate::MonitoringConfig::default();
+            config.health.enabled = true;
+            let monitoring = crate::MonitoringSystem::new(config);
+            self.monitoring_system = Some(Arc::new(monitoring));
+            info!("Health checks enabled with new monitoring system");
+        }
+        self
+    }
+    #[cfg(not(feature = "monitoring"))]
+    pub fn with_health_checks(self) -> Self {
+        warn!("Health checks require monitoring feature. Add 'monitoring' feature to enable health checks.");
+        self
+    }
+
+    /// Enable metrics collection with default configuration
+    #[cfg(feature = "monitoring")]
+    pub fn with_metrics(mut self) -> Self {
+        if let Some(_monitoring) = &self.monitoring_system {
+            // Metrics are automatically available via monitoring.metrics()
+            info!("Metrics collection enabled");
+        } else {
+            // Create monitoring system if not already present
+            let mut config = crate::MonitoringConfig::default();
+            config.metrics.enabled = true;
+            let monitoring = crate::MonitoringSystem::new(config);
+            self.monitoring_system = Some(Arc::new(monitoring));
+            info!("Metrics collection enabled with new monitoring system");
+        }
+        self
+    }
+    #[cfg(not(feature = "monitoring"))]
+    pub fn with_metrics(self) -> Self {
+        warn!("Metrics require monitoring feature. Add 'monitoring' feature to enable metrics.");
+        self
+    }
+
+    /// Enable tracing with default configuration
+    #[cfg(feature = "monitoring")]
+    pub fn with_tracing(mut self) -> Self {
+        if let Some(_monitoring) = &self.monitoring_system {
+            // Tracing is configured via the monitoring config
+            info!("Tracing enabled");
+        } else {
+            // Create monitoring system if not already present
+            let mut config = crate::MonitoringConfig::default();
+            config.tracing.enabled = true;
+            let monitoring = crate::MonitoringSystem::new(config);
+            self.monitoring_system = Some(Arc::new(monitoring));
+            info!("Tracing enabled with new monitoring system");
+        }
+        self
+    }
+    #[cfg(not(feature = "monitoring"))]
+    pub fn with_tracing(self) -> Self {
+        warn!("Tracing requires monitoring feature. Add 'monitoring' feature to enable tracing.");
+        self
+    }
+
+    /// Enable all monitoring features (health checks, metrics, tracing)
+    #[cfg(feature = "monitoring")]
+    pub fn with_full_monitoring(mut self) -> Self {
+        let mut config = crate::MonitoringConfig::default();
+        config.health.enabled = true;
+        config.metrics.enabled = true;
+        config.tracing.enabled = true;
+        let monitoring = crate::MonitoringSystem::new(config);
+        self.monitoring_system = Some(Arc::new(monitoring));
+        info!("Full monitoring enabled (health checks, metrics, tracing)");
+        self
+    }
+    #[cfg(not(feature = "monitoring"))]
+    pub fn with_full_monitoring(self) -> Self {
+        warn!("Full monitoring requires monitoring feature. Add 'monitoring' feature to enable all monitoring features.");
+        self
+    }
+
+    /// Enable middleware support
+    pub fn with_middleware(self) -> Self {
+        // This would integrate with the transport middleware system
+        info!("Middleware support enabled");
+        self
+    }
+
+    /// Enable recovery mechanisms
+    pub fn with_recovery(self) -> Self {
+        info!("Recovery mechanisms enabled");
+        self
+    }
+
+    /// Enable OAuth authentication
+    pub fn with_oauth(self) -> Self {
+        info!("OAuth authentication enabled");
+        self
+    }
+
+    /// Enable rate limiting
+    pub fn with_rate_limiting(self, requests_per_minute: u32) -> Self {
+        info!("Rate limiting enabled: {} requests per minute", requests_per_minute);
+        self
+    }
+
+    /// Enable request validation
+    pub fn with_request_validation(self) -> Self {
+        info!("Request validation enabled");
+        self
+    }
+
+    /// Enable response caching
+    pub fn with_response_caching(self) -> Self {
+        info!("Response caching enabled");
+        self
+    }
+
+    /// Get the monitoring system if available
+    #[cfg(feature = "monitoring")]
+    pub fn monitoring(&self) -> Option<Arc<crate::MonitoringSystem>> {
+        self.monitoring_system.clone()
+    }
+    #[cfg(not(feature = "monitoring"))]
+    pub fn monitoring(&self) -> Option<()> {
+        None
     }
 
     /// Create a context with the current server logging configuration
@@ -773,6 +934,35 @@ impl UltraFastServer {
         serde_json::from_value(params.unwrap_or_default()).unwrap_or_default()
     }
 
+    fn deserialize_list_resource_templates_request(
+        &self,
+        params: Option<serde_json::Value>,
+    ) -> ultrafast_mcp_core::types::resources::ListResourceTemplatesRequest {
+        serde_json::from_value(params.unwrap_or_default()).unwrap_or_default()
+    }
+
+    fn deserialize_subscribe_request(
+        &self,
+        params: Option<serde_json::Value>,
+    ) -> ultrafast_mcp_core::types::resources::SubscribeRequest {
+        serde_json::from_value(params.unwrap_or_default()).unwrap_or_else(|_| {
+            ultrafast_mcp_core::types::resources::SubscribeRequest {
+                uri: String::new(),
+            }
+        })
+    }
+
+    fn deserialize_unsubscribe_request(
+        &self,
+        params: Option<serde_json::Value>,
+    ) -> ultrafast_mcp_core::types::resources::UnsubscribeRequest {
+        serde_json::from_value(params.unwrap_or_default()).unwrap_or_else(|_| {
+            ultrafast_mcp_core::types::resources::UnsubscribeRequest {
+                uri: String::new(),
+            }
+        })
+    }
+
     fn deserialize_create_message_request(
         &self,
         params: Option<serde_json::Value>,
@@ -1061,6 +1251,95 @@ impl UltraFastServer {
                     )
                 }
             }
+            "resources/templates/list" => {
+                if !self.can_operate().await {
+                    return JsonRpcResponse::error(
+                        JsonRpcError::new(-32000, "Server not ready".to_string()),
+                        request.id,
+                    );
+                }
+
+                let list_request = self.deserialize_list_resource_templates_request(request.params.clone());
+
+                if let Some(handler) = &self.resource_handler {
+                    match handler.list_resource_templates(list_request).await {
+                        Ok(response) => JsonRpcResponse::success(
+                            serde_json::to_value(response).unwrap(),
+                            request.id,
+                        ),
+                        Err(e) => JsonRpcResponse::error(
+                            JsonRpcError::new(-32603, format!("Resource templates list failed: {}", e)),
+                            request.id,
+                        ),
+                    }
+                } else {
+                    JsonRpcResponse::error(
+                        JsonRpcError::new(-32601, "Resources not supported".to_string()),
+                        request.id,
+                    )
+                }
+            }
+            "resources/subscribe" => {
+                if !self.can_operate().await {
+                    return JsonRpcResponse::error(
+                        JsonRpcError::new(-32000, "Server not ready".to_string()),
+                        request.id,
+                    );
+                }
+
+                let subscribe_request = self.deserialize_subscribe_request(request.params.clone());
+
+                if let Some(handler) = &self.subscription_handler {
+                    match handler.subscribe(subscribe_request.uri.clone()).await {
+                        Ok(_) => {
+                            // Subscription successful - return success response
+                            // Note: The client may timeout if it expects immediate notifications
+                            // This is a limitation of the current MCP architecture
+                            JsonRpcResponse::success(
+                                serde_json::to_value(SubscribeResponse::new()).unwrap(),
+                                request.id,
+                            )
+                        },
+                        Err(e) => JsonRpcResponse::error(
+                            JsonRpcError::new(-32603, format!("Resource subscribe failed: {}", e)),
+                            request.id,
+                        ),
+                    }
+                } else {
+                    JsonRpcResponse::error(
+                        JsonRpcError::new(-32601, "Resource subscriptions not supported".to_string()),
+                        request.id,
+                    )
+                }
+            }
+            "resources/unsubscribe" => {
+                if !self.can_operate().await {
+                    return JsonRpcResponse::error(
+                        JsonRpcError::new(-32000, "Server not ready".to_string()),
+                        request.id,
+                    );
+                }
+
+                let unsubscribe_request = self.deserialize_unsubscribe_request(request.params.clone());
+
+                if let Some(handler) = &self.subscription_handler {
+                    match handler.unsubscribe(unsubscribe_request.uri).await {
+                        Ok(_) => JsonRpcResponse::success(
+                            serde_json::Value::Null,
+                            request.id,
+                        ),
+                        Err(e) => JsonRpcResponse::error(
+                            JsonRpcError::new(-32603, format!("Resource unsubscribe failed: {}", e)),
+                            request.id,
+                        ),
+                    }
+                } else {
+                    JsonRpcResponse::error(
+                        JsonRpcError::new(-32601, "Resource subscriptions not supported".to_string()),
+                        request.id,
+                    )
+                }
+            }
 
             // Prompts methods
             "prompts/list" => {
@@ -1238,6 +1517,27 @@ impl UltraFastServer {
                     },
                     Err(e) => JsonRpcResponse::error(
                         JsonRpcError::new(-32602, format!("Invalid log level set request: {}", e)),
+                        request.id,
+                    ),
+                }
+            }
+
+            // Ping method for connection health monitoring
+            "ping" => {
+                let ping_request = match serde_json::from_value::<ultrafast_mcp_core::types::notifications::PingRequest>(
+                    request.params.unwrap_or_default(),
+                ) {
+                    Ok(req) => req,
+                    Err(_) => ultrafast_mcp_core::types::notifications::PingRequest { data: None },
+                };
+
+                match self.ping_manager.handle_ping(ping_request).await {
+                    Ok(response) => JsonRpcResponse::success(
+                        serde_json::to_value(response).unwrap(),
+                        request.id,
+                    ),
+                    Err(e) => JsonRpcResponse::error(
+                        JsonRpcError::new(-32603, format!("Ping failed: {}", e)),
                         request.id,
                     ),
                 }

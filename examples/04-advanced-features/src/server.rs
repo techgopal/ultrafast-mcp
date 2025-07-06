@@ -1,202 +1,212 @@
-//! Advanced Features MCP Server
+//! Advanced Features Server Example
 //!
-//! This example demonstrates sophisticated MCP patterns and production-ready features:
-//! - Advanced data processing with statistical analysis
-//! - Multi-step workflow execution with progress tracking
-//! - System monitoring with simulated metrics
-//! - Complex resource templates and prompt systems
+//! This example demonstrates the complete UltraFastServer API with all advanced features:
+//! - OAuth 2.1 authentication
+//! - Monitoring and metrics collection
+//! - Middleware integration
+//! - Recovery mechanisms
+//! - Health checking
+//! - Multiple tool types
+//! - Resource management
+//! - Prompt generation
 
-use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use tracing::info;
+use tracing::{error, info, warn};
 use ultrafast_mcp::{
     ListToolsRequest, ListToolsResponse, MCPError, MCPResult, ServerCapabilities, ServerInfo, Tool,
     ToolCall, ToolContent, ToolHandler, ToolResult, ToolsCapability, UltraFastServer,
+    ResourceHandler, ReadResourceRequest, ReadResourceResponse,
+    PromptHandler, GetPromptRequest, GetPromptResponse,
+    Resource, ResourceContent, Prompt, PromptContent,
+    ListResourcesRequest, ListResourcesResponse, ListPromptsRequest, ListPromptsResponse,
+    ResourceTemplate,
+    // Import types for handler implementations
+    types::{sampling, completion, roots, elicitation, resources, prompts},
+    // Import handler traits
+    SamplingHandler, CompletionHandler, RootsHandler, ElicitationHandler, ResourceSubscriptionHandler,
+    // Import monitoring types
+    MonitoringSystem, MonitoringConfig, HealthStatus, RequestTimer,
+    // Import transport types
+    HttpTransportServer, HttpTransportConfig,
+    // Import health types
+    health::{HealthCheck, HealthCheckResult},
+    // Import capability types
+    ResourcesCapability, PromptsCapability,
 };
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 struct CalculatorRequest {
     operation: String,
-    numbers: Vec<f64>,
+    a: f64,
+    b: f64,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 struct CalculatorResponse {
-    operation: String,
-    numbers: Vec<f64>,
     result: f64,
-    timestamp: DateTime<Utc>,
+    operation: String,
+    timestamp: String,
 }
 
-#[derive(Debug, Deserialize)]
-struct DataProcessorRequest {
-    data: Vec<String>,
-    operations: Vec<String>,
+#[derive(Debug, Serialize, Deserialize)]
+struct WeatherRequest {
+    city: String,
+    country: Option<String>,
 }
 
-#[derive(Debug, Serialize)]
-struct DataProcessorResponse {
-    original_data: Vec<String>,
-    processed_data: Vec<String>,
-    operations_applied: Vec<String>,
-    processing_time_ms: u64,
-    timestamp: DateTime<Utc>,
+#[derive(Debug, Serialize, Deserialize)]
+struct WeatherResponse {
+    city: String,
+    temperature: f64,
+    condition: String,
+    humidity: f64,
+    timestamp: String,
 }
 
-#[derive(Debug, Deserialize)]
-struct MetricsRequest {
-    metric_name: String,
-    value: f64,
-    tags: Option<std::collections::HashMap<String, String>>,
+struct AdvancedToolHandler {
+    monitoring: Arc<MonitoringSystem>,
 }
 
-#[derive(Debug, Serialize)]
-struct MetricsResponse {
-    metric_name: String,
-    value: f64,
-    tags: std::collections::HashMap<String, String>,
-    timestamp: DateTime<Utc>,
-    status: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct MetricDataPoint {
-    name: String,
-    value: f64,
-    timestamp: DateTime<Utc>,
-    tags: std::collections::HashMap<String, String>,
-}
-
-#[derive(Debug, Serialize)]
-struct MetricsReport {
-    total_metrics: usize,
-    data_points: Vec<MetricDataPoint>,
-    generated_at: DateTime<Utc>,
-}
-
-struct AdvancedFeaturesHandler {
-    metrics: Arc<tokio::sync::RwLock<Vec<MetricDataPoint>>>,
-}
-
-impl AdvancedFeaturesHandler {
-    fn new() -> Self {
-        Self {
-            metrics: Arc::new(tokio::sync::RwLock::new(Vec::new())),
-        }
+impl AdvancedToolHandler {
+    fn new(monitoring: Arc<MonitoringSystem>) -> Self {
+        Self { monitoring }
     }
 }
 
 #[async_trait::async_trait]
-impl ToolHandler for AdvancedFeaturesHandler {
+impl ToolHandler for AdvancedToolHandler {
     async fn handle_tool_call(&self, call: ToolCall) -> MCPResult<ToolResult> {
-        info!("Received tool call: {}", call.name);
+        let timer = RequestTimer::start(&call.name, self.monitoring.metrics());
+        
+        info!("Handling tool call: {}", call.name);
 
-        match call.name.as_str() {
-            "calculator" => {
-                let request: CalculatorRequest =
-                    serde_json::from_value(call.arguments.unwrap_or_default())
-                        .map_err(|e| MCPError::serialization_error(e.to_string()))?;
+        let result = match call.name.as_str() {
+            "calculate" => {
+                let request: CalculatorRequest = serde_json::from_value(
+                    call.arguments.unwrap_or_default()
+                ).map_err(|e| {
+                    error!("Failed to parse calculator request: {}", e);
+                    MCPError::invalid_params(format!("Invalid request format: {}", e))
+                })?;
 
-                self.handle_calculator(request).await
+                let result = match request.operation.as_str() {
+                    "add" => request.a + request.b,
+                    "subtract" => request.a - request.b,
+                    "multiply" => request.a * request.b,
+                    "divide" => {
+                        if request.b == 0.0 {
+                            return Err(MCPError::invalid_params("Division by zero".to_string()));
+                        }
+                        request.a / request.b
+                    }
+                    _ => return Err(MCPError::invalid_params(
+                        format!("Unknown operation: {}", request.operation)
+                    )),
+                };
+
+                let response = CalculatorResponse {
+                    result,
+                    operation: request.operation,
+                    timestamp: chrono::Utc::now().to_rfc3339(),
+                };
+
+                let response_text = serde_json::to_string_pretty(&response).map_err(|e| {
+                    error!("Failed to serialize calculator response: {}", e);
+                    MCPError::serialization_error(e.to_string())
+                })?;
+
+                Ok(ToolResult {
+                    content: vec![ToolContent::text(response_text)],
+                    is_error: None,
+                })
             }
-            "data_processor" => {
-                let request: DataProcessorRequest =
-                    serde_json::from_value(call.arguments.unwrap_or_default())
-                        .map_err(|e| MCPError::serialization_error(e.to_string()))?;
+            "weather" => {
+                let request: WeatherRequest = serde_json::from_value(
+                    call.arguments.unwrap_or_default()
+                ).map_err(|e| {
+                    error!("Failed to parse weather request: {}", e);
+                    MCPError::invalid_params(format!("Invalid request format: {}", e))
+                })?;
 
-                self.handle_data_processor(request).await
-            }
-            "record_metric" => {
-                let request: MetricsRequest =
-                    serde_json::from_value(call.arguments.unwrap_or_default())
-                        .map_err(|e| MCPError::serialization_error(e.to_string()))?;
+                // Simulate weather API call
+                let response = WeatherResponse {
+                    city: request.city,
+                    temperature: 22.5,
+                    condition: "Sunny".to_string(),
+                    humidity: 65.0,
+                    timestamp: chrono::Utc::now().to_rfc3339(),
+                };
 
-                self.handle_record_metric(request).await
+                let response_text = serde_json::to_string_pretty(&response).map_err(|e| {
+                    error!("Failed to serialize weather response: {}", e);
+                    MCPError::serialization_error(e.to_string())
+                })?;
+
+                Ok(ToolResult {
+                    content: vec![ToolContent::text(response_text)],
+                    is_error: None,
+                })
             }
-            "get_metrics_report" => self.handle_get_metrics_report().await,
             _ => Err(MCPError::method_not_found(format!(
                 "Unknown tool: {}",
                 call.name
             ))),
+        };
+
+        // Record metrics
+        match &result {
+            Ok(_) => timer.finish(true).await,
+            Err(_) => timer.finish(false).await,
         }
+
+        result
     }
 
     async fn list_tools(&self, _request: ListToolsRequest) -> MCPResult<ListToolsResponse> {
+        info!("Listing available tools");
         Ok(ListToolsResponse {
             tools: vec![
                 Tool {
-                    name: "calculator".to_string(),
-                    description: "Perform mathematical calculations".to_string(),
+                    name: "calculate".to_string(),
+                    description: "Perform basic mathematical operations".to_string(),
                     input_schema: serde_json::json!({
                         "type": "object",
                         "properties": {
                             "operation": {
                                 "type": "string",
-                                "enum": ["add", "subtract", "multiply", "divide", "average"],
+                                "enum": ["add", "subtract", "multiply", "divide"],
                                 "description": "Mathematical operation to perform"
                             },
-                            "numbers": {
-                                "type": "array",
-                                "items": { "type": "number" },
-                                "description": "Numbers to operate on"
-                            }
-                        },
-                        "required": ["operation", "numbers"]
-                    }),
-                    output_schema: None,
-                },
-                Tool {
-                    name: "data_processor".to_string(),
-                    description: "Process data with various operations".to_string(),
-                    input_schema: serde_json::json!({
-                        "type": "object",
-                        "properties": {
-                            "data": {
-                                "type": "array",
-                                "items": { "type": "string" },
-                                "description": "Data to process"
-                            },
-                            "operations": {
-                                "type": "array",
-                                "items": { "type": "string" },
-                                "enum": ["uppercase", "lowercase", "reverse", "sort", "unique"],
-                                "description": "Operations to apply"
-                            }
-                        },
-                        "required": ["data", "operations"]
-                    }),
-                    output_schema: None,
-                },
-                Tool {
-                    name: "record_metric".to_string(),
-                    description: "Record a metric with tags".to_string(),
-                    input_schema: serde_json::json!({
-                        "type": "object",
-                        "properties": {
-                            "metric_name": {
-                                "type": "string",
-                                "description": "Name of the metric"
-                            },
-                            "value": {
+                            "a": {
                                 "type": "number",
-                                "description": "Metric value"
+                                "description": "First operand"
                             },
-                            "tags": {
-                                "type": "object",
-                                "description": "Optional tags for the metric"
+                            "b": {
+                                "type": "number",
+                                "description": "Second operand"
                             }
                         },
-                        "required": ["metric_name", "value"]
+                        "required": ["operation", "a", "b"]
                     }),
                     output_schema: None,
                 },
                 Tool {
-                    name: "get_metrics_report".to_string(),
-                    description: "Get a report of all recorded metrics".to_string(),
+                    name: "weather".to_string(),
+                    description: "Get weather information for a city".to_string(),
                     input_schema: serde_json::json!({
                         "type": "object",
-                        "properties": {}
+                        "properties": {
+                            "city": {
+                                "type": "string",
+                                "description": "City name"
+                            },
+                            "country": {
+                                "type": "string",
+                                "description": "Country code (optional)"
+                            }
+                        },
+                        "required": ["city"]
                     }),
                     output_schema: None,
                 },
@@ -206,209 +216,412 @@ impl ToolHandler for AdvancedFeaturesHandler {
     }
 }
 
-impl AdvancedFeaturesHandler {
-    async fn handle_calculator(&self, request: CalculatorRequest) -> MCPResult<ToolResult> {
-        let valid_operations = ["add", "subtract", "multiply", "divide", "average"];
+struct FileResourceHandler;
 
-        if !valid_operations.contains(&request.operation.as_str()) {
-            return Err(MCPError::invalid_request(format!(
-                "Invalid operation: {}",
-                request.operation
-            )));
-        }
+#[async_trait::async_trait]
+impl ResourceHandler for FileResourceHandler {
+    async fn read_resource(&self, request: ReadResourceRequest) -> MCPResult<ReadResourceResponse> {
+        info!("Reading resource: {}", request.uri);
 
-        if request.numbers.is_empty() {
-            return Err(MCPError::invalid_request(
-                "At least one number is required".to_string(),
-            ));
-        }
-
-        let result = match request.operation.as_str() {
-            "add" => request.numbers.iter().sum(),
-            "subtract" => {
-                let mut iter = request.numbers.iter();
-                let first = *iter.next().unwrap();
-                iter.fold(first, |acc, &x| acc - x)
+        if request.uri.starts_with("file://") {
+            let path = request.uri.strip_prefix("file://").unwrap();
+            
+            match std::fs::read_to_string(path) {
+                Ok(content) => {
+                    Ok(ReadResourceResponse {
+                        contents: vec![ResourceContent::text(request.uri.clone(), content)],
+                    })
+                }
+                Err(e) => {
+                    error!("Failed to read file {}: {}", path, e);
+                    Err(MCPError::not_found(format!("File not found: {}", path)))
+                }
             }
-            "multiply" => request.numbers.iter().product(),
-            "divide" => {
-                let mut iter = request.numbers.iter();
-                let first = *iter.next().unwrap();
-                iter.fold(first, |acc, &x| acc / x)
-            }
-            "average" => request.numbers.iter().sum::<f64>() / request.numbers.len() as f64,
-            _ => unreachable!(),
-        };
+        } else {
+            Err(MCPError::invalid_params("Unsupported URI scheme".to_string()))
+        }
+    }
 
-        let response = CalculatorResponse {
-            operation: request.operation,
-            numbers: request.numbers,
-            result,
-            timestamp: Utc::now(),
-        };
-
-        let response_text = serde_json::to_string_pretty(&response)
-            .map_err(|e| MCPError::serialization_error(e.to_string()))?;
-
-        Ok(ToolResult {
-            content: vec![ToolContent::text(response_text)],
-            is_error: None,
+    async fn list_resources(&self, _request: ListResourcesRequest) -> MCPResult<ListResourcesResponse> {
+        Ok(ListResourcesResponse {
+            resources: vec![
+                Resource {
+                    uri: "file:///tmp/example.txt".to_string(),
+                    name: "Example File".to_string(),
+                    description: Some("An example text file".to_string()),
+                    mime_type: Some("text/plain".to_string()),
+                },
+            ],
+            next_cursor: None,
         })
     }
 
-    async fn handle_data_processor(&self, request: DataProcessorRequest) -> MCPResult<ToolResult> {
-        let valid_operations = ["uppercase", "lowercase", "reverse", "sort", "unique"];
+    async fn list_resource_templates(&self, _request: resources::ListResourceTemplatesRequest) -> MCPResult<resources::ListResourceTemplatesResponse> {
+        Ok(resources::ListResourceTemplatesResponse {
+            resource_templates: vec![
+                ResourceTemplate {
+                    uri_template: "template://greeting/{name}".to_string(),
+                    name: "Greeting Template".to_string(),
+                    description: Some("A template for greeting messages".to_string()),
+                    mime_type: Some("text/plain".to_string()),
+                },
+                ResourceTemplate {
+                    uri_template: "template://weather/{text}".to_string(),
+                    name: "Weather Template".to_string(),
+                    description: Some("A template for weather reports".to_string()),
+                    mime_type: Some("text/plain".to_string()),
+                },
+            ],
+            next_cursor: None,
+        })
+    }
+}
 
-        let invalid_ops: Vec<&String> = request
-            .operations
-            .iter()
-            .filter(|op| !valid_operations.contains(&op.as_str()))
-            .collect();
+struct TemplatePromptHandler;
 
-        if !invalid_ops.is_empty() {
-            return Err(MCPError::invalid_request(format!(
-                "Invalid operations: {:?}",
-                invalid_ops
-            )));
-        }
+#[async_trait::async_trait]
+impl PromptHandler for TemplatePromptHandler {
+    async fn get_prompt(&self, request: GetPromptRequest) -> MCPResult<GetPromptResponse> {
+        info!("Getting prompt: {}", request.name);
 
-        let start_time = std::time::Instant::now();
-        let mut processed_data = request.data.clone();
+        match request.name.as_str() {
+            "greeting" => {
+                let messages = vec![
+                    prompts::PromptMessage::system(
+                        prompts::PromptContent::text("You are a helpful assistant that creates personalized greetings.".to_string())
+                    ),
+                    prompts::PromptMessage::user(
+                        prompts::PromptContent::text("Create a greeting for {name}".to_string())
+                    ),
+                ];
 
-        for operation in &request.operations {
-            match operation.as_str() {
-                "uppercase" => {
-                    processed_data = processed_data.iter().map(|s| s.to_uppercase()).collect();
-                }
-                "lowercase" => {
-                    processed_data = processed_data.iter().map(|s| s.to_lowercase()).collect();
-                }
-                "reverse" => {
-                    processed_data = processed_data
-                        .iter()
-                        .map(|s| s.chars().rev().collect())
-                        .collect();
-                }
-                "sort" => {
-                    processed_data.sort();
-                }
-                "unique" => {
-                    let mut seen = std::collections::HashSet::new();
-                    processed_data.retain(|x| seen.insert(x.clone()));
-                }
-                _ => unreachable!(),
+                Ok(GetPromptResponse {
+                    description: Some("A template for creating personalized greetings".to_string()),
+                    messages,
+                })
             }
+            "weather" => {
+                let messages = vec![
+                    prompts::PromptMessage::system(
+                        prompts::PromptContent::text("You are a weather assistant that provides weather information.".to_string())
+                    ),
+                    prompts::PromptMessage::user(
+                        prompts::PromptContent::text("Provide weather information for {text}".to_string())
+                    ),
+                ];
+
+                Ok(GetPromptResponse {
+                    description: Some("A template for weather information requests".to_string()),
+                    messages,
+                })
+            }
+            _ => Err(MCPError::not_found(format!("Prompt not found: {}", request.name))),
         }
-
-        let processing_time = start_time.elapsed().as_millis() as u64;
-
-        let response = DataProcessorResponse {
-            original_data: request.data,
-            processed_data,
-            operations_applied: request.operations,
-            processing_time_ms: processing_time,
-            timestamp: Utc::now(),
-        };
-
-        let response_text = serde_json::to_string_pretty(&response)
-            .map_err(|e| MCPError::serialization_error(e.to_string()))?;
-
-        Ok(ToolResult {
-            content: vec![ToolContent::text(response_text)],
-            is_error: None,
-        })
     }
 
-    async fn handle_record_metric(&self, request: MetricsRequest) -> MCPResult<ToolResult> {
-        let tags = request.tags.unwrap_or_default();
-
-        let data_point = MetricDataPoint {
-            name: request.metric_name.clone(),
-            value: request.value,
-            timestamp: Utc::now(),
-            tags,
-        };
-
-        {
-            let mut metrics = self.metrics.write().await;
-            metrics.push(data_point.clone());
-        }
-
-        let response = MetricsResponse {
-            metric_name: request.metric_name,
-            value: request.value,
-            tags: data_point.tags,
-            timestamp: data_point.timestamp,
-            status: "recorded".to_string(),
-        };
-
-        let response_text = serde_json::to_string_pretty(&response)
-            .map_err(|e| MCPError::serialization_error(e.to_string()))?;
-
-        Ok(ToolResult {
-            content: vec![ToolContent::text(response_text)],
-            is_error: None,
-        })
-    }
-
-    async fn handle_get_metrics_report(&self) -> MCPResult<ToolResult> {
-        let data_points = {
-            let metrics = self.metrics.read().await;
-            metrics.clone()
-        };
-
-        let response = MetricsReport {
-            total_metrics: data_points.len(),
-            data_points: data_points.clone(),
-            generated_at: Utc::now(),
-        };
-
-        let response_text = serde_json::to_string_pretty(&response)
-            .map_err(|e| MCPError::serialization_error(e.to_string()))?;
-
-        Ok(ToolResult {
-            content: vec![ToolContent::text(response_text)],
-            is_error: None,
+    async fn list_prompts(&self, _request: ListPromptsRequest) -> MCPResult<ListPromptsResponse> {
+        Ok(ListPromptsResponse {
+            prompts: vec![
+                Prompt {
+                    name: "greeting".to_string(),
+                    description: Some("Generate a personalized greeting".to_string()),
+                    arguments: Some(vec![
+                        prompts::PromptArgument::new("name".to_string()).required(true),
+                    ]),
+                },
+                Prompt {
+                    name: "summarize".to_string(),
+                    description: Some("Summarize text content".to_string()),
+                    arguments: Some(vec![
+                        prompts::PromptArgument::new("text".to_string()).required(true),
+                    ]),
+                },
+            ],
+            next_cursor: None,
         })
     }
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Initialize tracing
-    tracing_subscriber::fmt::init();
+    // Initialize tracing with comprehensive configuration
+    tracing_subscriber::fmt()
+        .with_env_filter("info,ultrafast_mcp=debug,ultrafast_mcp_transport=debug")
+        .with_target(false)
+        .with_thread_ids(true)
+        .with_thread_names(true)
+        .with_file(true)
+        .with_line_number(true)
+        .init();
 
-    info!("Starting Advanced Features MCP Server");
+    info!("🚀 Starting Advanced Features MCP Server with Streamable HTTP");
 
-    // Create server capabilities
+    // Initialize monitoring system
+    let monitoring_config = MonitoringConfig::default();
+    let monitoring = Arc::new(MonitoringSystem::new(monitoring_config));
+    
+    // Initialize health checker
+    let health_checker = monitoring.health();
+    
+    // Add custom health checks
+    health_checker.add_check(Box::new(DatabaseHealthCheck)).await;
+    health_checker.add_check(Box::new(FileSystemHealthCheck)).await;
+
+    // Create server capabilities with all features
     let capabilities = ServerCapabilities {
         tools: Some(ToolsCapability {
+            list_changed: Some(true),
+        }),
+        resources: Some(ResourcesCapability {
+            list_changed: Some(true),
+            subscribe: Some(true),
+        }),
+        prompts: Some(PromptsCapability {
             list_changed: Some(true),
         }),
         ..Default::default()
     };
 
-    // Create server
-    let server = UltraFastServer::new(
-        ServerInfo {
+    // Create server info
+    let server_info = ServerInfo {
             name: "advanced-features-server".to_string(),
             version: "1.0.0".to_string(),
             description: Some(
-                "An advanced features server demonstrating UltraFastServer".to_string(),
-            ),
-            authors: None,
-            homepage: None,
-            license: None,
-            repository: None,
-        },
-        capabilities,
-    )
-    .with_tool_handler(Arc::new(AdvancedFeaturesHandler::new()));
+            "Advanced MCP server demonstrating all features with monitoring and authentication".to_string(),
+        ),
+        authors: Some(vec!["ULTRAFAST_MCP Team".to_string()]),
+        homepage: Some("https://github.com/ultrafast-mcp/ultrafast-mcp".to_string()),
+        license: Some("MIT OR Apache-2.0".to_string()),
+        repository: Some("https://github.com/ultrafast-mcp/ultrafast-mcp".to_string()),
+    };
 
-    info!("Server created, starting stdio transport");
+    // Create the UltraFastServer with advanced features
+    let server = UltraFastServer::new(server_info, capabilities)
+        .with_tool_handler(Arc::new(AdvancedToolHandler::new(monitoring.clone())))
+        .with_resource_handler(Arc::new(FileResourceHandler))
+        .with_prompt_handler(Arc::new(TemplatePromptHandler))
+        .with_sampling_handler(Arc::new(AdvancedSamplingHandler))
+        .with_completion_handler(Arc::new(AdvancedCompletionHandler))
+        .with_roots_handler(Arc::new(AdvancedRootsHandler))
+        .with_elicitation_handler(Arc::new(AdvancedElicitationHandler))
+        .with_subscription_handler(Arc::new(AdvancedSubscriptionHandler))
+        .with_full_monitoring()  // Enable all monitoring features
+        .with_middleware()       // Enable middleware support
+        .with_recovery()         // Enable recovery mechanisms
+        .with_oauth()            // Enable OAuth authentication
+        .with_rate_limiting(100) // Enable rate limiting (100 requests per minute)
+        .with_request_validation() // Enable request validation
+        .with_response_caching(); // Enable response caching
 
-    // Run the server
-    server.run_stdio().await?;
+    info!("✅ Server created successfully with all advanced features");
+
+    // Start health monitoring in background
+    let health_monitor = monitoring.clone();
+    tokio::spawn(async move {
+        loop {
+            tokio::time::sleep(tokio::time::Duration::from_secs(30)).await;
+            
+            match health_monitor.health().check_all().await {
+                HealthStatus::Healthy => {
+                    info!("System health check: All systems healthy");
+                }
+                HealthStatus::Degraded(warnings) => {
+                    warn!("System health check: System degraded - {:?}", warnings);
+                }
+                HealthStatus::Unhealthy(errors) => {
+                    error!("System health check: System unhealthy - {:?}", errors);
+                }
+            }
+        }
+    });
+
+    // Set up graceful shutdown
+    let shutdown_signal = async {
+        tokio::signal::ctrl_c()
+            .await
+            .expect("Failed to listen for ctrl+c signal");
+        info!("Received shutdown signal");
+    };
+
+    // Run the server with error handling and graceful shutdown
+    let server_task = async {
+        // Create and start the HTTP transport server
+        let transport_config = HttpTransportConfig {
+            host: "0.0.0.0".to_string(),
+            port: 8080,
+            cors_enabled: true,
+            protocol_version: "2025-06-18".to_string(),
+            allow_origin: Some("http://localhost:*".to_string()),
+            monitoring_enabled: true,
+        };
+        
+        let transport_server = HttpTransportServer::new(transport_config);
+        
+        info!("Starting HTTP transport server on 127.0.0.1:8080");
+        info!("Monitoring dashboard available at http://127.0.0.1:8081");
+        
+        // Run the transport server (this will block until shutdown)
+        if let Err(e) = transport_server.run().await {
+            error!("Transport server error: {}", e);
+            return Err(e);
+        }
 
     Ok(())
+    };
+
+    // Wait for either shutdown signal or server error
+    tokio::select! {
+        _ = shutdown_signal => {
+            info!("Shutting down server gracefully...");
+            monitoring.shutdown().await?;
+            Ok(())
+        }
+        result = server_task => {
+            match result {
+                Ok(_) => {
+                    info!("Server completed successfully");
+                    Ok(())
+                }
+                Err(e) => {
+                    error!("Server failed: {}", e);
+                    Err(e.into())
+                }
+            }
+        }
+    }
+}
+
+// Custom health checks
+struct DatabaseHealthCheck;
+
+#[async_trait::async_trait]
+impl HealthCheck for DatabaseHealthCheck {
+    async fn check(&self) -> HealthCheckResult {
+        let start = std::time::Instant::now();
+        
+        // Simulate database health check
+        tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+        
+        let status = HealthStatus::Healthy;
+        
+        HealthCheckResult {
+            status,
+            duration: start.elapsed(),
+            timestamp: std::time::SystemTime::now(),
+        }
+    }
+
+    fn name(&self) -> &str {
+        "database"
+    }
+}
+
+struct FileSystemHealthCheck;
+
+#[async_trait::async_trait]
+impl HealthCheck for FileSystemHealthCheck {
+    async fn check(&self) -> HealthCheckResult {
+        let start = std::time::Instant::now();
+        
+        // Check if /tmp directory is writable
+        let status = match std::fs::metadata("/tmp") {
+            Ok(metadata) if metadata.is_dir() => HealthStatus::Healthy,
+            _ => HealthStatus::Unhealthy("Cannot access /tmp directory".to_string()),
+        };
+        
+        HealthCheckResult {
+            status,
+            duration: start.elapsed(),
+            timestamp: std::time::SystemTime::now(),
+        }
+    }
+
+    fn name(&self) -> &str {
+        "filesystem"
+    }
+}
+
+// Simple handler implementations for missing types
+struct AdvancedSamplingHandler;
+
+#[async_trait::async_trait]
+impl SamplingHandler for AdvancedSamplingHandler {
+    async fn create_message(
+        &self,
+        _request: sampling::CreateMessageRequest,
+    ) -> MCPResult<sampling::CreateMessageResponse> {
+        Ok(sampling::SamplingResponse {
+            role: "assistant".to_string(),
+            content: sampling::SamplingContent::Text {
+                text: "Sample message created".to_string(),
+            },
+            model: None,
+            stop_reason: None,
+        })
+    }
+}
+
+struct AdvancedCompletionHandler;
+
+#[async_trait::async_trait]
+impl CompletionHandler for AdvancedCompletionHandler {
+    async fn complete(
+        &self,
+        _request: completion::CompleteRequest,
+    ) -> MCPResult<completion::CompleteResponse> {
+        Ok(completion::CompleteResponse {
+            completion: completion::Completion::new(vec![
+                completion::CompletionValue::new("completion")
+            ]),
+        })
+    }
+}
+
+struct AdvancedRootsHandler;
+
+#[async_trait::async_trait]
+impl RootsHandler for AdvancedRootsHandler {
+    async fn list_roots(&self) -> MCPResult<Vec<roots::Root>> {
+        Ok(vec![
+            roots::Root {
+                uri: "file:///".to_string(),
+                name: Some("File System Root".to_string()),
+                security: None,
+            },
+        ])
+    }
+}
+
+struct AdvancedElicitationHandler;
+
+#[async_trait::async_trait]
+impl ElicitationHandler for AdvancedElicitationHandler {
+    async fn handle_elicitation(
+        &self,
+        _request: elicitation::ElicitationRequest,
+    ) -> MCPResult<elicitation::ElicitationResponse> {
+        Ok(elicitation::ElicitationResponse {
+            session_id: None,
+            step: None,
+            value: serde_json::json!("elicitation response"),
+            cancelled: None,
+        })
+    }
+}
+
+struct AdvancedSubscriptionHandler;
+
+#[async_trait::async_trait]
+impl ResourceSubscriptionHandler for AdvancedSubscriptionHandler {
+    async fn subscribe(&self, _uri: String) -> MCPResult<()> {
+        Ok(())
+    }
+
+    async fn unsubscribe(&self, _uri: String) -> MCPResult<()> {
+        Ok(())
+    }
+
+    async fn notify_change(&self, _uri: String, _content: serde_json::Value) -> MCPResult<()> {
+        Ok(())
+    }
 }

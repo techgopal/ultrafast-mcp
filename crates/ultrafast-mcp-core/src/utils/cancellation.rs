@@ -213,9 +213,9 @@ impl PingManager {
     }
 
     /// Handle a ping request and return a pong response
-    pub async fn handle_ping(&self, request: PingRequest) -> MCPResult<PingResponse> {
-        // Simply echo back the data (if any)
-        Ok(PingResponse::new().with_data(request.data.unwrap_or(serde_json::json!({}))))
+    pub async fn handle_ping(&self, _request: PingRequest) -> MCPResult<PingResponse> {
+        // Return an empty response as per MCP 2025-06-18 specification
+        Ok(PingResponse::new())
     }
 }
 

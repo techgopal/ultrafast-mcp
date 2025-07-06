@@ -381,55 +381,117 @@
 //! - Maintain backward compatibility
 //! - Update documentation for new features
 
-// Re-export core types
-#[cfg(not(doc))]
+// =========================
+// Core Protocol and Types
+// =========================
+// Re-export core protocol types, errors, schema, and utilities
 pub use ultrafast_mcp_core::{
-    error::{MCPError, MCPResult},
-    protocol::capabilities::{
-        ClientCapabilities, ElicitationCapability, LoggingCapability, PromptsCapability,
-        ResourcesCapability, RootsCapability, SamplingCapability, ServerCapabilities,
-        ToolsCapability,
-    },
-    types::{
-        client::ClientInfo,
-        completion::{CompleteRequest, CompleteResponse},
-        elicitation::{ElicitationRequest, ElicitationResponse},
-        notifications::LogLevel,
-        prompts::{GetPromptRequest, GetPromptResponse, Prompt},
-        resources::{ReadResourceRequest, ReadResourceResponse, Resource, ResourceTemplate},
-        roots::Root,
-        sampling::{CreateMessageRequest, CreateMessageResponse},
-        server::ServerInfo,
-        tools::{
-            ListToolsRequest, ListToolsResponse, ResourceReference, Tool, ToolCall, ToolContent,
-            ToolResult,
-        },
-    },
+    // Protocol types
+    protocol,
+    // Schema
+    schema,
+    // Types
+    types,
+    // Utils
+    utils,
+    // Errors (re-export as McpCoreError to avoid conflicts)
+    error as McpCoreError,
+    // Re-export specific error types
+    MCPError, MCPResult,
 };
 
-// Re-export server types
-#[cfg(not(doc))]
+// Re-export commonly used types directly for convenience
+pub use ultrafast_mcp_core::types::{
+    // Client types
+    client::{ClientInfo, ClientCapabilities},
+    // Server types
+    server::{ServerInfo, ServerCapabilities},
+    // Tool types
+    tools::{Tool, ToolCall, ToolContent, ToolResult, ListToolsRequest, ListToolsResponse},
+    // Resource types
+    resources::{Resource, ResourceContent, ResourceTemplate, ReadResourceRequest, ReadResourceResponse, ListResourcesRequest, ListResourcesResponse},
+    // Prompt types
+    prompts::{Prompt, PromptContent, GetPromptRequest, GetPromptResponse, ListPromptsRequest, ListPromptsResponse},
+    // Completion types
+    completion::{CompleteRequest, CompleteResponse, Completion, CompletionValue},
+    // Sampling types
+    sampling::{CreateMessageRequest, CreateMessageResponse, SamplingResponse, SamplingContent},
+    // Roots types
+    roots::Root,
+    // Elicitation types
+    elicitation::{ElicitationRequest, ElicitationResponse},
+};
+
+// Re-export capability types from protocol
+pub use ultrafast_mcp_core::protocol::capabilities::{
+    ToolsCapability, ResourcesCapability, PromptsCapability, CompletionCapability, LoggingCapability,
+};
+
+// =========================
+// Server API
+// =========================
 pub use ultrafast_mcp_server::{
-    CompletionHandler, Context, ElicitationHandler, PromptHandler, ResourceHandler,
-    ResourceSubscriptionHandler, RootsHandler, SamplingHandler, ToolHandler, UltraFastServer,
+    UltraFastServer,
+    Context, ContextLogger, LoggerConfig, ServerLoggingConfig, ServerState, ToolRegistrationError,
+    ToolHandler, ResourceHandler, PromptHandler, SamplingHandler, CompletionHandler, RootsHandler, ElicitationHandler, ResourceSubscriptionHandler,
 };
 
-// Re-export client types
-#[cfg(not(doc))]
-pub use ultrafast_mcp_client::UltraFastClient;
-// Use handler traits from server crate
-#[cfg(not(doc))]
-pub use ultrafast_mcp_server::{
-    ElicitationHandler as ClientElicitationHandler, SamplingHandler as ClientSamplingHandler,
+// =========================
+// Client API
+// =========================
+pub use ultrafast_mcp_client::{
+    UltraFastClient,
+    // If client handler traits are added in future, re-export here
 };
 
-// Re-export transport types
-#[cfg(not(doc))]
-pub use ultrafast_mcp_transport::{Transport, TransportConfig};
+// =========================
+// Transport Layer
+// =========================
+pub use ultrafast_mcp_transport::{
+    Transport, TransportConfig, create_transport, create_recovering_transport,
+    // STDIO
+    stdio::StdioTransport,
+    // Middleware
+    middleware::{
+        TransportMiddleware, LoggingMiddleware, RateLimitMiddleware, ProgressMiddleware, ValidationMiddleware, MiddlewareTransport
+    },
+};
 
-// Re-export auth types
-#[cfg(all(feature = "oauth", not(doc)))]
-pub use ultrafast_mcp_auth::OAuthConfig;
+// Streamable HTTP (feature = "http")
+#[cfg(feature = "http")]
+pub use ultrafast_mcp_transport::streamable_http::{
+    StreamableHttpClient, StreamableHttpClientConfig,
+    HttpTransportConfig, HttpTransportServer, HttpTransportState,
+    create_streamable_http_client_with_middleware, create_streamable_http_client_default,
+    create_streamable_http_server_with_middleware, create_streamable_http_server_default,
+};
 
-#[cfg(all(feature = "monitoring", not(doc)))]
-pub use ultrafast_mcp_monitoring::{MonitoringConfig, MonitoringSystem};
+// =========================
+// Authentication (feature = "oauth")
+// =========================
+#[cfg(feature = "oauth")]
+pub use ultrafast_mcp_auth::{
+    // Re-export auth types (avoiding conflicts with core types)
+    error as McpAuthError,
+    oauth,
+    pkce,
+    types as AuthTypes,
+    validation,
+    // Re-export specific types
+    OAuthConfig, TokenResponse, PkceParams, AuthorizationServerMetadata,
+    ClientRegistrationRequest, ClientRegistrationResponse, TokenClaims,
+    OAuthClient, AuthError, AuthResult,
+    generate_pkce_params, generate_session_id, generate_state,
+    extract_bearer_token, TokenValidator,
+};
+
+// =========================
+// Monitoring (feature = "monitoring")
+// =========================
+#[cfg(feature = "monitoring")]
+pub use ultrafast_mcp_monitoring::*;
+
+// =========================
+// Macros
+// =========================
+pub use ultrafast_mcp_macros::*;

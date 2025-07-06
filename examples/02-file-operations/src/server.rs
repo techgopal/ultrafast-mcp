@@ -8,9 +8,8 @@ use std::sync::Arc;
 use tokio::fs;
 use tracing::info;
 use ultrafast_mcp::{
-    ListToolsRequest, ListToolsResponse, MCPError, MCPResult, ResourcesCapability,
-    ServerCapabilities, ServerInfo, Tool, ToolCall, ToolContent, ToolHandler, ToolResult,
-    ToolsCapability, UltraFastServer,
+    ListToolsRequest, ListToolsResponse, MCPError, MCPResult, ServerCapabilities, ServerInfo, Tool,
+    ToolCall, ToolContent, ToolHandler, ToolResult, ToolsCapability, UltraFastServer,
 };
 
 #[derive(Debug, Deserialize)]
@@ -421,7 +420,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         tools: Some(ToolsCapability {
             list_changed: Some(true),
         }),
-        resources: Some(ResourcesCapability {
+        resources: Some(ultrafast_mcp::ResourcesCapability {
             list_changed: Some(true),
             subscribe: Some(false),
         }),

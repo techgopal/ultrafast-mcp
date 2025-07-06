@@ -4,7 +4,10 @@
 
 use serde::{Deserialize, Serialize};
 use tracing::info;
-use ultrafast_mcp::{ClientCapabilities, ClientInfo, ToolCall, ToolContent, UltraFastClient};
+use ultrafast_mcp::{
+    ClientCapabilities, ClientInfo, ToolCall, ToolContent, UltraFastClient,
+    ListToolsRequest, ListToolsResponse,
+};
 
 #[derive(Debug, Serialize, Deserialize)]
 struct HttpGetRequest {

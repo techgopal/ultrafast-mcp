@@ -103,9 +103,7 @@ pub struct PingRequest {
 /// Ping response for connection health monitoring
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PingResponse {
-    /// Echoed data from the request
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub data: Option<serde_json::Value>,
+    // Empty response as per MCP 2025-06-18 specification
 }
 
 impl ToolsListChangedNotification {
@@ -201,12 +199,7 @@ impl PingRequest {
 
 impl PingResponse {
     pub fn new() -> Self {
-        Self { data: None }
-    }
-
-    pub fn with_data(mut self, data: serde_json::Value) -> Self {
-        self.data = Some(data);
-        self
+        Self {}
     }
 }
 

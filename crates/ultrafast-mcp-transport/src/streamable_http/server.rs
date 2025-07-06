@@ -18,6 +18,7 @@ use tokio::sync::broadcast;
 use tower_http::cors::CorsLayer;
 use tracing::{error, info};
 use ultrafast_mcp_core::protocol::{JsonRpcMessage, JsonRpcRequest, JsonRpcResponse, JsonRpcError};
+use ultrafast_mcp_monitoring::{MonitoringSystem, MetricsCollector, RequestTimer};
 
 /// HTTP transport configuration
 #[derive(Debug, Clone)]
@@ -27,6 +28,7 @@ pub struct HttpTransportConfig {
     pub cors_enabled: bool,
     pub protocol_version: String,
     pub allow_origin: Option<String>,
+    pub monitoring_enabled: bool,
 }
 
 impl Default for HttpTransportConfig {
@@ -37,6 +39,7 @@ impl Default for HttpTransportConfig {
             cors_enabled: true,
             protocol_version: "2025-06-18".to_string(),
             allow_origin: Some("http://localhost:*".to_string()),
+            monitoring_enabled: true,
         }
     }
 }
@@ -47,6 +50,8 @@ pub struct HttpTransportState {
     pub message_sender: broadcast::Sender<(String, JsonRpcMessage)>,
     pub response_sender: broadcast::Sender<(String, JsonRpcMessage)>,
     pub config: HttpTransportConfig,
+    pub metrics: Option<Arc<MetricsCollector>>,
+    pub monitoring: Option<Arc<MonitoringSystem>>,
 }
 
 /// HTTP transport server implementation
@@ -60,10 +65,21 @@ impl HttpTransportServer {
         let (message_sender, message_receiver) = broadcast::channel(1000);
         let (response_sender, _) = broadcast::channel(1000);
 
+        // Initialize monitoring if enabled
+        let (metrics, monitoring) = if config.monitoring_enabled {
+            let monitoring = Arc::new(MonitoringSystem::new(ultrafast_mcp_monitoring::MonitoringConfig::default()));
+            let metrics = monitoring.metrics();
+            (Some(metrics), Some(monitoring))
+        } else {
+            (None, None)
+        };
+
         let state = HttpTransportState {
             message_sender,
             response_sender,
             config,
+            metrics,
+            monitoring,
         };
 
         Self {
@@ -92,6 +108,16 @@ impl HttpTransportServer {
         self.state.clone()
     }
 
+    /// Get metrics collector if monitoring is enabled
+    pub fn get_metrics(&self) -> Option<Arc<MetricsCollector>> {
+        self.state.metrics.clone()
+    }
+
+    /// Get monitoring system if enabled
+    pub fn get_monitoring(&self) -> Option<Arc<MonitoringSystem>> {
+        self.state.monitoring.clone()
+    }
+
     /// Start the HTTP server
     pub async fn run(self) -> Result<()> {
         info!(
@@ -106,6 +132,22 @@ impl HttpTransportServer {
             .map_err(|e| TransportError::InitializationError {
                 message: format!("Failed to bind to address: {}", e),
             })?;
+
+        // Start monitoring HTTP server if enabled
+        if let Some(monitoring) = &self.state.monitoring {
+            let monitoring_addr = format!("{}:{}", self.state.config.host, self.state.config.port + 1)
+                .parse()
+                .map_err(|e| TransportError::InitializationError {
+                    message: format!("Failed to parse monitoring address: {}", e),
+                })?;
+            
+            let monitoring_clone = monitoring.clone();
+            tokio::spawn(async move {
+                if let Err(e) = monitoring_clone.start_http_server(monitoring_addr).await {
+                    error!("Failed to start monitoring server: {}", e);
+                }
+            });
+        }
 
         axum::serve(listener, app.into_make_service())
             .await
@@ -163,19 +205,22 @@ fn extract_session_id(headers: &HeaderMap) -> Option<String> {
 fn validate_origin(headers: &HeaderMap, config: &HttpTransportConfig) -> bool {
     if let Some(origin) = headers.get("origin") {
         if let Ok(origin_str) = origin.to_str() {
-            // For localhost, allow any localhost origin
-            if config.host == "127.0.0.1" || config.host == "localhost" {
-                return origin_str.contains("localhost") || origin_str.contains("127.0.0.1");
-            }
-            // For production, check against allowed origin
+            // If allow_origin is set to "*", allow all origins
             if let Some(allowed_origin) = &config.allow_origin {
+                if allowed_origin == "*" {
+                    return true;
+                }
                 return origin_str == allowed_origin;
+            }
+            // For localhost, allow any localhost origin
+            if config.host == "127.0.0.1" || config.host == "localhost" || config.host == "0.0.0.0" {
+                return origin_str.contains("localhost") || origin_str.contains("127.0.0.1");
             }
         }
         return false;
     }
     // Allow requests without Origin header for local development
-    config.host == "127.0.0.1" || config.host == "localhost"
+    config.host == "127.0.0.1" || config.host == "localhost" || config.host == "0.0.0.0"
 }
 
 /// Generate a new session ID
@@ -188,6 +233,29 @@ async fn handle_mcp_post(
     headers: HeaderMap,
     body: Bytes,
 ) -> impl IntoResponse {
+    // Start request timer for monitoring
+    let timer = if let Some(metrics) = &state.metrics {
+        Some(RequestTimer::start("mcp_post", metrics.clone()))
+    } else {
+        None
+    };
+
+    let result = handle_mcp_post_internal(state, headers, body).await;
+
+    // Record metrics
+    if let Some(timer) = timer {
+        let success = result.status() == StatusCode::OK;
+        timer.finish(success).await;
+    }
+
+    result
+}
+
+async fn handle_mcp_post_internal(
+    state: Arc<HttpTransportState>,
+    headers: HeaderMap,
+    body: Bytes,
+) -> Response {
     if !validate_origin(&headers, &state.config) {
         return (
             StatusCode::FORBIDDEN,

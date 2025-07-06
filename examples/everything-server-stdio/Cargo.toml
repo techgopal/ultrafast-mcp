@@ -1,0 +1,29 @@
+[package]
+name = "everything-server-stdio"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+authors.workspace = true
+keywords.workspace = true
+categories.workspace = true
+readme.workspace = true
+description.workspace = true
+
+[dependencies]
+ultrafast-mcp = { path = "../../crates/ultrafast-mcp", features = ["monitoring"] }
+tokio = { workspace = true, features = ["full"] }
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+serde_json = { workspace = true }
+base64 = "0.21"
+
+[[bin]]
+name = "server"
+path = "src/main.rs"
+
+[[bin]]
+name = "client"
+path = "src/client.rs"

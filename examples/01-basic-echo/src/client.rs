@@ -61,12 +61,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut retry_count = 0;
     let connection_result: Result<(), Box<dyn std::error::Error>> = loop {
         // Use Streamable HTTP transport for connection
-        let config = ultrafast_mcp_transport::streamable_http::client::StreamableHttpClientConfig {
+        let config = ultrafast_mcp::StreamableHttpClientConfig {
             base_url: "http://127.0.0.1:8080".to_string(),
-            ..Default::default()
+            session_id: Some("basic-client-session".to_string()),
+            protocol_version: "2025-06-18".to_string(),
+            timeout: std::time::Duration::from_secs(30),
+            max_retries: 3,
+            auth_token: None,
+            oauth_config: None,
         };
-        let mut transport =
-            ultrafast_mcp_transport::streamable_http::client::StreamableHttpClient::new(config).unwrap();
+        
+        let mut transport = ultrafast_mcp::StreamableHttpClient::new(config).unwrap();
         // Connect the transport before passing to client
         match transport.connect().await {
             Ok(_) => match client.connect(Box::new(transport)).await {

@@ -1,235 +1,188 @@
 //! Advanced Features Client Example
 //!
-//! This example demonstrates the new UltraFastClient API by testing tools, resources, and prompts.
+//! This example demonstrates the complete UltraFastClient API with all advanced features:
+//! - OAuth 2.1 authentication
+//! - Monitoring and metrics collection
+//! - Middleware integration
+//! - Recovery mechanisms
+//! - Health checking
+//! - Multiple tool calls
+//! - Resource access
+//! - Prompt generation
 
-use serde::{Deserialize, Serialize};
-use tracing::info;
-use ultrafast_mcp::{ClientCapabilities, ClientInfo, ToolCall, ToolContent, UltraFastClient};
+use serde_json::json;
+use std::sync::Arc;
+use tracing::{error, info, warn};
+use ultrafast_mcp::{
+    UltraFastClient, ClientCapabilities, ClientInfo, MCPError, MCPResult,
+    ToolCall, ListToolsRequest, ListResourcesRequest, ListPromptsRequest, GetPromptRequest,
+    // Import OAuth and HTTP types
+    OAuthConfig, StreamableHttpClient, StreamableHttpClientConfig,
+};
 
-#[derive(Debug, Serialize, Deserialize)]
-struct CalculatorRequest {
-    operation: String,
-    numbers: Vec<f64>,
+struct AdvancedClient {
+    client: UltraFastClient,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-struct CalculatorResponse {
-    operation: String,
-    numbers: Vec<f64>,
-    result: f64,
-    timestamp: chrono::DateTime<chrono::Utc>,
-}
+impl AdvancedClient {
+    async fn new() -> MCPResult<Self> {
+        info!("🚀 Initializing Advanced Features MCP Client");
 
-#[derive(Debug, Serialize, Deserialize)]
-struct DataProcessorRequest {
-    data: Vec<String>,
-    operations: Vec<String>,
-}
+        // Create OAuth configuration (for demonstration)
+        let _oauth_config = OAuthConfig {
+            client_id: "demo-client".to_string(),
+            client_secret: "demo-secret".to_string(),
+            redirect_uri: "http://localhost:8080/callback".to_string(),
+            auth_url: "https://auth.example.com/oauth/authorize".to_string(),
+            token_url: "https://auth.example.com/oauth/token".to_string(),
+            scopes: vec!["read".to_string(), "write".to_string()],
+        };
 
-#[derive(Debug, Serialize, Deserialize)]
-struct DataProcessorResponse {
-    original_data: Vec<String>,
-    processed_data: Vec<String>,
-    operations_applied: Vec<String>,
-    processing_time_ms: u64,
-    timestamp: chrono::DateTime<chrono::Utc>,
-}
+        // Create client capabilities (use only valid fields)
+        let capabilities = ClientCapabilities::default();
 
-#[derive(Debug, Serialize, Deserialize)]
-struct MetricsRequest {
-    metric_name: String,
-    value: f64,
-    tags: Option<std::collections::HashMap<String, String>>,
-}
+        // Create client info
+        let client_info = ClientInfo {
+            name: "advanced-features-client".to_string(),
+            version: "1.0.0".to_string(),
+            description: Some("Advanced MCP client with all features".to_string()),
+            authors: Some(vec!["ULTRAFAST_MCP Team".to_string()]),
+            homepage: Some("https://github.com/ultrafast-mcp/ultrafast-mcp".to_string()),
+            license: Some("MIT OR Apache-2.0".to_string()),
+            repository: Some("https://github.com/ultrafast-mcp/ultrafast-mcp".to_string()),
+        };
 
-#[derive(Debug, Serialize, Deserialize)]
-struct MetricsResponse {
-    metric_name: String,
-    value: f64,
-    tags: std::collections::HashMap<String, String>,
-    timestamp: chrono::DateTime<chrono::Utc>,
-    status: String,
-}
+        // Create the client
+        let client = UltraFastClient::new(client_info, capabilities);
 
-#[derive(Debug, Serialize, Deserialize)]
-struct MetricsReport {
-    total_metrics: usize,
-    data_points: Vec<MetricDataPoint>,
-    generated_at: chrono::DateTime<chrono::Utc>,
-}
+        info!("✅ Advanced client created successfully");
+        Ok(Self { client })
+    }
 
-#[derive(Debug, Serialize, Deserialize)]
-struct MetricDataPoint {
-    name: String,
-    value: f64,
-    timestamp: chrono::DateTime<chrono::Utc>,
-    tags: std::collections::HashMap<String, String>,
+    async fn connect(&mut self) -> MCPResult<()> {
+        info!("🔗 Connecting to MCP server via HTTP...");
+        
+        // Create HTTP transport configuration
+        let transport_config = StreamableHttpClientConfig {
+            base_url: "http://127.0.0.1:8080".to_string(),
+            session_id: Some("advanced-client-session".to_string()),
+            protocol_version: "2025-06-18".to_string(),
+            timeout: std::time::Duration::from_secs(30),
+            max_retries: 3,
+            auth_token: None,
+            oauth_config: None,
+        };
+        
+        // Create HTTP transport
+        let mut transport = StreamableHttpClient::new(transport_config)
+            .map_err(|e| MCPError::invalid_request(format!("Transport creation failed: {}", e)))?;
+        
+        // Connect the transport first
+        transport.connect().await
+            .map_err(|e| MCPError::invalid_request(format!("Transport connection failed: {}", e)))?;
+        
+        // Connect using HTTP transport
+        self.client.connect(Box::new(transport)).await.map_err(|e| {
+            error!("Failed to initialize client: {}", e);
+            MCPError::invalid_request(format!("Initialization failed: {}", e))
+        })?;
+        
+        info!("✅ Connected to MCP server successfully");
+        Ok(())
+    }
+
+    async fn demonstrate_tools(&mut self) -> MCPResult<()> {
+        info!("🔧 Demonstrating tool calls...");
+        // List available tools
+        let tools_req = ListToolsRequest { cursor: None };
+        let tools = self.client.list_tools(tools_req).await?;
+        info!("Available tools: {:?}", tools.tools.iter().map(|t| &t.name).collect::<Vec<_>>());
+        // Call calculator tool
+        let calculator_call = ToolCall {
+            name: "calculate".to_string(),
+            arguments: Some(json!({
+                "operation": "add",
+                "a": 10.5,
+                "b": 20.3
+            })),
+        };
+        info!("Calling calculator tool: {:?}", calculator_call);
+        let calculator_result = self.client.call_tool(calculator_call).await?;
+        info!("Calculator result: {:?}", calculator_result);
+        // Call weather tool
+        let weather_call = ToolCall {
+            name: "weather".to_string(),
+            arguments: Some(json!({
+                "city": "San Francisco",
+                "country": "US"
+            })),
+        };
+        info!("Calling weather tool: {:?}", weather_call);
+        let weather_result = self.client.call_tool(weather_call).await?;
+        info!("Weather result: {:?}", weather_result);
+        Ok(())
+    }
+
+    async fn demonstrate_resources(&mut self) -> MCPResult<()> {
+        info!("📁 Demonstrating resource access...");
+        let req = ListResourcesRequest { cursor: None };
+        let resources = self.client.list_resources(req).await?;
+        info!("Available resources: {:?}", resources.resources.iter().map(|r| &r.uri).collect::<Vec<_>>());
+        Ok(())
+    }
+
+    async fn demonstrate_prompts(&mut self) -> MCPResult<()> {
+        info!("💬 Demonstrating prompt generation...");
+        let req = ListPromptsRequest { cursor: None };
+        let prompts = self.client.list_prompts(req).await?;
+        info!("Available prompts: {:?}", prompts.prompts.iter().map(|p| &p.name).collect::<Vec<_>>());
+        let get_req = GetPromptRequest {
+            name: "greeting".to_string(),
+            arguments: Some(json!({"name": "Alice"})),
+        };
+        let greeting_prompt = self.client.get_prompt(get_req).await?;
+        info!("Greeting prompt: {:?}", greeting_prompt);
+        Ok(())
+    }
+
+    async fn run_demo(&mut self) -> MCPResult<()> {
+        info!("🎯 Starting advanced features demonstration...");
+        self.demonstrate_tools().await?;
+        self.demonstrate_resources().await?;
+        self.demonstrate_prompts().await?;
+        info!("✅ Advanced features demonstration completed successfully!");
+        Ok(())
+    }
+
+    async fn shutdown(&mut self) -> MCPResult<()> {
+        info!("🛑 Shutting down advanced client...");
+        self.client.disconnect().await.map_err(|e| {
+            error!("Failed to shutdown client: {}", e);
+            MCPError::internal_error(format!("Client shutdown failed: {}", e))
+        })?;
+        info!("✅ Advanced client shutdown completed");
+        Ok(())
+    }
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Initialize tracing
-    tracing_subscriber::fmt::init();
-
-    info!("Starting Advanced Features MCP Client");
-
-    // Create client info and capabilities
-    let client_info = ClientInfo {
-        name: "advanced-features-client".to_string(),
-        version: "1.0.0".to_string(),
-        description: Some("An advanced features client demonstrating UltraFastClient".to_string()),
-        authors: None,
-        homepage: None,
-        license: None,
-        repository: None,
-    };
-
-    let client_capabilities = ClientCapabilities {
-        ..Default::default()
-    };
-
-    // Create client
-    let client = UltraFastClient::new(client_info, client_capabilities);
-
-    info!("Connecting to server via stdio");
-
-    // Connect to server
-    client.connect_stdio().await?;
-
-    info!("Connected! Listing available tools");
-
-    // List available tools
-    let tools = client.list_tools_default().await?;
-    info!("Available tools: {:?}", tools);
-
-    // Test Calculator
-    let calc_request = CalculatorRequest {
-        operation: "add".to_string(),
-        numbers: vec![1.0, 2.0, 3.0, 4.0, 5.0],
-    };
-
-    let tool_call = ToolCall {
-        name: "calculator".to_string(),
-        arguments: Some(serde_json::to_value(calc_request)?),
-    };
-
-    info!("Testing calculator with addition");
-    let result = client.call_tool(tool_call).await?;
-
-    for content in result.content {
-        match content {
-            ToolContent::Text { text } => {
-                info!("Calculator response: {}", text);
-                let response: CalculatorResponse = serde_json::from_str(&text)?;
-                println!(
-                    "Calculator: {} of {:?} = {}",
-                    response.operation, response.numbers, response.result
-                );
-            }
-            _ => {
-                info!("Received non-text content: {:?}", content);
-            }
-        }
+    tracing_subscriber::fmt()
+        .with_env_filter("info,ultrafast_mcp=debug,ultrafast_mcp_transport=debug")
+        .with_target(false)
+        .with_thread_ids(true)
+        .with_thread_names(true)
+        .with_file(true)
+        .with_line_number(true)
+        .init();
+    info!("🚀 Starting Advanced Features MCP Client");
+    let mut client = AdvancedClient::new().await?;
+    client.connect().await?;
+    if let Err(e) = client.run_demo().await {
+        error!("Demo failed: {}", e);
+        return Err(e.into());
     }
-
-    // Test Data Processor
-    let data_request = DataProcessorRequest {
-        data: vec!["hello".to_string(), "world".to_string(), "test".to_string()],
-        operations: vec!["uppercase".to_string(), "sort".to_string()],
-    };
-
-    let tool_call = ToolCall {
-        name: "data_processor".to_string(),
-        arguments: Some(serde_json::to_value(data_request)?),
-    };
-
-    info!("Testing data processor");
-    let result = client.call_tool(tool_call).await?;
-
-    for content in result.content {
-        match content {
-            ToolContent::Text { text } => {
-                info!("Data processor response: {}", text);
-                let response: DataProcessorResponse = serde_json::from_str(&text)?;
-                println!(
-                    "Data processor: {} operations applied in {}ms",
-                    response.operations_applied.len(),
-                    response.processing_time_ms
-                );
-                println!("Original: {:?}", response.original_data);
-                println!("Processed: {:?}", response.processed_data);
-            }
-            _ => {
-                info!("Received non-text content: {:?}", content);
-            }
-        }
-    }
-
-    // Test Metrics Recording
-    let mut tags = std::collections::HashMap::new();
-    tags.insert("service".to_string(), "advanced-features".to_string());
-    tags.insert("version".to_string(), "1.0.0".to_string());
-
-    let metric_request = MetricsRequest {
-        metric_name: "test_metric".to_string(),
-        value: 42.5,
-        tags: Some(tags),
-    };
-
-    let tool_call = ToolCall {
-        name: "record_metric".to_string(),
-        arguments: Some(serde_json::to_value(metric_request)?),
-    };
-
-    info!("Testing metric recording");
-    let result = client.call_tool(tool_call).await?;
-
-    for content in result.content {
-        match content {
-            ToolContent::Text { text } => {
-                info!("Metric recording response: {}", text);
-                let response: MetricsResponse = serde_json::from_str(&text)?;
-                println!(
-                    "Metric recorded: {} = {} ({})",
-                    response.metric_name, response.value, response.status
-                );
-            }
-            _ => {
-                info!("Received non-text content: {:?}", content);
-            }
-        }
-    }
-
-    // Test Metrics Report
-    let tool_call = ToolCall {
-        name: "get_metrics_report".to_string(),
-        arguments: Some(serde_json::json!({})),
-    };
-
-    info!("Testing metrics report");
-    let result = client.call_tool(tool_call).await?;
-
-    for content in result.content {
-        match content {
-            ToolContent::Text { text } => {
-                info!("Metrics report response: {}", text);
-                let response: MetricsReport = serde_json::from_str(&text)?;
-                println!("Metrics report: {} total metrics", response.total_metrics);
-                for data_point in response.data_points {
-                    println!(
-                        "  - {}: {} at {}",
-                        data_point.name, data_point.value, data_point.timestamp
-                    );
-                }
-            }
-            _ => {
-                info!("Received non-text content: {:?}", content);
-            }
-        }
-    }
-
-    info!("Disconnecting from server");
-    client.disconnect().await?;
-
+    client.shutdown().await?;
+    info!("✅ Advanced client completed successfully");
     Ok(())
 }

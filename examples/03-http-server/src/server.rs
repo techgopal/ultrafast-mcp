@@ -2,7 +2,6 @@
 //!
 //! This example demonstrates the new UltraFastServer API with HTTP operations.
 
-use reqwest::Client as HttpClient;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::Instant;
@@ -187,7 +186,7 @@ impl ToolHandler for HttpOperationsHandler {
 
 impl HttpOperationsHandler {
     async fn handle_http_get(&self, request: HttpGetRequest) -> MCPResult<ToolResult> {
-        let client = HttpClient::new();
+        let client = reqwest::Client::new();
         let response = client
             .get(&request.url)
             .send()
@@ -222,7 +221,7 @@ impl HttpOperationsHandler {
     }
 
     async fn handle_http_post(&self, request: HttpPostRequest) -> MCPResult<ToolResult> {
-        let client = HttpClient::new();
+        let client = reqwest::Client::new();
         let mut req_builder = client.post(&request.url);
 
         if let Some(data) = request.data {
@@ -268,7 +267,7 @@ impl HttpOperationsHandler {
     }
 
     async fn handle_http_status(&self, request: HttpStatusRequest) -> MCPResult<ToolResult> {
-        let client = HttpClient::new();
+        let client = reqwest::Client::new();
         let response = client.head(&request.url).send().await;
 
         let (status, is_online) = match response {
@@ -292,7 +291,7 @@ impl HttpOperationsHandler {
     }
 
     async fn handle_http_info(&self, request: HttpInfoRequest) -> MCPResult<ToolResult> {
-        let client = HttpClient::new();
+        let client = reqwest::Client::new();
         let response = client.head(&request.url).send().await;
 
         let response_data = if let Ok(resp) = response {

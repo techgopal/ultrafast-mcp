@@ -1,0 +1,9 @@
+{
+  "servers": [
+    {
+      "name": "everything-server-streamable-http",
+      "type": "http",
+      "url": "http://localhost:8080/mcp"
+    }
+  ]
+} 

@@ -404,6 +404,296 @@ async fn main() -> Result<()> {
 }
 ```
 
+## 📚 Examples
+
+### 1. Basic Echo Server
+```bash
+cd examples/01-basic-echo
+cargo run --bin server  # Terminal 1
+cargo run --bin client  # Terminal 2
+```
+
+### 2. File Operations Server
+```bash
+cd examples/02-file-operations
+cargo run --bin server  # Terminal 1
+cargo run --bin client  # Terminal 2
+```
+
+### 3. HTTP Server with Authentication
+```bash
+cd examples/03-http-server
+cargo run --bin server  # Terminal 1
+cargo run --bin client  # Terminal 2
+```
+
+### 4. Advanced Features
+```bash
+cd examples/04-advanced-features
+cargo run --bin server  # Terminal 1
+cargo run --bin client  # Terminal 2
+```
+
+## 🔍 Testing with MCP Inspector
+
+The [MCP Inspector](https://github.com/modelcontextprotocol/inspector) is a powerful web-based tool for testing and debugging MCP servers. UltraFast MCP servers are fully compatible with the MCP Inspector and can be easily tested using this tool.
+
+### Prerequisites
+
+1. **Install Node.js** (v18 or later)
+2. **Install MCP Inspector**:
+   ```bash
+   npm install -g @modelcontextprotocol/inspector
+   ```
+
+### Testing STDIO Servers
+
+#### 1. Build Your Server
+```bash
+# Build the everything-server-stdio example
+cd examples/everything-server-stdio
+cargo build --release
+```
+
+#### 2. Start the MCP Inspector
+```bash
+# Start the MCP Inspector
+mcp-inspector
+```
+
+#### 3. Connect to Your Server
+1. Open your browser and navigate to `http://localhost:3000`
+2. Click **"Add Server"** in the MCP Inspector
+3. Select **"Command"** as the connection type
+4. Enter the path to your server binary:
+   ```
+   /path/to/your/project/target/release/server
+   ```
+   For the everything-server-stdio example:
+   ```
+   /path/to/your/project/target/release/everything-server-stdio
+   ```
+5. Click **"Connect"**
+
+#### 4. Test Server Features
+Once connected, you can test:
+
+- **Tools**: Call the `echo`, `add`, `longRunningOperation`, etc.
+- **Resources**: List and read resources from `test://static/resource/1-100`
+- **Prompts**: Get prompts like `simple_prompt`, `complex_prompt`, `resource_prompt`
+- **Logging**: Set log levels and view log messages
+- **Ping**: Test connection health with the ping method
+
+### Testing HTTP Servers
+
+#### 1. Build and Start Your HTTP Server
+```bash
+# Build the everything-server-streamable-http example
+cd examples/everything-server-streamable-http
+cargo build --release
+
+# Start the HTTP server
+cargo run --release
+```
+
+#### 2. Connect via MCP Inspector
+1. Open the MCP Inspector at `http://localhost:3000`
+2. Click **"Add Server"**
+3. Select **"HTTP"** as the connection type
+4. Enter the server URL:
+   ```
+   http://localhost:8080/mcp
+   ```
+5. Click **"Connect"**
+
+### Testing Everything Server Examples
+
+UltraFast MCP includes comprehensive examples that demonstrate all MCP features:
+
+#### Everything Server (STDIO)
+```bash
+cd examples/everything-server-stdio
+cargo build --release
+# Use the binary path in MCP Inspector: target/release/everything-server-stdio
+```
+
+**Features Available:**
+- **Tools**: 9 different tools including echo, math operations, long-running tasks
+- **Resources**: 100 test resources with different content types
+- **Prompts**: 3 prompt templates with various complexity levels
+- **Logging**: Full logging capability with level control
+- **Ping**: Connection health monitoring
+
+#### Everything Server (Streamable HTTP)
+```bash
+cd examples/everything-server-streamable-http
+cargo build --release
+cargo run --release
+# Connect to http://localhost:8080/mcp in MCP Inspector
+```
+
+**Features Available:**
+- All STDIO features plus:
+- **Server-Sent Events**: Real-time notifications
+- **Session Management**: Persistent connections
+- **Streaming Responses**: Progressive data delivery
+
+### Common Test Scenarios
+
+#### 1. Basic Connectivity Test
+```json
+{
+  "method": "ping"
+}
+```
+**Expected Response:**
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {}
+}
+```
+
+#### 2. Tool Execution Test
+```json
+{
+  "method": "tools/call",
+  "params": {
+    "name": "echo",
+    "arguments": {
+      "message": "Hello, MCP Inspector!"
+    }
+  }
+}
+```
+
+#### 3. Resource Listing Test
+```json
+{
+  "method": "resources/list",
+  "params": {}
+}
+```
+
+#### 4. Prompt Retrieval Test
+```json
+{
+  "method": "prompts/get",
+  "params": {
+    "name": "simple_prompt"
+  }
+}
+```
+
+### Troubleshooting
+
+#### Common Issues
+
+1. **"Method not implemented" errors**:
+   - Ensure your server implements all required MCP methods
+   - Check that method names match the MCP specification exactly
+
+2. **Connection failures**:
+   - Verify the server binary path is correct
+   - Ensure the server has execute permissions
+   - Check that the server starts without errors
+
+3. **Resource not found errors**:
+   - Verify resource URIs are correctly formatted
+   - Check that resource handlers are properly registered
+
+4. **Schema validation errors**:
+   - Ensure tool input/output schemas are valid JSON Schema
+   - Check that argument types match the expected schema
+
+#### Debug Mode
+
+Enable debug logging in your server:
+```rust
+// In your server code
+tracing_subscriber::fmt()
+    .with_max_level(tracing::Level::DEBUG)
+    .init();
+```
+
+#### MCP Inspector Logs
+
+The MCP Inspector provides detailed logs in the browser console:
+1. Open Developer Tools (F12)
+2. Go to the Console tab
+3. Look for MCP-related messages and errors
+
+### Advanced Testing
+
+#### Testing Long-Running Operations
+```json
+{
+  "method": "tools/call",
+  "params": {
+    "name": "longRunningOperation",
+    "arguments": {
+      "steps": 10
+    }
+  }
+}
+```
+
+#### Testing Resource Subscriptions
+```json
+{
+  "method": "resources/subscribe",
+  "params": {
+    "uri": "test://static/resource/1"
+  }
+}
+```
+
+#### Testing Log Level Changes
+```json
+{
+  "method": "logging/setLevel",
+  "params": {
+    "level": "debug"
+  }
+}
+```
+
+### Performance Testing
+
+The MCP Inspector can help you test server performance:
+
+1. **Concurrent Requests**: Send multiple requests simultaneously
+2. **Large Payloads**: Test with large resource content or tool arguments
+3. **Connection Stability**: Monitor for connection drops or timeouts
+4. **Memory Usage**: Watch for memory leaks during extended testing
+
+### Integration Testing
+
+For automated testing, you can also use the MCP Inspector programmatically:
+
+```javascript
+// Example: Automated testing with MCP Inspector
+const inspector = require('@modelcontextprotocol/inspector');
+
+async function testServer() {
+  const client = await inspector.connect({
+    type: 'command',
+    command: '/path/to/your/server'
+  });
+  
+  // Test ping
+  const pingResult = await client.ping();
+  console.log('Ping result:', pingResult);
+  
+  // Test tool call
+  const toolResult = await client.callTool('echo', {
+    message: 'Test message'
+  });
+  console.log('Tool result:', toolResult);
+}
+```
+
 ## 🏗️ Architecture
 
 ### Core Components
@@ -536,154 +826,3 @@ mcp client tools
 # Call a tool
 mcp client call-tool greet --arg name=Alice
 ```
-
-## 🔒 Security
-
-### OAuth 2.1 Authentication
-
-```rust
-let client = UltraFastClient::connect(Transport::Streamable {
-    url: "https://api.example.com/mcp".into(),
-    auth: Some(AuthConfig::OAuth {
-        client_id: "my-client".into(),
-        scopes: vec!["read".into(), "write".into()],
-        redirect_uri: "http://localhost:8080/callback".into(),
-    }),
-}).await?;
-```
-
-### Security Features
-- **PKCE**: Authorization code protection (RFC 7636)
-- **Dynamic Client Registration**: RFC 7591 compliance
-- **Resource Indicators**: RFC 8707 token audience binding
-- **HTTPS Enforcement**: TLS 1.2+ required
-- **Token Validation**: JWT token verification
-- **Rate Limiting**: Protection against abuse
-
-## 📊 Monitoring & Observability
-
-### OpenTelemetry Integration
-
-```rust
-let server = UltraFastServer::new("My Server")
-    .with_monitoring_config(MonitoringConfig {
-        tracing: Some(TracingConfig {
-            endpoint: "http://localhost:14268/api/traces".into(),
-            service_name: "my-mcp-server".into(),
-        }),
-        metrics: Some(MetricsConfig {
-            endpoint: "http://localhost:9090".into(),
-        }),
-    });
-```
-
-### Available Metrics
-- **Request/Response Latency**
-- **Throughput (requests/second)**
-- **Error Rates**
-- **Resource Usage** (CPU, Memory, Network)
-- **Connection Pool Status**
-- **Authentication Success/Failure Rates**
-
-## 🚀 Performance
-
-### Performance Optimizations
-- **Zero-copy serialization** with `serde` and `bytes`
-- **SIMD-optimized JSON parsing**
-- **Connection pooling** for HTTP transports
-- **Stateless architecture** for horizontal scaling
-- **Async-first design** with `tokio` integration
-
-## 📋 MCP 2025-06-18 Compliance
-
-### ✅ Complete Specification Support
-
-- **Base Protocol**: JSON-RPC 2.0, lifecycle management, capability negotiation
-- **Transport Layer**: stdio, Streamable HTTP, session management
-- **Authorization**: OAuth 2.1 with full RFC compliance
-- **Server Features**: Tools, Resources, Prompts, Logging, Completion
-- **Client Features**: Sampling, Roots, Elicitation
-- **Utilities**: Progress tracking, cancellation, pagination, ping/pong
-
-### Compliance Checklist
-- ✅ JSON-RPC 2.0 message format
-- ✅ Three-phase lifecycle (Initialize → Operation → Shutdown)
-- ✅ Capability negotiation for optional features
-- ✅ Version negotiation with fallback support
-- ✅ OAuth 2.1 authorization framework
-- ✅ Resource templates with RFC 6570 URI templates
-- ✅ Structured logging with RFC 5424 compliance
-- ✅ Progress tracking with token-based system
-- ✅ Request cancellation with race condition handling
-
-## 🤝 Contributing
-
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
-
-### Development Setup
-
-```bash
-# Clone the repository
-git clone https://github.com/techgopal/ultrafast-mcp.git
-cd ultrafast-mcp
-
-# Build all crates
-cargo build --workspace
-
-# Run tests
-cargo test --workspace
-
-# Run examples
-cargo run --example basic-echo-server
-```
-
-### Project Structure
-
-```
-mcp/
-├── crates/                 # Core library crates
-│   ├── ultrafast-mcp/      # Main crate
-│   ├── ultrafast-mcp-core/ # Protocol implementation
-│   ├── ultrafast-mcp-server/ # Server implementation
-│   ├── ultrafast-mcp-client/ # Client implementation
-│   ├── ultrafast-mcp-transport/ # Transport layer
-│   ├── ultrafast-mcp-auth/ # Authentication
-│   ├── ultrafast-mcp-cli/  # Command-line interface
-│   ├── ultrafast-mcp-monitoring/ # Observability
-│   └── ultrafast-mcp-macros/ # Procedural macros
-├── examples/               # Working examples
-│   ├── 01-basic-echo/      # Basic server/client
-│   ├── 02-file-operations/ # File system operations
-│   ├── 03-http-server/     # HTTP operations
-│   └── 04-advanced-features/ # Complete feature set
-├── tests/                  # Integration tests
-├── benches/                # Performance benchmarks
-└── docs/                   # Documentation
-```
-
-## 📄 License
-
-This project is licensed under either of
-
-- Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or https://www.apache.org/licenses/LICENSE-2.0)
-- MIT license ([LICENSE-MIT](LICENSE-MIT) or https://opensource.org/licenses/MIT)
-
-at your option.
-
-## 🙏 Acknowledgments
-
-- **FastMCP**: Inspiration for the ergonomic API design
-- **MCP Community**: For the excellent Model Context Protocol specification
-- **Rust Ecosystem**: For the amazing tools and libraries that make this possible
-- **OpenTelemetry**: For the comprehensive observability framework
-
-## 📞 Support
-
-- **Documentation**: [https://docs.rs/ultrafast-mcp](https://docs.rs/ultrafast-mcp)
-- **Issues**: [GitHub Issues](https://github.com/techgopal/ultrafast-mcp/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/techgopal/ultrafast-mcp/discussions)
-- **Email**: team@ultrafast-mcp.com
-
----
-
-**UltraFast MCP** - A high-performance, developer-friendly MCP framework in Rust. 🚀 

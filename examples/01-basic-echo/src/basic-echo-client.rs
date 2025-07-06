@@ -1,15 +1,9 @@
 use serde_json::json;
 use tracing::{info, warn};
-use ultrafast_mcp_client::UltraFastClient;
-use ultrafast_mcp_core::{
-    error::MCPResult,
-    protocol::capabilities::ClientCapabilities,
-    types::{
-        client::ClientInfo,
-        tools::{ToolCall, ToolResult},
-    },
+use ultrafast_mcp::{
+    UltraFastClient, MCPResult, ClientCapabilities, ClientInfo, ToolCall, ToolResult, ToolContent,
 };
-use ultrafast_mcp_transport::stdio::StdioTransport;
+use ultrafast_mcp::StdioTransport;
 
 #[tokio::main]
 async fn main() -> MCPResult<()> {
@@ -33,7 +27,7 @@ async fn main() -> MCPResult<()> {
     info!("Client created, connecting to server");
 
     // Create STDIO transport
-    let transport = StdioTransport::new();
+    let mut transport = ultrafast_mcp::StreamableHttpClient::new(config).unwrap();
     
     // Connect to server
     client.connect(Box::new(transport)).await?;
@@ -55,7 +49,7 @@ async fn main() -> MCPResult<()> {
     // Extract the text content
     if let Some(content) = result.content.first() {
         match content {
-            ultrafast_mcp_core::types::tools::ToolContent::Text { text } => {
+            ToolContent::Text { text } => {
                 println!("Server response: {}", text);
             }
             _ => {

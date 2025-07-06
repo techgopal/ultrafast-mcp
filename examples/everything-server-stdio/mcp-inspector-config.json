@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "everything-server-stdio": {
+      "command": "cargo",
+      "args": ["run", "--bin", "server"],
+      "cwd": "/Users/odc695/Desktop/code/rllm/mcp/examples/everything-server-stdio"
+    }
+  }
+} 
