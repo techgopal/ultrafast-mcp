@@ -1,9 +1,9 @@
+use crate::config::{
+    JSONRPC_VERSION, MAX_REQUEST_ID_LENGTH, MAX_REQUEST_ID_NUMBER, MIN_REQUEST_ID_NUMBER,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
-use crate::config::{
-    MAX_REQUEST_ID_LENGTH, MIN_REQUEST_ID_NUMBER, MAX_REQUEST_ID_NUMBER, JSONRPC_VERSION
-};
 
 /// Standard JSON-RPC 2.0 error codes
 pub mod error_codes {
@@ -73,16 +73,18 @@ impl RequestId {
                     ));
                 }
                 if s.len() > MAX_REQUEST_ID_LENGTH {
-                    return Err(crate::error::ProtocolError::InvalidRequestId(
-                        format!("Request ID string too long (max {} characters)", MAX_REQUEST_ID_LENGTH),
-                    ));
+                    return Err(crate::error::ProtocolError::InvalidRequestId(format!(
+                        "Request ID string too long (max {} characters)",
+                        MAX_REQUEST_ID_LENGTH
+                    )));
                 }
             }
             RequestId::Number(n) => {
                 if *n < MIN_REQUEST_ID_NUMBER || *n > MAX_REQUEST_ID_NUMBER {
-                    return Err(crate::error::ProtocolError::InvalidRequestId(
-                        format!("Request ID number out of range ({} to {})", MIN_REQUEST_ID_NUMBER, MAX_REQUEST_ID_NUMBER),
-                    ));
+                    return Err(crate::error::ProtocolError::InvalidRequestId(format!(
+                        "Request ID number out of range ({} to {})",
+                        MIN_REQUEST_ID_NUMBER, MAX_REQUEST_ID_NUMBER
+                    )));
                 }
             }
         }
@@ -342,14 +344,15 @@ pub fn validate_jsonrpc_message(
     match message {
         JsonRpcMessage::Request(request) => {
             if request.jsonrpc != JSONRPC_VERSION {
-                return Err(crate::error::ProtocolError::InvalidVersion(
-                    format!("Expected JSON-RPC version {}, got {}", JSONRPC_VERSION, request.jsonrpc)
-                ));
+                return Err(crate::error::ProtocolError::InvalidVersion(format!(
+                    "Expected JSON-RPC version {}, got {}",
+                    JSONRPC_VERSION, request.jsonrpc
+                )));
             }
 
             if request.method.is_empty() {
                 return Err(crate::error::ProtocolError::InvalidRequest(
-                    "Method name cannot be empty".to_string()
+                    "Method name cannot be empty".to_string(),
                 ));
             }
 
@@ -359,20 +362,21 @@ pub fn validate_jsonrpc_message(
         }
         JsonRpcMessage::Response(response) => {
             if response.jsonrpc != JSONRPC_VERSION {
-                return Err(crate::error::ProtocolError::InvalidVersion(
-                    format!("Expected JSON-RPC version {}, got {}", JSONRPC_VERSION, response.jsonrpc)
-                ));
+                return Err(crate::error::ProtocolError::InvalidVersion(format!(
+                    "Expected JSON-RPC version {}, got {}",
+                    JSONRPC_VERSION, response.jsonrpc
+                )));
             }
 
             if response.result.is_some() && response.error.is_some() {
                 return Err(crate::error::ProtocolError::InvalidResponse(
-                    "Response cannot have both result and error".to_string()
+                    "Response cannot have both result and error".to_string(),
                 ));
             }
 
             if response.result.is_none() && response.error.is_none() {
                 return Err(crate::error::ProtocolError::InvalidResponse(
-                    "Response must have either result or error".to_string()
+                    "Response must have either result or error".to_string(),
                 ));
             }
 
@@ -382,20 +386,21 @@ pub fn validate_jsonrpc_message(
         }
         JsonRpcMessage::Notification(notification) => {
             if notification.jsonrpc != JSONRPC_VERSION {
-                return Err(crate::error::ProtocolError::InvalidVersion(
-                    format!("Expected JSON-RPC version {}, got {}", JSONRPC_VERSION, notification.jsonrpc)
-                ));
+                return Err(crate::error::ProtocolError::InvalidVersion(format!(
+                    "Expected JSON-RPC version {}, got {}",
+                    JSONRPC_VERSION, notification.jsonrpc
+                )));
             }
 
             if notification.method.is_empty() {
                 return Err(crate::error::ProtocolError::InvalidRequest(
-                    "Method name cannot be empty".to_string()
+                    "Method name cannot be empty".to_string(),
                 ));
             }
 
             if notification.id.is_some() {
                 return Err(crate::error::ProtocolError::InvalidRequest(
-                    "Notification cannot have an ID".to_string()
+                    "Notification cannot have an ID".to_string(),
                 ));
             }
         }
@@ -447,10 +452,8 @@ mod tests {
     #[test]
     fn test_response_error() {
         let error = JsonRpcError::new(-32601, "Method not found".to_string());
-        let response = JsonRpcResponse::error(
-            error,
-            Some(RequestId::String("test-789".to_string())),
-        );
+        let response =
+            JsonRpcResponse::error(error, Some(RequestId::String("test-789".to_string())));
 
         assert!(response.result.is_none());
         assert!(response.error.is_some());

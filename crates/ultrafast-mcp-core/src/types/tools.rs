@@ -2,6 +2,24 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 /// Type aliases for consistency
+///
+/// NOTE: These aliases are provided for backward compatibility and ergonomics.
+/// ToolCall is an alias for ToolCallRequest - use ToolCallRequest for clarity in new code.
+/// ToolResult is an alias for ToolCallResponse - use ToolCallResponse for clarity in new code.
+///
+/// # Examples
+/// ```
+/// use ultrafast_mcp_core::types::{ToolCall, ToolResult};
+/// use ultrafast_mcp_core::types::tools::{ToolCallRequest, ToolCallResponse};
+///
+/// // Preferred: Use the full type names
+/// let request = ToolCallRequest { name: "my_tool".to_string(), arguments: None };
+/// let response = ToolCallResponse { content: vec![], is_error: None };
+///
+/// // Legacy: Using aliases (still works but less clear)
+/// let request: ToolCall = ToolCallRequest { name: "my_tool".to_string(), arguments: None };
+/// let response: ToolResult = ToolCallResponse { content: vec![], is_error: None };
+/// ```
 pub type ToolCall = ToolCallRequest;
 pub type ToolResult = ToolCallResponse;
 

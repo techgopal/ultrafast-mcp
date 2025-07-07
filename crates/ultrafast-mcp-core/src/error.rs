@@ -203,7 +203,12 @@ pub enum ValidationError {
     InvalidFormat { field: String, expected: String },
 
     #[error("Value for field '{field}' is out of range: {actual} (expected {min}..{max})")]
-    ValueOutOfRange { field: String, min: String, max: String, actual: String },
+    ValueOutOfRange {
+        field: String,
+        min: String,
+        max: String,
+        actual: String,
+    },
 }
 
 /// Rate limiting errors
@@ -239,22 +244,46 @@ pub mod error_codes {
 impl From<crate::protocol::jsonrpc::JsonRpcError> for MCPError {
     fn from(err: crate::protocol::jsonrpc::JsonRpcError) -> Self {
         match err.code {
-            error_codes::PARSE_ERROR => MCPError::Protocol(ProtocolError::SerializationError(err.message)),
-            error_codes::INVALID_REQUEST => MCPError::Protocol(ProtocolError::InvalidRequest(err.message)),
-            error_codes::METHOD_NOT_FOUND => MCPError::Protocol(ProtocolError::MethodNotFound(err.message)),
-            error_codes::INVALID_PARAMS => MCPError::Protocol(ProtocolError::InvalidParams(err.message)),
-            error_codes::INTERNAL_ERROR => MCPError::Protocol(ProtocolError::InternalError(err.message)),
-            error_codes::INITIALIZATION_FAILED => MCPError::Protocol(ProtocolError::InitializationFailed(err.message)),
-            error_codes::CAPABILITY_NOT_SUPPORTED => MCPError::Protocol(ProtocolError::CapabilityNotSupported(err.message)),
-            error_codes::RESOURCE_NOT_FOUND => MCPError::Resource(ResourceError::NotFound(err.message)),
-            error_codes::TOOL_EXECUTION_ERROR => MCPError::ToolExecution(ToolError::ExecutionFailed(err.message)),
+            error_codes::PARSE_ERROR => {
+                MCPError::Protocol(ProtocolError::SerializationError(err.message))
+            }
+            error_codes::INVALID_REQUEST => {
+                MCPError::Protocol(ProtocolError::InvalidRequest(err.message))
+            }
+            error_codes::METHOD_NOT_FOUND => {
+                MCPError::Protocol(ProtocolError::MethodNotFound(err.message))
+            }
+            error_codes::INVALID_PARAMS => {
+                MCPError::Protocol(ProtocolError::InvalidParams(err.message))
+            }
+            error_codes::INTERNAL_ERROR => {
+                MCPError::Protocol(ProtocolError::InternalError(err.message))
+            }
+            error_codes::INITIALIZATION_FAILED => {
+                MCPError::Protocol(ProtocolError::InitializationFailed(err.message))
+            }
+            error_codes::CAPABILITY_NOT_SUPPORTED => {
+                MCPError::Protocol(ProtocolError::CapabilityNotSupported(err.message))
+            }
+            error_codes::RESOURCE_NOT_FOUND => {
+                MCPError::Resource(ResourceError::NotFound(err.message))
+            }
+            error_codes::TOOL_EXECUTION_ERROR => {
+                MCPError::ToolExecution(ToolError::ExecutionFailed(err.message))
+            }
             error_codes::INVALID_URI => MCPError::Resource(ResourceError::InvalidUri(err.message)),
-            error_codes::ACCESS_DENIED => MCPError::Resource(ResourceError::AccessDenied(err.message)),
-            error_codes::AUTHENTICATION_ERROR => MCPError::Authentication(AuthenticationError::InvalidCredentials),
-            error_codes::VALIDATION_ERROR => MCPError::Validation(ValidationError::SchemaValidation {
-                field: "unknown".to_string(),
-                details: err.message,
-            }),
+            error_codes::ACCESS_DENIED => {
+                MCPError::Resource(ResourceError::AccessDenied(err.message))
+            }
+            error_codes::AUTHENTICATION_ERROR => {
+                MCPError::Authentication(AuthenticationError::InvalidCredentials)
+            }
+            error_codes::VALIDATION_ERROR => {
+                MCPError::Validation(ValidationError::SchemaValidation {
+                    field: "unknown".to_string(),
+                    details: err.message,
+                })
+            }
             error_codes::RATE_LIMIT_ERROR => MCPError::RateLimit(RateLimitError::TooManyRequests {
                 retry_after: 0,
                 limit: 0,
@@ -271,15 +300,24 @@ mod tests {
     #[test]
     fn test_error_variant_conversion() {
         let error = MCPError::invalid_params("test".to_string());
-        assert!(matches!(error, MCPError::Protocol(ProtocolError::InvalidParams(_))));
+        assert!(matches!(
+            error,
+            MCPError::Protocol(ProtocolError::InvalidParams(_))
+        ));
 
         let error = MCPError::method_not_found("test".to_string());
-        assert!(matches!(error, MCPError::Protocol(ProtocolError::MethodNotFound(_))));
+        assert!(matches!(
+            error,
+            MCPError::Protocol(ProtocolError::MethodNotFound(_))
+        ));
     }
 
     #[test]
     fn test_error_creation() {
         let error = MCPError::internal_error("test error".to_string());
-        assert!(matches!(error, MCPError::Protocol(ProtocolError::InternalError(_))));
+        assert!(matches!(
+            error,
+            MCPError::Protocol(ProtocolError::InternalError(_))
+        ));
     }
 }

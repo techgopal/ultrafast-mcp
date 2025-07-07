@@ -189,15 +189,18 @@ impl ToolHandler for EverythingToolHandler {
 
                 let mut elapsed = 0.0;
                 let mut check_count = 0;
-                
+
                 while elapsed < duration {
                     sleep(Duration::from_secs_f64(check_interval)).await;
                     elapsed += check_interval;
                     check_count += 1;
-                    
+
                     // In a real implementation, you would check for cancellation requests here
                     // For now, we'll just simulate periodic checking
-                    eprintln!("Cancellable operation check #{}: {:.1}/{:.1} seconds", check_count, elapsed, duration);
+                    eprintln!(
+                        "Cancellable operation check #{}: {:.1}/{:.1} seconds",
+                        check_count, elapsed, duration
+                    );
                 }
 
                 Ok(ToolResult {
@@ -210,16 +213,17 @@ impl ToolHandler for EverythingToolHandler {
             }
             "notificationDemo" => {
                 let args = call.arguments.unwrap_or_default();
-                let notification_type = args
-                    .get("type")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("info");
+                let notification_type = args.get("type").and_then(|v| v.as_str()).unwrap_or("info");
 
                 let message = match notification_type {
-                    "resource_list_changed" => "This would trigger a resource list changed notification",
+                    "resource_list_changed" => {
+                        "This would trigger a resource list changed notification"
+                    }
                     "resource_updated" => "This would trigger a resource updated notification",
                     "tool_list_changed" => "This would trigger a tool list changed notification",
-                    "prompt_list_changed" => "This would trigger a prompt list changed notification",
+                    "prompt_list_changed" => {
+                        "This would trigger a prompt list changed notification"
+                    }
                     "log_message" => "This would trigger a log message notification",
                     _ => "This would trigger a general notification",
                 };
@@ -574,7 +578,7 @@ impl PromptHandler for EverythingPromptHandler {
                 // Allow 0 as a valid resource ID, or use 1 as default if invalid
                 let valid_resource_id = if resource_id == 0 {
                     1 // Use 1 as default for 0
-                } else if resource_id < 1 || resource_id > 100 {
+                } else if !(1..=100).contains(&resource_id) {
                     return Err(anyhow::anyhow!(
                         "Invalid resourceId: {}. Must be a number between 1 and 100.",
                         resource_id
@@ -677,7 +681,7 @@ impl CompletionHandler for EverythingCompletionHandler {
                             true
                         }
                     })
-                    .map(|s| completion::CompletionValue::new(s))
+                    .map(completion::CompletionValue::new)
                     .collect();
 
                 Ok(completion::CompleteResponse {
@@ -703,7 +707,7 @@ impl CompletionHandler for EverythingCompletionHandler {
                             true
                         }
                     })
-                    .map(|s| completion::CompletionValue::new(s))
+                    .map(completion::CompletionValue::new)
                     .collect();
 
                 Ok(completion::CompleteResponse {

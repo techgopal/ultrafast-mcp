@@ -178,20 +178,11 @@ impl MemoryHealthCheck {
     fn get_memory_usage(&self) -> Result<f64, Box<dyn std::error::Error>> {
         // Simplified memory check - in a real implementation,
         // you'd use system APIs to get actual memory usage
-        #[cfg(target_os = "linux")]
-        {
-            // Read from /proc/meminfo on Linux
-            use std::fs;
-            if let Ok(_contents) = fs::read_to_string("/proc/meminfo") {
-                // Parse memory info and calculate usage percentage
-                // This is a simplified implementation
-                return Ok(0.5); // Placeholder
-            }
-        }
-
-        // Fallback - assume healthy
+        // For now, return a fallback value
         Ok(0.3)
     }
+
+
 }
 
 #[async_trait::async_trait]

@@ -123,22 +123,22 @@ pub struct PingResponse {
 }
 
 /// Client capability notification - sent when client capabilities change
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ClientCapabilityNotification {
     /// Updated client capabilities
     pub capabilities: crate::protocol::capabilities::ClientCapabilities,
-    
+
     /// Optional reason for the capability change
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reason: Option<String>,
 }
 
 /// Server capability notification - sent when server capabilities change
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ServerCapabilityNotification {
     /// Updated server capabilities
     pub capabilities: crate::protocol::capabilities::ServerCapabilities,
-    
+
     /// Optional reason for the capability change
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reason: Option<String>,
@@ -149,11 +149,11 @@ pub struct ServerCapabilityNotification {
 pub struct ConnectionStatusNotification {
     /// Current connection status
     pub status: ConnectionStatus,
-    
+
     /// Optional message about the status
     #[serde(skip_serializing_if = "Option::is_none")]
     pub message: Option<String>,
-    
+
     /// Optional metadata
     #[serde(skip_serializing_if = "Option::is_none")]
     pub metadata: Option<serde_json::Value>,
@@ -175,11 +175,11 @@ pub struct RequestTimeoutNotification {
     /// Request ID that timed out
     #[serde(rename = "requestId")]
     pub request_id: serde_json::Value,
-    
+
     /// Timeout duration in milliseconds
     #[serde(rename = "timeoutMs")]
     pub timeout_ms: u64,
-    
+
     /// Optional reason for the timeout
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reason: Option<String>,
@@ -191,19 +191,19 @@ pub struct RateLimitNotification {
     /// Rate limit type
     #[serde(rename = "limitType")]
     pub limit_type: RateLimitType,
-    
+
     /// Current request count
     #[serde(rename = "currentCount")]
     pub current_count: u64,
-    
+
     /// Maximum allowed requests
     #[serde(rename = "maxCount")]
     pub max_count: u64,
-    
+
     /// Time window in seconds
     #[serde(rename = "windowSeconds")]
     pub window_seconds: u64,
-    
+
     /// Time until reset in seconds
     #[serde(rename = "resetInSeconds")]
     pub reset_in_seconds: u64,
@@ -225,7 +225,7 @@ impl ToolsListChangedNotification {
     pub fn new() -> Self {
         Self { metadata: None }
     }
-    
+
     pub fn with_metadata(mut self, metadata: serde_json::Value) -> Self {
         self.metadata = Some(metadata);
         self
@@ -236,7 +236,7 @@ impl ResourcesListChangedNotification {
     pub fn new() -> Self {
         Self { metadata: None }
     }
-    
+
     pub fn with_metadata(mut self, metadata: serde_json::Value) -> Self {
         self.metadata = Some(metadata);
         self
@@ -247,7 +247,7 @@ impl PromptsListChangedNotification {
     pub fn new() -> Self {
         Self { metadata: None }
     }
-    
+
     pub fn with_metadata(mut self, metadata: serde_json::Value) -> Self {
         self.metadata = Some(metadata);
         self
@@ -258,7 +258,7 @@ impl RootsListChangedNotification {
     pub fn new() -> Self {
         Self { metadata: None }
     }
-    
+
     pub fn with_metadata(mut self, metadata: serde_json::Value) -> Self {
         self.metadata = Some(metadata);
         self
@@ -342,7 +342,7 @@ impl PingResponse {
     pub fn new() -> Self {
         Self { data: None }
     }
-    
+
     pub fn with_data(mut self, data: serde_json::Value) -> Self {
         self.data = Some(data);
         self
@@ -403,23 +403,9 @@ impl Default for RootsListChangedNotification {
     }
 }
 
-impl Default for ClientCapabilityNotification {
-    fn default() -> Self {
-        Self {
-            capabilities: crate::protocol::capabilities::ClientCapabilities::default(),
-            reason: None,
-        }
-    }
-}
 
-impl Default for ServerCapabilityNotification {
-    fn default() -> Self {
-        Self {
-            capabilities: crate::protocol::capabilities::ServerCapabilities::default(),
-            reason: None,
-        }
-    }
-}
+
+
 
 impl Default for ConnectionStatusNotification {
     fn default() -> Self {

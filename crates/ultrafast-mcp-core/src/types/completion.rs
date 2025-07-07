@@ -369,11 +369,7 @@ impl Completion {
     }
 
     /// Create with metadata
-    pub fn with_metadata(
-        values: Vec<CompletionValue>,
-        total: u32,
-        has_more: bool,
-    ) -> Self {
+    pub fn with_metadata(values: Vec<CompletionValue>, total: u32, has_more: bool) -> Self {
         Self {
             values,
             total: Some(total),
@@ -402,7 +398,9 @@ impl Completion {
         self.values.sort_by(|a, b| {
             let a_priority = a.priority.unwrap_or(0.0);
             let b_priority = b.priority.unwrap_or(0.0);
-            b_priority.partial_cmp(&a_priority).unwrap_or(std::cmp::Ordering::Equal)
+            b_priority
+                .partial_cmp(&a_priority)
+                .unwrap_or(std::cmp::Ordering::Equal)
         });
     }
 
@@ -590,7 +588,10 @@ mod tests {
 
         assert_eq!(request.ref_type, "tools");
         assert_eq!(request.ref_name, "myTool");
-        assert_eq!(request.context.as_ref().and_then(|c| c.language.as_ref()), Some(&"rust".to_string()));
+        assert_eq!(
+            request.context.as_ref().and_then(|c| c.language.as_ref()),
+            Some(&"rust".to_string())
+        );
         assert_eq!(request.max_results, Some(10));
     }
 }

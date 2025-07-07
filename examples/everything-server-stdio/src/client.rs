@@ -25,7 +25,7 @@ async fn main() -> anyhow::Result<()> {
     let capabilities = ClientCapabilities::default();
 
     // Create the client
-    let mut client = UltraFastClient::new(client_info, capabilities);
+    let client = UltraFastClient::new(client_info, capabilities);
 
     println!("🔗 Connecting to MCP server via STDIO...");
 
@@ -43,7 +43,7 @@ async fn main() -> anyhow::Result<()> {
     }
 
     // Call the echo tool
-    if let Some(echo_tool) = tools_response.tools.iter().find(|t| t.name == "echo") {
+    if let Some(_echo_tool) = tools_response.tools.iter().find(|t| t.name == "echo") {
         println!("🔧 Calling echo tool...");
 
         let tool_call = ToolCall {

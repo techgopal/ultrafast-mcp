@@ -11,8 +11,7 @@
 //! - Prompt generation
 
 use serde_json::json;
-use std::sync::Arc;
-use tracing::{error, info, warn};
+use tracing::{error, info};
 use ultrafast_mcp::{
     ClientCapabilities,
     ClientInfo,

@@ -417,7 +417,7 @@ pub use ultrafast_mcp_core::types::{
     // Prompt types
     prompts::{
         GetPromptRequest, GetPromptResponse, ListPromptsRequest, ListPromptsResponse, Prompt,
-        PromptContent, PromptMessages, PromptRole, PromptArgument,
+        PromptArgument, PromptContent, PromptMessages, PromptRole,
     },
     // Resource types
     resources::{
@@ -428,8 +428,8 @@ pub use ultrafast_mcp_core::types::{
     roots::Root,
     // Sampling types
     sampling::{
-        CreateMessageRequest, CreateMessageResponse, SamplingContent, SamplingResponse,
-        SamplingRequest, ModelPreferences,
+        CreateMessageRequest, CreateMessageResponse, ModelPreferences, SamplingContent,
+        SamplingRequest, SamplingResponse,
     },
     // Server types
     server::{ServerCapabilities, ServerInfo},
@@ -509,12 +509,12 @@ pub use ultrafast_mcp_auth::{
     OAuthClient,
     // Re-export specific types
     OAuthConfig,
+    // Re-export as AuthConfig for convenience
+    OAuthConfig as AuthConfig,
     PkceParams,
     TokenClaims,
     TokenResponse,
     TokenValidator,
-    // Re-export as AuthConfig for convenience
-    OAuthConfig as AuthConfig,
 };
 
 // =========================
@@ -522,10 +522,15 @@ pub use ultrafast_mcp_auth::{
 // =========================
 #[cfg(feature = "monitoring")]
 pub use ultrafast_mcp_monitoring::{
+    config::MonitoringConfig,
     // Re-export monitoring types explicitly for better discoverability
     health::{HealthCheck, HealthCheckResult, HealthChecker, HealthStatus},
-    config::MonitoringConfig,
-    MonitoringSystem, RequestTimer, MetricsCollector, RequestMetrics, TransportMetrics, SystemMetrics,
+    MetricsCollector,
+    MonitoringSystem,
+    RequestMetrics,
+    RequestTimer,
+    SystemMetrics,
+    TransportMetrics,
     // Also export everything else
     *,
 };

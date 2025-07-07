@@ -3,10 +3,10 @@
 //! A high-performance client implementation for the Model Context Protocol (MCP).
 
 use serde_json::Value;
-use std::sync::Arc;
 use std::collections::HashMap;
-use tokio::sync::{RwLock, oneshot};
-use tracing::{debug, info, warn, error};
+use std::sync::Arc;
+use tokio::sync::{oneshot, RwLock};
+use tracing::{debug, error, info, warn};
 use ultrafast_mcp_core::{
     error::{MCPError, MCPResult, ProtocolError, TransportError},
     protocol::{
@@ -64,6 +64,7 @@ impl ClientState {
 #[derive(Debug)]
 struct PendingRequest {
     response_sender: oneshot::Sender<JsonRpcMessage>,
+    #[allow(dead_code)]
     timeout: tokio::time::Instant,
 }
 
@@ -146,9 +147,9 @@ impl UltraFastClient {
 
     /// Create a new MCP client with custom timeout
     pub fn new_with_timeout(
-        info: ClientInfo, 
-        capabilities: ClientCapabilities, 
-        timeout: std::time::Duration
+        info: ClientInfo,
+        capabilities: ClientCapabilities,
+        timeout: std::time::Duration,
     ) -> Self {
         Self {
             info,
@@ -202,9 +203,13 @@ impl UltraFastClient {
                         match &message {
                             JsonRpcMessage::Response(response) => {
                                 if let Some(id) = &response.id {
-                                    if let Ok(id_num) = serde_json::from_value::<u64>(serde_json::to_value(id).unwrap_or_default()) {
+                                    if let Ok(id_num) = serde_json::from_value::<u64>(
+                                        serde_json::to_value(id).unwrap_or_default(),
+                                    ) {
                                         let mut state = state_manager.write().await;
-                                        if let Some(pending_req) = state.remove_pending_request(&id_num) {
+                                        if let Some(pending_req) =
+                                            state.remove_pending_request(&id_num)
+                                        {
                                             // Send response to waiting request
                                             let _ = pending_req.response_sender.send(message);
                                         }
@@ -286,13 +291,16 @@ impl UltraFastClient {
         };
 
         // Send initialization request
-        let init_response: InitializeResponse = self.send_request("initialize", Some(serde_json::to_value(init_request)?)).await?;
+        let init_response: InitializeResponse = self
+            .send_request("initialize", Some(serde_json::to_value(init_request)?))
+            .await?;
 
         // Validate protocol version
         if init_response.protocol_version != PROTOCOL_VERSION {
-            return Err(MCPError::Protocol(ProtocolError::InvalidVersion(
-                format!("Expected protocol version {}, got {}", PROTOCOL_VERSION, init_response.protocol_version)
-            )));
+            return Err(MCPError::Protocol(ProtocolError::InvalidVersion(format!(
+                "Expected protocol version {}, got {}",
+                PROTOCOL_VERSION, init_response.protocol_version
+            ))));
         }
 
         // Store server information
@@ -306,7 +314,11 @@ impl UltraFastClient {
 
         // Send initialized notification
         let init_notification = InitializedNotification {};
-        self.send_notification("initialized", Some(serde_json::to_value(init_notification)?)).await?;
+        self.send_notification(
+            "initialized",
+            Some(serde_json::to_value(init_notification)?),
+        )
+        .await?;
 
         {
             let mut state = self.state_manager.write().await;
@@ -326,7 +338,9 @@ impl UltraFastClient {
 
         // Send shutdown request
         let shutdown_request = ShutdownRequest { reason };
-        let _: serde_json::Value = self.send_request("shutdown", Some(serde_json::to_value(shutdown_request)?)).await?;
+        let _: serde_json::Value = self
+            .send_request("shutdown", Some(serde_json::to_value(shutdown_request)?))
+            .await?;
 
         {
             let mut state = self.state_manager.write().await;
@@ -346,7 +360,9 @@ impl UltraFastClient {
 
         // Close transport
         if let Some(mut transport) = self.transport.write().await.take() {
-            transport.close().await.map_err(|e| MCPError::Transport(TransportError::ConnectionFailed(e.to_string())))?;
+            transport.close().await.map_err(|e| {
+                MCPError::Transport(TransportError::ConnectionFailed(e.to_string()))
+            })?;
         }
 
         {
@@ -391,7 +407,7 @@ impl UltraFastClient {
     /// Check if server supports a specific capability
     pub async fn check_server_capability(&self, capability: &str) -> MCPResult<bool> {
         self.ensure_capability_supported(capability).await?;
-        
+
         if let Some(caps) = self.get_server_capabilities().await {
             Ok(caps.supports_capability(capability))
         } else {
@@ -402,7 +418,7 @@ impl UltraFastClient {
     /// Check if server supports a specific feature within a capability
     pub async fn check_server_feature(&self, capability: &str, feature: &str) -> MCPResult<bool> {
         self.ensure_capability_supported(capability).await?;
-        
+
         if let Some(caps) = self.get_server_capabilities().await {
             Ok(caps.supports_feature(capability, feature))
         } else {
@@ -410,10 +426,10 @@ impl UltraFastClient {
         }
     }
 
-    async fn ensure_capability_supported(&self, capability: &str) -> MCPResult<()> {
+    async fn ensure_capability_supported(&self, _capability: &str) -> MCPResult<()> {
         if !self.can_operate().await {
             return Err(MCPError::Protocol(ProtocolError::InternalError(
-                "Client is not in operating state".to_string()
+                "Client is not in operating state".to_string(),
             )));
         }
         Ok(())
@@ -421,7 +437,8 @@ impl UltraFastClient {
 
     /// List available tools
     pub async fn list_tools(&self, request: ListToolsRequest) -> MCPResult<ListToolsResponse> {
-        self.send_request("tools/list", Some(serde_json::to_value(request)?)).await
+        self.send_request("tools/list", Some(serde_json::to_value(request)?))
+            .await
     }
 
     /// List tools with default parameters
@@ -431,7 +448,8 @@ impl UltraFastClient {
 
     /// Call a tool
     pub async fn call_tool(&self, tool_call: ToolCall) -> MCPResult<ToolResult> {
-        self.send_request("tools/call", Some(serde_json::to_value(tool_call)?)).await
+        self.send_request("tools/call", Some(serde_json::to_value(tool_call)?))
+            .await
     }
 
     /// List available resources
@@ -439,7 +457,8 @@ impl UltraFastClient {
         &self,
         request: ListResourcesRequest,
     ) -> MCPResult<ListResourcesResponse> {
-        self.send_request("resources/list", Some(serde_json::to_value(request)?)).await
+        self.send_request("resources/list", Some(serde_json::to_value(request)?))
+            .await
     }
 
     /// Read a resource
@@ -447,7 +466,8 @@ impl UltraFastClient {
         &self,
         request: ReadResourceRequest,
     ) -> MCPResult<ReadResourceResponse> {
-        self.send_request("resources/read", Some(serde_json::to_value(request)?)).await
+        self.send_request("resources/read", Some(serde_json::to_value(request)?))
+            .await
     }
 
     /// Subscribe to resource changes
@@ -455,7 +475,8 @@ impl UltraFastClient {
         let request = serde_json::json!({
             "uri": uri
         });
-        self.send_notification("resources/subscribe", Some(request)).await
+        self.send_notification("resources/subscribe", Some(request))
+            .await
     }
 
     /// List available prompts
@@ -463,12 +484,14 @@ impl UltraFastClient {
         &self,
         request: ListPromptsRequest,
     ) -> MCPResult<ListPromptsResponse> {
-        self.send_request("prompts/list", Some(serde_json::to_value(request)?)).await
+        self.send_request("prompts/list", Some(serde_json::to_value(request)?))
+            .await
     }
 
     /// Get a specific prompt
     pub async fn get_prompt(&self, request: GetPromptRequest) -> MCPResult<GetPromptResponse> {
-        self.send_request("prompts/get", Some(serde_json::to_value(request)?)).await
+        self.send_request("prompts/get", Some(serde_json::to_value(request)?))
+            .await
     }
 
     /// Create a message using sampling
@@ -476,12 +499,17 @@ impl UltraFastClient {
         &self,
         request: CreateMessageRequest,
     ) -> MCPResult<CreateMessageResponse> {
-        self.send_request("sampling/createMessage", Some(serde_json::to_value(request)?)).await
+        self.send_request(
+            "sampling/createMessage",
+            Some(serde_json::to_value(request)?),
+        )
+        .await
     }
 
     /// Complete a request
     pub async fn complete(&self, request: CompleteRequest) -> MCPResult<CompleteResponse> {
-        self.send_request("completion/complete", Some(serde_json::to_value(request)?)).await
+        self.send_request("completion/complete", Some(serde_json::to_value(request)?))
+            .await
     }
 
     /// Handle elicitation
@@ -489,7 +517,8 @@ impl UltraFastClient {
         &self,
         request: ElicitationRequest,
     ) -> MCPResult<ElicitationResponse> {
-        self.send_request("elicitation/handle", Some(serde_json::to_value(request)?)).await
+        self.send_request("elicitation/handle", Some(serde_json::to_value(request)?))
+            .await
     }
 
     /// List filesystem roots
@@ -498,7 +527,10 @@ impl UltraFastClient {
     }
 
     /// Set log level
-    pub async fn set_log_level(&self, level: ultrafast_mcp_core::types::notifications::LogLevel) -> MCPResult<()> {
+    pub async fn set_log_level(
+        &self,
+        level: ultrafast_mcp_core::types::notifications::LogLevel,
+    ) -> MCPResult<()> {
         let request = serde_json::json!({
             "level": level
         });
@@ -506,17 +538,25 @@ impl UltraFastClient {
     }
 
     /// Send ping
-    pub async fn ping(&self, data: Option<serde_json::Value>) -> MCPResult<ultrafast_mcp_core::types::notifications::PingResponse> {
+    pub async fn ping(
+        &self,
+        data: Option<serde_json::Value>,
+    ) -> MCPResult<ultrafast_mcp_core::types::notifications::PingResponse> {
         self.send_request("ping", data).await
     }
 
     /// Notify cancellation
-    pub async fn notify_cancelled(&self, request_id: serde_json::Value, reason: Option<String>) -> MCPResult<()> {
+    pub async fn notify_cancelled(
+        &self,
+        request_id: serde_json::Value,
+        reason: Option<String>,
+    ) -> MCPResult<()> {
         let request = serde_json::json!({
             "requestId": request_id,
             "reason": reason
         });
-        self.send_notification("$/cancelRequest", Some(request)).await
+        self.send_notification("$/cancelRequest", Some(request))
+            .await
     }
 
     /// Notify progress
@@ -525,7 +565,7 @@ impl UltraFastClient {
         progress_token: serde_json::Value,
         progress: f64,
         total: Option<f64>,
-        message: Option<String>
+        message: Option<String>,
     ) -> MCPResult<()> {
         let request = serde_json::json!({
             "token": progress_token,
@@ -539,7 +579,7 @@ impl UltraFastClient {
     async fn ensure_operational(&self) -> MCPResult<()> {
         if !self.can_operate().await {
             return Err(MCPError::Protocol(ProtocolError::InternalError(
-                "Client is not in operating state".to_string()
+                "Client is not in operating state".to_string(),
             )));
         }
         Ok(())
@@ -560,7 +600,9 @@ impl UltraFastClient {
         let request = JsonRpcRequest::new(
             method.to_string(),
             params,
-            Some(ultrafast_mcp_core::protocol::jsonrpc::RequestId::Number(request_id as i64)),
+            Some(ultrafast_mcp_core::protocol::jsonrpc::RequestId::Number(
+                request_id as i64,
+            )),
         );
 
         // Create response channel
@@ -569,10 +611,13 @@ impl UltraFastClient {
         // Add to pending requests
         {
             let mut state = self.state_manager.write().await;
-            state.add_pending_request(request_id, PendingRequest {
-                response_sender,
-                timeout: tokio::time::Instant::now() + self.request_timeout,
-            });
+            state.add_pending_request(
+                request_id,
+                PendingRequest {
+                    response_sender,
+                    timeout: tokio::time::Instant::now() + self.request_timeout,
+                },
+            );
         }
 
         // Send request
@@ -581,7 +626,9 @@ impl UltraFastClient {
             let transport = transport_guard
                 .as_mut()
                 .expect("Transport should be available");
-            transport.send_message(JsonRpcMessage::Request(request)).await
+            transport
+                .send_message(JsonRpcMessage::Request(request))
+                .await
                 .map_err(|e| MCPError::Transport(TransportError::SendFailed(e.to_string())))?;
         }
 
@@ -589,9 +636,11 @@ impl UltraFastClient {
         let response = tokio::time::timeout(self.request_timeout, response_receiver)
             .await
             .map_err(|_| MCPError::Protocol(ProtocolError::RequestTimeout))?
-            .map_err(|_| MCPError::Protocol(ProtocolError::InternalError(
-                "Response channel closed".to_string()
-            )))?;
+            .map_err(|_| {
+                MCPError::Protocol(ProtocolError::InternalError(
+                    "Response channel closed".to_string(),
+                ))
+            })?;
 
         // Remove from pending requests
         {
@@ -606,16 +655,15 @@ impl UltraFastClient {
                 }
 
                 if let Some(result) = response.result {
-                    serde_json::from_value(result)
-                        .map_err(|e| MCPError::Serialization(e))
+                    serde_json::from_value(result).map_err(MCPError::Serialization)
                 } else {
                     Err(MCPError::Protocol(ProtocolError::InvalidResponse(
-                        "Response has no result or error".to_string()
+                        "Response has no result or error".to_string(),
                     )))
                 }
             }
             _ => Err(MCPError::Protocol(ProtocolError::InvalidResponse(
-                "Expected response, got different message type".to_string()
+                "Expected response, got different message type".to_string(),
             ))),
         }
     }
@@ -629,8 +677,10 @@ impl UltraFastClient {
         let transport = transport_guard
             .as_mut()
             .expect("Transport should be available");
-        
-        transport.send_message(JsonRpcMessage::Notification(notification)).await
+
+        transport
+            .send_message(JsonRpcMessage::Notification(notification))
+            .await
             .map_err(|e| MCPError::Transport(TransportError::SendFailed(e.to_string())))
     }
 }
@@ -664,7 +714,7 @@ mod tests {
         };
         let capabilities = ClientCapabilities::default();
         let client = UltraFastClient::new(client_info, capabilities);
-        
+
         assert_eq!(client.get_state().await, ClientState::Uninitialized);
         assert!(!client.can_operate().await);
     }
@@ -683,7 +733,7 @@ mod tests {
         let capabilities = ClientCapabilities::default();
         let timeout = std::time::Duration::from_secs(60);
         let client = UltraFastClient::new_with_timeout(client_info, capabilities, timeout);
-        
+
         assert_eq!(client.get_state().await, ClientState::Uninitialized);
     }
 
@@ -700,9 +750,9 @@ mod tests {
         };
         let capabilities = ClientCapabilities::default();
         let client = UltraFastClient::new(client_info, capabilities);
-        
+
         assert_eq!(client.get_state().await, ClientState::Uninitialized);
-        
+
         // Test state transitions through the state manager
         {
             let mut state = client.state_manager.write().await;

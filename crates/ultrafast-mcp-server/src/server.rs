@@ -1067,13 +1067,19 @@ impl UltraFastServer {
                 match serde_json::from_value::<ultrafast_mcp_core::protocol::InitializeRequest>(
                     request.params.unwrap_or_default(),
                 ) {
-                    Ok(init_request) =>                 match self.handle_initialize(init_request).await {
-                    Ok(response) => JsonRpcResponse::success(
-                        serde_json::to_value(response).unwrap(),
-                        request.id,
-                    ),
-                    Err(e) => JsonRpcResponse::error(JsonRpcError::new(-32603, e.to_string()), request.id),
-                },
+                    Ok(init_request) => match self.handle_initialize(init_request).await {
+                        Ok(response) => match serde_json::to_value(response) {
+                            Ok(value) => JsonRpcResponse::success(value, request.id),
+                            Err(e) => JsonRpcResponse::error(
+                                JsonRpcError::new(-32603, format!("Serialization error: {}", e)),
+                                request.id,
+                            ),
+                        },
+                        Err(e) => JsonRpcResponse::error(
+                            JsonRpcError::new(-32603, e.to_string()),
+                            request.id,
+                        ),
+                    },
                     Err(e) => JsonRpcResponse::error(
                         JsonRpcError::invalid_params(Some(format!(
                             "Invalid initialize request: {}",
@@ -1094,7 +1100,9 @@ impl UltraFastServer {
 
                 match self.handle_shutdown(shutdown_request).await {
                     Ok(_) => JsonRpcResponse::success(serde_json::json!({}), request.id),
-                    Err(e) => JsonRpcResponse::error(JsonRpcError::new(-32603, e.to_string()), request.id),
+                    Err(e) => {
+                        JsonRpcResponse::error(JsonRpcError::new(-32603, e.to_string()), request.id)
+                    }
                 }
             }
 
@@ -1120,15 +1128,27 @@ impl UltraFastServer {
                                         tools,
                                         next_cursor: None,
                                     };
-                                JsonRpcResponse::success(
-                                    serde_json::to_value(response).unwrap(),
-                                    request.id,
-                                )
+                                match serde_json::to_value(response) {
+                                    Ok(value) => JsonRpcResponse::success(value, request.id),
+                                    Err(e) => JsonRpcResponse::error(
+                                        JsonRpcError::new(
+                                            -32603,
+                                            format!("Serialization error: {}", e),
+                                        ),
+                                        request.id,
+                                    ),
+                                }
                             } else {
-                                JsonRpcResponse::success(
-                                    serde_json::to_value(response).unwrap(),
-                                    request.id,
-                                )
+                                match serde_json::to_value(response) {
+                                    Ok(value) => JsonRpcResponse::success(value, request.id),
+                                    Err(e) => JsonRpcResponse::error(
+                                        JsonRpcError::new(
+                                            -32603,
+                                            format!("Serialization error: {}", e),
+                                        ),
+                                        request.id,
+                                    ),
+                                }
                             }
                         }
                         Err(e) => JsonRpcResponse::error(
@@ -1143,7 +1163,13 @@ impl UltraFastServer {
                         tools,
                         next_cursor: None,
                     };
-                    JsonRpcResponse::success(serde_json::to_value(response).unwrap(), request.id)
+                    match serde_json::to_value(response) {
+                        Ok(value) => JsonRpcResponse::success(value, request.id),
+                        Err(e) => JsonRpcResponse::error(
+                            JsonRpcError::new(-32603, format!("Serialization error: {}", e)),
+                            request.id,
+                        ),
+                    }
                 }
             }
             "tools/call" => {
@@ -1181,10 +1207,16 @@ impl UltraFastServer {
                         };
                         // Arguments validation will be handled by the tool handler
                         match handler.handle_tool_call(tool_call).await {
-                            Ok(result) => JsonRpcResponse::success(
-                                serde_json::to_value(result).unwrap(),
-                                request.id,
-                            ),
+                            Ok(result) => match serde_json::to_value(result) {
+                                Ok(value) => JsonRpcResponse::success(value, request.id),
+                                Err(e) => JsonRpcResponse::error(
+                                    JsonRpcError::new(
+                                        -32603,
+                                        format!("Serialization error: {}", e),
+                                    ),
+                                    request.id,
+                                ),
+                            },
                             Err(e) => {
                                 use ultrafast_mcp_core::error::{MCPError, ProtocolError};
                                 let (code, msg) = match &e {
@@ -1210,10 +1242,16 @@ impl UltraFastServer {
                         }
                         // Arguments validation will be handled by the tool handler
                         match self.execute_tool_call(tool_name, arguments).await {
-                            Ok(result) => JsonRpcResponse::success(
-                                serde_json::to_value(result).unwrap(),
-                                request.id,
-                            ),
+                            Ok(result) => match serde_json::to_value(result) {
+                                Ok(value) => JsonRpcResponse::success(value, request.id),
+                                Err(e) => JsonRpcResponse::error(
+                                    JsonRpcError::new(
+                                        -32603,
+                                        format!("Serialization error: {}", e),
+                                    ),
+                                    request.id,
+                                ),
+                            },
                             Err(e) => {
                                 use ultrafast_mcp_core::error::{MCPError, ProtocolError};
                                 let (code, msg) = match &e {
@@ -1251,10 +1289,13 @@ impl UltraFastServer {
 
                 if let Some(handler) = &self.resource_handler {
                     match handler.list_resources(list_request).await {
-                        Ok(response) => JsonRpcResponse::success(
-                            serde_json::to_value(response).unwrap(),
-                            request.id,
-                        ),
+                        Ok(response) => match serde_json::to_value(response) {
+                            Ok(value) => JsonRpcResponse::success(value, request.id),
+                            Err(e) => JsonRpcResponse::error(
+                                JsonRpcError::new(-32603, format!("Serialization error: {}", e)),
+                                request.id,
+                            ),
+                        },
                         Err(e) => JsonRpcResponse::error(
                             JsonRpcError::new(-32603, format!("Resources list failed: {}", e)),
                             request.id,
@@ -1279,10 +1320,13 @@ impl UltraFastServer {
 
                 if let Some(handler) = &self.resource_handler {
                     match handler.read_resource(read_request).await {
-                        Ok(response) => JsonRpcResponse::success(
-                            serde_json::to_value(response).unwrap(),
-                            request.id,
-                        ),
+                        Ok(response) => match serde_json::to_value(response) {
+                            Ok(value) => JsonRpcResponse::success(value, request.id),
+                            Err(e) => JsonRpcResponse::error(
+                                JsonRpcError::new(-32603, format!("Serialization error: {}", e)),
+                                request.id,
+                            ),
+                        },
                         Err(e) => JsonRpcResponse::error(
                             JsonRpcError::new(-32603, format!("Resource read failed: {}", e)),
                             request.id,
@@ -1661,80 +1705,140 @@ impl UltraFastServer {
 
     /// Send tools list changed notification
     pub async fn notify_tools_changed(&self, transport: &mut Box<dyn Transport>) -> MCPResult<()> {
-        let notification = ultrafast_mcp_core::types::notifications::ToolsListChangedNotification::new();
-        self.send_notification("notifications/tools/listChanged", Some(serde_json::to_value(notification)?), transport).await
+        let notification =
+            ultrafast_mcp_core::types::notifications::ToolsListChangedNotification::new();
+        self.send_notification(
+            "notifications/tools/listChanged",
+            Some(serde_json::to_value(notification)?),
+            transport,
+        )
+        .await
     }
 
     /// Send resources list changed notification
-    pub async fn notify_resources_changed(&self, transport: &mut Box<dyn Transport>) -> MCPResult<()> {
-        let notification = ultrafast_mcp_core::types::notifications::ResourcesListChangedNotification::new();
-        self.send_notification("notifications/resources/listChanged", Some(serde_json::to_value(notification)?), transport).await
+    pub async fn notify_resources_changed(
+        &self,
+        transport: &mut Box<dyn Transport>,
+    ) -> MCPResult<()> {
+        let notification =
+            ultrafast_mcp_core::types::notifications::ResourcesListChangedNotification::new();
+        self.send_notification(
+            "notifications/resources/listChanged",
+            Some(serde_json::to_value(notification)?),
+            transport,
+        )
+        .await
     }
 
     /// Send prompts list changed notification
-    pub async fn notify_prompts_changed(&self, transport: &mut Box<dyn Transport>) -> MCPResult<()> {
-        let notification = ultrafast_mcp_core::types::notifications::PromptsListChangedNotification::new();
-        self.send_notification("notifications/prompts/listChanged", Some(serde_json::to_value(notification)?), transport).await
+    pub async fn notify_prompts_changed(
+        &self,
+        transport: &mut Box<dyn Transport>,
+    ) -> MCPResult<()> {
+        let notification =
+            ultrafast_mcp_core::types::notifications::PromptsListChangedNotification::new();
+        self.send_notification(
+            "notifications/prompts/listChanged",
+            Some(serde_json::to_value(notification)?),
+            transport,
+        )
+        .await
     }
 
     /// Send resource updated notification
-    pub async fn notify_resource_updated(&self, uri: String, transport: &mut Box<dyn Transport>) -> MCPResult<()> {
-        let notification = ultrafast_mcp_core::types::resources::ResourceUpdatedNotification { uri };
-        self.send_notification("notifications/resources/updated", Some(serde_json::to_value(notification)?), transport).await
+    pub async fn notify_resource_updated(
+        &self,
+        uri: String,
+        transport: &mut Box<dyn Transport>,
+    ) -> MCPResult<()> {
+        let notification =
+            ultrafast_mcp_core::types::resources::ResourceUpdatedNotification { uri };
+        self.send_notification(
+            "notifications/resources/updated",
+            Some(serde_json::to_value(notification)?),
+            transport,
+        )
+        .await
     }
 
     /// Send progress notification
     pub async fn notify_progress(
-        &self, 
-        progress_token: serde_json::Value, 
+        &self,
+        progress_token: serde_json::Value,
         progress: f64,
         total: Option<f64>,
         message: Option<String>,
-        transport: &mut Box<dyn Transport>
+        transport: &mut Box<dyn Transport>,
     ) -> MCPResult<()> {
-        let mut notification = ultrafast_mcp_core::types::notifications::ProgressNotification::new(progress_token, progress);
+        let mut notification = ultrafast_mcp_core::types::notifications::ProgressNotification::new(
+            progress_token,
+            progress,
+        );
         if let Some(total) = total {
             notification = notification.with_total(total);
         }
         if let Some(message) = message {
             notification = notification.with_message(message);
         }
-        self.send_notification("notifications/progress", Some(serde_json::to_value(notification)?), transport).await
+        self.send_notification(
+            "notifications/progress",
+            Some(serde_json::to_value(notification)?),
+            transport,
+        )
+        .await
     }
 
     /// Send logging message notification
     pub async fn notify_logging_message(
-        &self, 
+        &self,
         level: ultrafast_mcp_core::types::notifications::LogLevel,
         data: serde_json::Value,
         logger: Option<String>,
-        transport: &mut Box<dyn Transport>
+        transport: &mut Box<dyn Transport>,
     ) -> MCPResult<()> {
-        let mut notification = ultrafast_mcp_core::types::notifications::LoggingMessageNotification::new(level, data);
+        let mut notification =
+            ultrafast_mcp_core::types::notifications::LoggingMessageNotification::new(level, data);
         if let Some(logger) = logger {
             notification = notification.with_logger(logger);
         }
-        self.send_notification("notifications/logging/message", Some(serde_json::to_value(notification)?), transport).await
+        self.send_notification(
+            "notifications/logging/message",
+            Some(serde_json::to_value(notification)?),
+            transport,
+        )
+        .await
     }
 
     /// Send cancellation notification
     pub async fn notify_cancelled(
-        &self, 
+        &self,
         request_id: serde_json::Value,
         reason: Option<String>,
-        transport: &mut Box<dyn Transport>
+        transport: &mut Box<dyn Transport>,
     ) -> MCPResult<()> {
-        let mut notification = ultrafast_mcp_core::types::notifications::CancelledNotification::new(request_id);
+        let mut notification =
+            ultrafast_mcp_core::types::notifications::CancelledNotification::new(request_id);
         if let Some(reason) = reason {
             notification = notification.with_reason(reason);
         }
-        self.send_notification("notifications/cancelled", Some(serde_json::to_value(notification)?), transport).await
+        self.send_notification(
+            "notifications/cancelled",
+            Some(serde_json::to_value(notification)?),
+            transport,
+        )
+        .await
     }
 
     /// Send roots list changed notification
     pub async fn notify_roots_changed(&self, transport: &mut Box<dyn Transport>) -> MCPResult<()> {
-        let notification = ultrafast_mcp_core::types::notifications::RootsListChangedNotification::new();
-        self.send_notification("notifications/roots/listChanged", Some(serde_json::to_value(notification)?), transport).await
+        let notification =
+            ultrafast_mcp_core::types::notifications::RootsListChangedNotification::new();
+        self.send_notification(
+            "notifications/roots/listChanged",
+            Some(serde_json::to_value(notification)?),
+            transport,
+        )
+        .await
     }
 
     /// Generic method to send notifications
@@ -1742,7 +1846,7 @@ impl UltraFastServer {
         &self,
         method: &str,
         params: Option<serde_json::Value>,
-        transport: &mut Box<dyn Transport>
+        transport: &mut Box<dyn Transport>,
     ) -> MCPResult<()> {
         let notification = JsonRpcRequest {
             jsonrpc: "2.0".to_string(),
@@ -1752,7 +1856,9 @@ impl UltraFastServer {
             meta: std::collections::HashMap::new(),
         };
 
-        transport.send_message(JsonRpcMessage::Request(notification)).await
+        transport
+            .send_message(JsonRpcMessage::Request(notification))
+            .await
             .map_err(|e| MCPError::internal_error(format!("Failed to send notification: {}", e)))?;
 
         info!("Sent notification: {}", method);

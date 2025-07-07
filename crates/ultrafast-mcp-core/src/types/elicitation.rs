@@ -373,10 +373,12 @@ impl ElicitationValidation {
         let mut errors = Vec::new();
 
         // Check if required
-        if self.required.unwrap_or(false) {
-            if value.is_null() || (value.is_string() && value.as_str().unwrap_or("").is_empty()) {
-                errors.push(self.error_message.clone().unwrap_or_else(|| "Field is required".to_string()));
-            }
+        if self.required.unwrap_or(false) && (value.is_null() || (value.is_string() && value.as_str().unwrap_or("").is_empty())) {
+            errors.push(
+                self.error_message
+                    .clone()
+                    .unwrap_or_else(|| "Field is required".to_string()),
+            );
         }
 
         // Check length constraints for strings
@@ -397,7 +399,11 @@ impl ElicitationValidation {
         if let (Some(pattern), Some(str_value)) = (&self.pattern, value.as_str()) {
             if let Ok(regex) = regex::Regex::new(pattern) {
                 if !regex.is_match(str_value) {
-                    errors.push(self.error_message.clone().unwrap_or_else(|| "Invalid format".to_string()));
+                    errors.push(
+                        self.error_message
+                            .clone()
+                            .unwrap_or_else(|| "Invalid format".to_string()),
+                    );
                 }
             }
         }

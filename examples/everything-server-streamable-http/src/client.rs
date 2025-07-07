@@ -25,7 +25,7 @@ async fn main() -> anyhow::Result<()> {
     let capabilities = ClientCapabilities::default();
 
     // Create the client
-    let mut client = UltraFastClient::new(client_info, capabilities);
+    let client = UltraFastClient::new(client_info, capabilities);
 
     println!("🔗 Connecting to MCP server via HTTP...");
 

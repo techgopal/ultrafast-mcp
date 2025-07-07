@@ -38,7 +38,6 @@ use ultrafast_mcp::{
     // Import monitoring types
     MonitoringSystem,
     Prompt,
-    PromptContent,
     PromptHandler,
     PromptsCapability,
     ReadResourceRequest,
@@ -441,7 +440,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     // Create the UltraFastServer with advanced features
-    let server = UltraFastServer::new(server_info, capabilities)
+    let _server = UltraFastServer::new(server_info, capabilities)
         .with_tool_handler(Arc::new(AdvancedToolHandler::new(monitoring.clone())))
         .with_resource_handler(Arc::new(FileResourceHandler))
         .with_prompt_handler(Arc::new(TemplatePromptHandler))

@@ -116,18 +116,26 @@ impl ServerCapabilities {
     /// Check if server supports a specific feature within a capability
     pub fn supports_feature(&self, capability: &str, feature: &str) -> bool {
         match (capability, feature) {
-            ("tools", "list_changed") => {
-                self.tools.as_ref().and_then(|t| t.list_changed).unwrap_or(false)
-            }
-            ("resources", "subscribe") => {
-                self.resources.as_ref().and_then(|r| r.subscribe).unwrap_or(false)
-            }
-            ("resources", "list_changed") => {
-                self.resources.as_ref().and_then(|r| r.list_changed).unwrap_or(false)
-            }
-            ("prompts", "list_changed") => {
-                self.prompts.as_ref().and_then(|p| p.list_changed).unwrap_or(false)
-            }
+            ("tools", "list_changed") => self
+                .tools
+                .as_ref()
+                .and_then(|t| t.list_changed)
+                .unwrap_or(false),
+            ("resources", "subscribe") => self
+                .resources
+                .as_ref()
+                .and_then(|r| r.subscribe)
+                .unwrap_or(false),
+            ("resources", "list_changed") => self
+                .resources
+                .as_ref()
+                .and_then(|r| r.list_changed)
+                .unwrap_or(false),
+            ("prompts", "list_changed") => self
+                .prompts
+                .as_ref()
+                .and_then(|p| p.list_changed)
+                .unwrap_or(false),
             _ => false,
         }
     }
@@ -152,7 +160,9 @@ pub fn validate_compatibility(
 ) -> Result<(), String> {
     // Check if client wants sampling but server doesn't support tools
     if client_caps.sampling.is_some() && server_caps.tools.is_none() {
-        return Err("Client supports sampling but server does not provide tools capability".to_string());
+        return Err(
+            "Client supports sampling but server does not provide tools capability".to_string(),
+        );
     }
 
     // Check if we have at least one compatible capability
@@ -173,7 +183,9 @@ mod tests {
     #[test]
     fn test_capability_negotiation() {
         let server_caps = ServerCapabilities {
-            tools: Some(ToolsCapability { list_changed: Some(true) }),
+            tools: Some(ToolsCapability {
+                list_changed: Some(true),
+            }),
             ..Default::default()
         };
         let client_caps = ClientCapabilities {
@@ -188,7 +200,9 @@ mod tests {
     #[test]
     fn test_compatibility_validation() {
         let server_caps = ServerCapabilities {
-            tools: Some(ToolsCapability { list_changed: Some(true) }),
+            tools: Some(ToolsCapability {
+                list_changed: Some(true),
+            }),
             ..Default::default()
         };
         let client_caps = ClientCapabilities::default();

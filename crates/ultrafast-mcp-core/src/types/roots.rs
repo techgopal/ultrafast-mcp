@@ -55,7 +55,7 @@ fn default_false() -> bool {
 impl Default for RootSecurityConfig {
     fn default() -> Self {
         Self {
-            allow_read: true,
+            allow_read: false, // Changed from true to false for better security
             allow_write: false,
             allow_execute: false,
             max_file_size: Some(100 * 1024 * 1024), // 100MB default
@@ -582,7 +582,11 @@ mod tests {
     #[test]
     fn test_comprehensive_security_validator() {
         let validator = RootSecurityValidator::default();
-        let root = create_test_root("file:///tmp/root", Some(RootSecurityConfig::default()));
+        let security_config = RootSecurityConfig {
+            allow_read: true, // Explicitly enable read for test
+            ..Default::default()
+        };
+        let root = create_test_root("file:///tmp/root", Some(security_config));
 
         // Test valid access
         assert!(validator
@@ -622,6 +626,7 @@ mod tests {
     #[test]
     fn test_blocked_file_extensions() {
         let security_config = RootSecurityConfig {
+            allow_read: true, // Explicitly enable read for test
             blocked_extensions: Some(vec!["exe".to_string(), "bat".to_string()]),
             ..Default::default()
         };
@@ -644,6 +649,7 @@ mod tests {
     #[test]
     fn test_allowed_file_extensions() {
         let security_config = RootSecurityConfig {
+            allow_read: true, // Explicitly enable read for test
             allowed_extensions: Some(vec!["txt".to_string(), "md".to_string()]),
             blocked_extensions: None,
             ..Default::default()
@@ -667,6 +673,7 @@ mod tests {
     #[test]
     fn test_blocked_directories() {
         let security_config = RootSecurityConfig {
+            allow_read: true, // Explicitly enable read for test
             blocked_directories: Some(vec![".git".to_string(), "node_modules".to_string()]),
             ..Default::default()
         };
@@ -764,7 +771,7 @@ mod tests {
     fn test_root_security_config_default() {
         let config = RootSecurityConfig::default();
 
-        assert!(config.allow_read);
+        assert!(!config.allow_read); // Changed to false for security
         assert!(!config.allow_write);
         assert!(!config.allow_execute);
         assert_eq!(config.max_file_size, Some(100 * 1024 * 1024));

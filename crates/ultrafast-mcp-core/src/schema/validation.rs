@@ -1903,7 +1903,10 @@ impl MCPMessageValidator {
         // Validate protocol version
         if let Some(version) = obj.get("protocolVersion") {
             if let Some(version_str) = version.as_str() {
-                if version_str != "2025-06-18" && version_str != "2025-03-26" && version_str != "2024-11-05" {
+                if version_str != "2025-06-18"
+                    && version_str != "2025-03-26"
+                    && version_str != "2024-11-05"
+                {
                     report.add_error(ValidationError::new(
                         "initialize.protocolVersion".to_string(),
                         format!("Unsupported protocol version: {}", version_str),
@@ -3117,7 +3120,10 @@ mod tests {
         let result = validator.validate_resource_unsubscribe_params(&invalid_params, &mut report);
         assert!(result.is_ok());
         assert!(!report.errors.is_empty());
-        assert!(report.errors.iter().any(|e| e.path == "resources/unsubscribe.uri"));
+        assert!(report
+            .errors
+            .iter()
+            .any(|e| e.path == "resources/unsubscribe.uri"));
 
         // Test non-string URI
         let mut report = ValidationReport::new("test".to_string());
@@ -3127,6 +3133,9 @@ mod tests {
         let result = validator.validate_resource_unsubscribe_params(&invalid_params, &mut report);
         assert!(result.is_ok());
         assert!(!report.errors.is_empty());
-        assert!(report.errors.iter().any(|e| e.path == "resources/unsubscribe.uri"));
+        assert!(report
+            .errors
+            .iter()
+            .any(|e| e.path == "resources/unsubscribe.uri"));
     }
 }

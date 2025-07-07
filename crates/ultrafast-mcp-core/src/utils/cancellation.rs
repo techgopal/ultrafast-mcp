@@ -34,6 +34,7 @@ pub struct CancellableRequest {
 }
 
 /// Ping manager for connection health monitoring
+#[derive(Clone)]
 pub struct PingManager {
     /// Ping interval
     ping_interval: Duration,

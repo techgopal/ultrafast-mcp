@@ -7,11 +7,7 @@ mod tests {
     use ultrafast_mcp_core::{
         error::{MCPError, MCPResult},
         protocol::capabilities::{ClientCapabilities, ServerCapabilities, ToolsCapability},
-        types::{
-            client::ClientInfo,
-            server::ServerInfo,
-            tools::Tool,
-        },
+        types::{client::ClientInfo, server::ServerInfo, tools::Tool},
     };
     use ultrafast_mcp_server::ToolHandler;
 
@@ -348,7 +344,10 @@ mod tests {
 
         assert_eq!(deserialized.name, "serialization-test");
         assert_eq!(deserialized.version, "1.0.0");
-        assert_eq!(deserialized.description, Some("Test for serialization".to_string()));
+        assert_eq!(
+            deserialized.description,
+            Some("Test for serialization".to_string())
+        );
 
         println!("✅ Serialization test passed!");
     }

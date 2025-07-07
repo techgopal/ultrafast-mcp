@@ -5,7 +5,7 @@
 use serde::{Deserialize, Serialize};
 use tracing::info;
 use ultrafast_mcp::{
-    ClientCapabilities, ClientInfo, ListToolsRequest, ListToolsResponse, ToolCall, ToolContent,
+    ClientCapabilities, ClientInfo, ToolCall, ToolContent,
     UltraFastClient,
 };
 
