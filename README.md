@@ -706,8 +706,8 @@ ultrafast-mcp/              # Main crate with unified APIs
 ├── ultrafast-mcp-transport/# Transport layer (stdio/HTTP)
 ├── ultrafast-mcp-auth/     # OAuth 2.1 authentication
 ├── ultrafast-mcp-cli/      # Command-line interface
-├── ultrafast-mcp-monitoring/# Observability and metrics
-└── ultrafast-mcp-macros/   # Procedural macros
+└── ultrafast-mcp-monitoring/# Observability and metrics
+# └── ultrafast-mcp-macros/   # Procedural macros (REMOVED)
 ```
 
 ### Transport Layer

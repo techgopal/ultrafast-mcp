@@ -240,11 +240,8 @@
 //! - Validate at runtime for external data
 //! - Maintain consistency between types and schemas
 
-/// Trait for types that can provide a JSON schema and schema name
-pub trait McpSchema {
-    fn schema() -> serde_json::Value;
-    fn schema_name() -> String;
-}
+// Note: McpSchema trait was removed as it was only used by the
+// ultrafast-mcp-macros crate which has been removed.
 
 pub mod generation;
 pub mod validation;

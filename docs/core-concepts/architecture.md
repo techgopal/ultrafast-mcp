@@ -73,8 +73,8 @@ ultrafast-mcp/                    # Main crate (unified APIs)
 │   ├── health.rs                 # Health checks
 │   ├── metrics.rs                # Metrics collection
 │   └── tracing.rs                # Distributed tracing
-└── ultrafast-mcp-macros/         # Procedural macros
-    └── lib.rs                    # Schema generation macros
+# └── ultrafast-mcp-macros/       # Procedural macros (REMOVED)
+#     └── lib.rs                  # Schema generation macros
 ```
 
 ## 🔄 Data Flow

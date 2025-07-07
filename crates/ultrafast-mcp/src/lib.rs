@@ -514,6 +514,8 @@ pub use ultrafast_mcp_auth::{
 pub use ultrafast_mcp_monitoring::*;
 
 // =========================
-// Macros
+// Macros - REMOVED
 // =========================
-pub use ultrafast_mcp_macros::*;
+// Macros have been removed as they provided no immediate benefit
+// and were only stub implementations. The current API is already
+// ergonomic and production-ready.
