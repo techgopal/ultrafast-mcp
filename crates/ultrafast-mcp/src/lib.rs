@@ -401,6 +401,9 @@ pub use ultrafast_mcp_core::{
     MCPResult,
 };
 
+// Prelude module for convenient imports
+pub mod prelude;
+
 // Re-export commonly used types directly for convenience
 pub use ultrafast_mcp_core::types::{
     // Client types
@@ -409,10 +412,12 @@ pub use ultrafast_mcp_core::types::{
     completion::{CompleteRequest, CompleteResponse, Completion, CompletionValue},
     // Elicitation types
     elicitation::{ElicitationRequest, ElicitationResponse},
+    // Notification types
+    notifications::{LogLevel, PingResponse},
     // Prompt types
     prompts::{
         GetPromptRequest, GetPromptResponse, ListPromptsRequest, ListPromptsResponse, Prompt,
-        PromptContent,
+        PromptContent, PromptMessages, PromptRole, PromptArgument,
     },
     // Resource types
     resources::{
@@ -422,7 +427,10 @@ pub use ultrafast_mcp_core::types::{
     // Roots types
     roots::Root,
     // Sampling types
-    sampling::{CreateMessageRequest, CreateMessageResponse, SamplingContent, SamplingResponse},
+    sampling::{
+        CreateMessageRequest, CreateMessageResponse, SamplingContent, SamplingResponse,
+        SamplingRequest, ModelPreferences,
+    },
     // Server types
     server::{ServerCapabilities, ServerInfo},
     // Tool types
@@ -505,13 +513,22 @@ pub use ultrafast_mcp_auth::{
     TokenClaims,
     TokenResponse,
     TokenValidator,
+    // Re-export as AuthConfig for convenience
+    OAuthConfig as AuthConfig,
 };
 
 // =========================
 // Monitoring (feature = "monitoring")
 // =========================
 #[cfg(feature = "monitoring")]
-pub use ultrafast_mcp_monitoring::*;
+pub use ultrafast_mcp_monitoring::{
+    // Re-export monitoring types explicitly for better discoverability
+    health::{HealthCheck, HealthCheckResult, HealthChecker, HealthStatus},
+    config::MonitoringConfig,
+    MonitoringSystem, RequestTimer, MetricsCollector, RequestMetrics, TransportMetrics, SystemMetrics,
+    // Also export everything else
+    *,
+};
 
 // =========================
 // Macros - REMOVED

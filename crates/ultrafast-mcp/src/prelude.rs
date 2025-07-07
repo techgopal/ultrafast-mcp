@@ -1,29 +1,35 @@
+//! The ultrafast-mcp prelude.
+//!
+//! This module re-exports the most commonly used types and traits for ergonomic imports.
+//! Use `use ultrafast_mcp::prelude::*;` to bring them all into scope.
+
 pub use crate::{
     UltraFastServer,
     UltraFastClient,
     Context,
-    // Server types
-    ServerInfo, ServerCapabilities, ToolsCapability, ResourcesCapability, PromptsCapability, 
-    LoggingCapability, RootsCapability, SamplingCapability, ElicitationCapability,
-    // Client types
-    ClientInfo, ClientCapabilities,
-    // Tool types
-    Tool, ToolCall, ToolResult, ToolContent, ToolHandler,
-    // Resource types
-    Resource, ResourceTemplate, ResourceContent, ReadResourceRequest, ReadResourceResponse,
-    // Prompt types
-    Prompt, PromptMessages, PromptRole, PromptArgument,
-    // Sampling types
-    SamplingRequest, SamplingResponse, ModelPreferences,
-    // Root types
-    Root,
-    // Elicitation types
-    ElicitationRequest, ElicitationResponse,
-    // Error types
+    // Server and client info/capabilities
+    ServerInfo, ServerCapabilities, ClientInfo, ClientCapabilities,
+    // Tool essentials
+    Tool, ToolCall, ToolResult, ToolHandler,
+    // Resource essentials
+    Resource, ReadResourceRequest, ReadResourceResponse,
+    // Prompt essentials
+    Prompt, PromptMessages, PromptRole,
+    // Sampling essentials
+    SamplingRequest, SamplingResponse,
+    // Error handling
     MCPError, MCPResult,
-    // Transport types
-    TransportConfig, AuthConfig,
 };
 
+// Capabilities that are almost always needed
+pub use ultrafast_mcp_core::types::{
+    RootsCapability, SamplingCapability, ElicitationCapability,
+};
+
+// AuthConfig only if oauth is enabled
+#[cfg(feature = "oauth")]
+pub use crate::AuthConfig;
+
+// Monitoring essentials if enabled
 #[cfg(feature = "monitoring")]
 pub use crate::MonitoringConfig; 
