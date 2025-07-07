@@ -10,10 +10,6 @@ members = [
     "crates/ultrafast-mcp-cli",
     "crates/ultrafast-mcp-auth",
     "crates/ultrafast-mcp-monitoring",
-    "examples/01-basic-echo",
-    "examples/02-file-operations",
-    "examples/03-http-server",
-    "examples/04-advanced-features",
 ]
 
 # Workspace-wide profile configurations
@@ -60,7 +56,7 @@ codegen-units = 16
 incremental = false
 
 [workspace.package]
-version = "202506018.1.0-rc.1.6"
+version = "202506018.1.0-rc.1.7"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/techgopal/ultrafast-mcp"
