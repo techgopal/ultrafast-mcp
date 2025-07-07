@@ -163,15 +163,28 @@ impl UltraFastClient {
             loop {
                 match transport.receive_message().await {
                     Ok(message) => {
-                        if let JsonRpcMessage::Response(response) = &message {
-                            if let Some(id) = &response.id {
-                                if let Ok(id_num) = serde_json::from_value::<u64>(serde_json::to_value(id).unwrap_or_default()) {
-                                    let mut pending = pending_requests.write().await;
-                                    if let Some(pending_req) = pending.remove(&id_num) {
-                                        // Send response to waiting request
-                                        let _ = pending_req.response_sender.send(message);
+                        match &message {
+                            JsonRpcMessage::Response(response) => {
+                                if let Some(id) = &response.id {
+                                    if let Ok(id_num) = serde_json::from_value::<u64>(serde_json::to_value(id).unwrap_or_default()) {
+                                        let mut pending = pending_requests.write().await;
+                                        if let Some(pending_req) = pending.remove(&id_num) {
+                                            // Send response to waiting request
+                                            let _ = pending_req.response_sender.send(message);
+                                        }
                                     }
                                 }
+                            }
+                            JsonRpcMessage::Request(request) if request.id.is_none() => {
+                                // This is a notification, handle it
+                                Self::handle_notification_static(request.clone()).await;
+                            }
+                            JsonRpcMessage::Notification(notification) => {
+                                // Handle notification
+                                Self::handle_notification_static(notification.clone()).await;
+                            }
+                            _ => {
+                                warn!("Received unexpected message type");
                             }
                         }
                     }
@@ -189,6 +202,61 @@ impl UltraFastClient {
         }
 
         Ok(())
+    }
+
+    /// Handle incoming notifications (static method for use in async task)
+    async fn handle_notification_static(notification: JsonRpcRequest) {
+        debug!("Received notification: {}", notification.method);
+        
+        match notification.method.as_str() {
+            "notifications/tools/listChanged" => {
+                info!("Tools list changed notification received");
+                // TODO: Emit event or call callback
+            }
+            "notifications/resources/listChanged" => {
+                info!("Resources list changed notification received");
+                // TODO: Emit event or call callback
+            }
+            "notifications/resources/updated" => {
+                info!("Resource updated notification received");
+                // TODO: Emit event or call callback
+            }
+            "notifications/prompts/listChanged" => {
+                info!("Prompts list changed notification received");
+                // TODO: Emit event or call callback
+            }
+            "notifications/roots/listChanged" => {
+                info!("Roots list changed notification received");
+                // TODO: Emit event or call callback
+            }
+            "notifications/progress" => {
+                if let Some(params) = &notification.params {
+                    if let Ok(progress) = serde_json::from_value::<ultrafast_mcp_core::types::notifications::ProgressNotification>(params.clone()) {
+                        info!("Progress notification: {}%", progress.progress);
+                        // TODO: Emit event or call callback
+                    }
+                }
+            }
+            "notifications/logging/message" => {
+                if let Some(params) = &notification.params {
+                    if let Ok(log_msg) = serde_json::from_value::<ultrafast_mcp_core::types::notifications::LoggingMessageNotification>(params.clone()) {
+                        info!("Log message notification: {:?} - {:?}", log_msg.level, log_msg.data);
+                        // TODO: Emit event or call callback
+                    }
+                }
+            }
+            "notifications/cancelled" => {
+                if let Some(params) = &notification.params {
+                    if let Ok(cancelled) = serde_json::from_value::<ultrafast_mcp_core::types::notifications::CancelledNotification>(params.clone()) {
+                        info!("Request cancelled notification: {:?}", cancelled.request_id);
+                        // TODO: Emit event or call callback
+                    }
+                }
+            }
+            _ => {
+                warn!("Unknown notification method: {}", notification.method);
+            }
+        }
     }
 
     /// Connect to a server using STDIO transport
@@ -548,6 +616,56 @@ impl UltraFastClient {
         self.ensure_operational().await?;
         self.ensure_capability_supported("roots").await?;
         self.send_request("roots/list", None).await
+    }
+
+    /// Set logging level on server
+    pub async fn set_log_level(&self, level: ultrafast_mcp_core::types::notifications::LogLevel) -> MCPResult<()> {
+        self.ensure_operational().await?;
+        self.ensure_capability_supported("logging").await?;
+        
+        let request = ultrafast_mcp_core::types::notifications::LogLevelSetRequest::new(level);
+        let _response: ultrafast_mcp_core::types::notifications::LogLevelSetResponse = 
+            self.send_request("logging/setLevel", Some(serde_json::to_value(request)?)).await?;
+        Ok(())
+    }
+
+    /// Send ping to server
+    pub async fn ping(&self, data: Option<serde_json::Value>) -> MCPResult<ultrafast_mcp_core::types::notifications::PingResponse> {
+        self.ensure_operational().await?;
+        
+        let ping_request = match data {
+            Some(data) => ultrafast_mcp_core::types::notifications::PingRequest::new().with_data(data),
+            None => ultrafast_mcp_core::types::notifications::PingRequest::new(),
+        };
+        
+        self.send_request("ping", Some(serde_json::to_value(ping_request)?)).await
+    }
+
+    /// Send cancellation notification
+    pub async fn notify_cancelled(&self, request_id: serde_json::Value, reason: Option<String>) -> MCPResult<()> {
+        let mut notification = ultrafast_mcp_core::types::notifications::CancelledNotification::new(request_id);
+        if let Some(reason) = reason {
+            notification = notification.with_reason(reason);
+        }
+        self.send_notification("notifications/cancelled", Some(serde_json::to_value(notification)?)).await
+    }
+
+    /// Send progress notification
+    pub async fn notify_progress(
+        &self,
+        progress_token: serde_json::Value,
+        progress: f64,
+        total: Option<f64>,
+        message: Option<String>
+    ) -> MCPResult<()> {
+        let mut notification = ultrafast_mcp_core::types::notifications::ProgressNotification::new(progress_token, progress);
+        if let Some(total) = total {
+            notification = notification.with_total(total);
+        }
+        if let Some(message) = message {
+            notification = notification.with_message(message);
+        }
+        self.send_notification("notifications/progress", Some(serde_json::to_value(notification)?)).await
     }
 
     /// Ensure client is in operational state

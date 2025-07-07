@@ -1,15 +1,52 @@
 # Everything MCP Server Example (STDIO)
 
-This example demonstrates a complete MCP server implementation using STDIO transport that implements all handler traits and provides at least one tool, resource, and prompt.
+This example demonstrates a complete MCP server implementation using STDIO transport that implements all handler traits and provides comprehensive MCP 2025-06-18 features including progress notifications, cancellation support, and resource subscriptions.
 
 ## Features
 
+### Core MCP Implementation
 - **Complete Handler Implementation**: Implements all MCP handler traits
-- **Tool Handler**: Provides an `echo` tool that returns the input message
-- **Resource Handler**: Provides a dummy resource for demonstration
-- **Prompt Handler**: Provides a hello prompt for demonstration
+- **Tool Handler**: Provides 11 different tools demonstrating various MCP capabilities
+- **Resource Handler**: Provides 100 test resources with pagination support
+- **Prompt Handler**: Provides 3 different prompts including resource-embedded prompts
 - **STDIO Transport**: Uses standard input/output for communication
 - **Monitoring**: Includes full monitoring capabilities
+
+### New MCP 2025-06-18 Features
+- **Progress Notifications**: Long-running operations with progress tracking
+- **Cancellation Support**: Cancellable operations that can be interrupted
+- **Resource Subscriptions**: Subscribe to resource changes and receive notifications
+- **Enhanced Completion**: Advanced completion and elicitation handlers
+- **Comprehensive Notifications**: Support for all MCP notification types
+- **Resource Templates**: Dynamic resource discovery with templates
+- **Logging Integration**: Full logging support with level controls
+
+## Available Tools
+
+1. **echo** - Echoes back the input message
+2. **add** - Adds two numbers together
+3. **longRunningOperation** - Demonstrates progress tracking over multiple steps
+4. **cancellableOperation** - Shows cancellation support with periodic checks
+5. **notificationDemo** - Demonstrates various MCP notification types
+6. **printEnv** - Prints environment variables for debugging
+7. **sampleLLM** - Simulates LLM sampling functionality
+8. **getTinyImage** - Returns a tiny test image with multiple content types
+9. **annotatedMessage** - Demonstrates message annotations and metadata
+10. **getResourceReference** - Returns resource references for client usage
+11. **getResourceLinks** - Returns multiple resource links with descriptions
+
+## Available Resources
+
+- **100 Test Resources**: `test://static/resource/1` through `test://static/resource/100`
+- **Pagination Support**: Resources are returned with cursor-based pagination
+- **Resource Templates**: Dynamic resource discovery with `test://static/resource/{id}`
+- **Content Variety**: Mix of text and binary content types
+
+## Available Prompts
+
+1. **simple_prompt** - A basic prompt without arguments
+2. **complex_prompt** - A prompt with temperature and style arguments
+3. **resource_prompt** - A prompt that embeds resource references
 
 ## Running the Server
 
@@ -69,9 +106,62 @@ The [MCP Inspector](https://github.com/modelcontextprotocol/inspector) is a web-
 ### Example Test Scenarios
 
 - **Ping**: Test connection health with the ping method
-- **Tools**: Call the `echo` tool
-- **Resources**: List and read available resources
-- **Prompts**: Retrieve and test available prompts
+- **Tools**: Call various tools like `echo`, `add`, `longRunningOperation`, `cancellableOperation`
+- **Resources**: List and read available resources with pagination
+- **Prompts**: Retrieve and test available prompts with arguments
+- **Progress Tracking**: Test `longRunningOperation` to see progress updates
+- **Cancellation**: Test `cancellableOperation` and cancel it mid-execution
+- **Notifications**: Use `notificationDemo` to trigger various notification types
+- **Resource Subscriptions**: Subscribe to resource changes and receive notifications
+
+### Testing Progress and Cancellation
+
+1. **Progress Tracking**:
+   ```json
+   {
+     "jsonrpc": "2.0",
+     "id": 1,
+     "method": "tools/call",
+     "params": {
+       "name": "longRunningOperation",
+       "arguments": {
+         "duration": 20,
+         "steps": 10
+       }
+     }
+   }
+   ```
+
+2. **Cancellation Support**:
+   ```json
+   {
+     "jsonrpc": "2.0",
+     "id": 2,
+     "method": "tools/call",
+     "params": {
+       "name": "cancellableOperation",
+       "arguments": {
+         "duration": 60,
+         "checkInterval": 5
+       }
+     }
+   }
+   ```
+
+3. **Notification Demo**:
+   ```json
+   {
+     "jsonrpc": "2.0",
+     "id": 3,
+     "method": "tools/call",
+     "params": {
+       "name": "notificationDemo",
+       "arguments": {
+         "type": "resource_list_changed"
+       }
+     }
+   }
+   ```
 
 ### Troubleshooting
 

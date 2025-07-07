@@ -1018,6 +1018,32 @@ impl UltraFastServer {
         serde_json::from_value(params.unwrap_or_default()).unwrap_or_default()
     }
 
+    fn deserialize_complete_request(
+        &self,
+        params: Option<serde_json::Value>,
+    ) -> ultrafast_mcp_core::types::completion::CompleteRequest {
+        match params {
+            Some(params) => serde_json::from_value(params).unwrap_or_else(|_| {
+                ultrafast_mcp_core::types::completion::CompleteRequest {
+                    ref_type: String::new(),
+                    ref_name: String::new(),
+                    argument: None,
+                    context: None,
+                    filter: None,
+                    max_results: None,
+                }
+            }),
+            None => ultrafast_mcp_core::types::completion::CompleteRequest {
+                ref_type: String::new(),
+                ref_name: String::new(),
+                argument: None,
+                context: None,
+                filter: None,
+                max_results: None,
+            },
+        }
+    }
+
     /// Handle incoming messages
     async fn handle_message(
         &self,
@@ -1451,6 +1477,36 @@ impl UltraFastServer {
                 }
             }
 
+            // Completion methods
+            "completion/complete" => {
+                if !self.can_operate().await {
+                    return JsonRpcResponse::error(
+                        JsonRpcError::new(-32000, "Server not ready".to_string()),
+                        request.id,
+                    );
+                }
+
+                let complete_request = self.deserialize_complete_request(request.params.clone());
+
+                if let Some(handler) = &self.completion_handler {
+                    match handler.complete(complete_request).await {
+                        Ok(response) => JsonRpcResponse::success(
+                            serde_json::to_value(response).unwrap(),
+                            request.id,
+                        ),
+                        Err(e) => JsonRpcResponse::error(
+                            JsonRpcError::new(-32603, format!("Completion failed: {}", e)),
+                            request.id,
+                        ),
+                    }
+                } else {
+                    JsonRpcResponse::error(
+                        JsonRpcError::new(-32601, "Completion not supported".to_string()),
+                        request.id,
+                    )
+                }
+            }
+
             // Sampling methods
             "sampling/createMessage" => {
                 if !self.can_operate().await {
@@ -1622,6 +1678,108 @@ impl UltraFastServer {
                 Ok(())
             }
         }
+    }
+
+    // ===== NOTIFICATION METHODS =====
+
+    /// Send tools list changed notification
+    pub async fn notify_tools_changed(&self, transport: &mut Box<dyn Transport>) -> MCPResult<()> {
+        let notification = ultrafast_mcp_core::types::notifications::ToolsListChangedNotification::new();
+        self.send_notification("notifications/tools/listChanged", Some(serde_json::to_value(notification)?), transport).await
+    }
+
+    /// Send resources list changed notification
+    pub async fn notify_resources_changed(&self, transport: &mut Box<dyn Transport>) -> MCPResult<()> {
+        let notification = ultrafast_mcp_core::types::notifications::ResourcesListChangedNotification::new();
+        self.send_notification("notifications/resources/listChanged", Some(serde_json::to_value(notification)?), transport).await
+    }
+
+    /// Send prompts list changed notification
+    pub async fn notify_prompts_changed(&self, transport: &mut Box<dyn Transport>) -> MCPResult<()> {
+        let notification = ultrafast_mcp_core::types::notifications::PromptsListChangedNotification::new();
+        self.send_notification("notifications/prompts/listChanged", Some(serde_json::to_value(notification)?), transport).await
+    }
+
+    /// Send resource updated notification
+    pub async fn notify_resource_updated(&self, uri: String, transport: &mut Box<dyn Transport>) -> MCPResult<()> {
+        let notification = ultrafast_mcp_core::types::resources::ResourceUpdatedNotification { uri };
+        self.send_notification("notifications/resources/updated", Some(serde_json::to_value(notification)?), transport).await
+    }
+
+    /// Send progress notification
+    pub async fn notify_progress(
+        &self, 
+        progress_token: serde_json::Value, 
+        progress: f64,
+        total: Option<f64>,
+        message: Option<String>,
+        transport: &mut Box<dyn Transport>
+    ) -> MCPResult<()> {
+        let mut notification = ultrafast_mcp_core::types::notifications::ProgressNotification::new(progress_token, progress);
+        if let Some(total) = total {
+            notification = notification.with_total(total);
+        }
+        if let Some(message) = message {
+            notification = notification.with_message(message);
+        }
+        self.send_notification("notifications/progress", Some(serde_json::to_value(notification)?), transport).await
+    }
+
+    /// Send logging message notification
+    pub async fn notify_logging_message(
+        &self, 
+        level: ultrafast_mcp_core::types::notifications::LogLevel,
+        data: serde_json::Value,
+        logger: Option<String>,
+        transport: &mut Box<dyn Transport>
+    ) -> MCPResult<()> {
+        let mut notification = ultrafast_mcp_core::types::notifications::LoggingMessageNotification::new(level, data);
+        if let Some(logger) = logger {
+            notification = notification.with_logger(logger);
+        }
+        self.send_notification("notifications/logging/message", Some(serde_json::to_value(notification)?), transport).await
+    }
+
+    /// Send cancellation notification
+    pub async fn notify_cancelled(
+        &self, 
+        request_id: serde_json::Value,
+        reason: Option<String>,
+        transport: &mut Box<dyn Transport>
+    ) -> MCPResult<()> {
+        let mut notification = ultrafast_mcp_core::types::notifications::CancelledNotification::new(request_id);
+        if let Some(reason) = reason {
+            notification = notification.with_reason(reason);
+        }
+        self.send_notification("notifications/cancelled", Some(serde_json::to_value(notification)?), transport).await
+    }
+
+    /// Send roots list changed notification
+    pub async fn notify_roots_changed(&self, transport: &mut Box<dyn Transport>) -> MCPResult<()> {
+        let notification = ultrafast_mcp_core::types::notifications::RootsListChangedNotification::new();
+        self.send_notification("notifications/roots/listChanged", Some(serde_json::to_value(notification)?), transport).await
+    }
+
+    /// Generic method to send notifications
+    async fn send_notification(
+        &self,
+        method: &str,
+        params: Option<serde_json::Value>,
+        transport: &mut Box<dyn Transport>
+    ) -> MCPResult<()> {
+        let notification = JsonRpcRequest {
+            jsonrpc: "2.0".to_string(),
+            id: None, // Notifications have no ID
+            method: method.to_string(),
+            params,
+            meta: std::collections::HashMap::new(),
+        };
+
+        transport.send_message(JsonRpcMessage::Request(notification)).await
+            .map_err(|e| MCPError::internal_error(format!("Failed to send notification: {}", e)))?;
+
+        info!("Sent notification: {}", method);
+        Ok(())
     }
 }
 

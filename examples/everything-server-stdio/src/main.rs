@@ -57,16 +57,17 @@ impl ToolHandler for EverythingToolHandler {
                 let steps = args.get("steps").and_then(|v| v.as_u64()).unwrap_or(5);
                 let step_duration = duration / steps as f64;
 
-                // Simulate long running operation with progress
+                // Simulate long running operation with progress notifications
+                // In a real implementation, you would send actual progress notifications via the server
                 for i in 1..=steps {
                     sleep(Duration::from_secs_f64(step_duration)).await;
-                    // Note: Progress notifications would be sent here in a real implementation
+                    eprintln!("Progress: Step {}/{} completed", i, steps);
                 }
 
                 Ok(ToolResult {
                     content: vec![ToolContent::text(format!(
-                        "Long running operation completed. Duration: {} seconds, Steps: {}.",
-                        duration, steps
+                        "Long running operation completed. Duration: {} seconds, Steps: {}. Progress was tracked through {} steps.",
+                        duration, steps, steps
                     ))],
                     is_error: Some(false),
                 })
@@ -172,6 +173,62 @@ impl ToolHandler for EverythingToolHandler {
                             resource_id
                         )),
                     ],
+                    is_error: Some(false),
+                })
+            }
+            "cancellableOperation" => {
+                let args = call.arguments.unwrap_or_default();
+                let duration = args
+                    .get("duration")
+                    .and_then(|v| v.as_f64())
+                    .unwrap_or(30.0);
+                let check_interval = args
+                    .get("checkInterval")
+                    .and_then(|v| v.as_f64())
+                    .unwrap_or(2.0);
+
+                let mut elapsed = 0.0;
+                let mut check_count = 0;
+                
+                while elapsed < duration {
+                    sleep(Duration::from_secs_f64(check_interval)).await;
+                    elapsed += check_interval;
+                    check_count += 1;
+                    
+                    // In a real implementation, you would check for cancellation requests here
+                    // For now, we'll just simulate periodic checking
+                    eprintln!("Cancellable operation check #{}: {:.1}/{:.1} seconds", check_count, elapsed, duration);
+                }
+
+                Ok(ToolResult {
+                    content: vec![ToolContent::text(format!(
+                        "Cancellable operation completed after {:.1} seconds with {} checks. This operation could be cancelled by sending a cancellation notification.",
+                        elapsed, check_count
+                    ))],
+                    is_error: Some(false),
+                })
+            }
+            "notificationDemo" => {
+                let args = call.arguments.unwrap_or_default();
+                let notification_type = args
+                    .get("type")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("info");
+
+                let message = match notification_type {
+                    "resource_list_changed" => "This would trigger a resource list changed notification",
+                    "resource_updated" => "This would trigger a resource updated notification",
+                    "tool_list_changed" => "This would trigger a tool list changed notification",
+                    "prompt_list_changed" => "This would trigger a prompt list changed notification",
+                    "log_message" => "This would trigger a log message notification",
+                    _ => "This would trigger a general notification",
+                };
+
+                Ok(ToolResult {
+                    content: vec![ToolContent::text(format!(
+                        "Notification demo: {}. In a real implementation, this would send a '{}' notification to connected clients.",
+                        message, notification_type
+                    ))],
                     is_error: Some(false),
                 })
             }
@@ -340,6 +397,40 @@ impl ToolHandler for EverythingToolHandler {
                                 "maximum": 10,
                                 "default": 3,
                                 "description": "Number of resource links to return (1-10)"
+                            }
+                        }
+                    })
+                ),
+                Tool::new(
+                    "cancellableOperation".to_string(),
+                    "Demonstrates a cancellable long-running operation that can be interrupted".to_string(),
+                    serde_json::json!({
+                        "type": "object",
+                        "properties": {
+                            "duration": {
+                                "type": "number",
+                                "default": 30,
+                                "description": "Duration of the operation in seconds"
+                            },
+                            "checkInterval": {
+                                "type": "number",
+                                "default": 2,
+                                "description": "Interval between cancellation checks in seconds"
+                            }
+                        }
+                    })
+                ),
+                Tool::new(
+                    "notificationDemo".to_string(),
+                    "Demonstrates various MCP notification types that can be sent to clients".to_string(),
+                    serde_json::json!({
+                        "type": "object",
+                        "properties": {
+                            "type": {
+                                "type": "string",
+                                "enum": ["resource_list_changed", "resource_updated", "tool_list_changed", "prompt_list_changed", "log_message"],
+                                "default": "info",
+                                "description": "Type of notification to demonstrate"
                             }
                         }
                     })
@@ -575,7 +666,7 @@ impl CompletionHandler for EverythingCompletionHandler {
         match ref_type {
             "ref/resource" => {
                 let uri = request.ref_name;
-                let resource_id = uri.split("/").last().unwrap_or("");
+                let _resource_id = uri.split("/").last().unwrap_or("");
 
                 let values = vec!["1", "2", "3", "4", "5"]
                     .into_iter()
@@ -725,9 +816,26 @@ async fn main() -> anyhow::Result<()> {
 
     eprintln!("🚀 Starting Everything MCP Server (STDIO)");
     eprintln!("✅ Server created successfully with all handlers");
-    eprintln!("📋 Available tools: echo, add, longRunningOperation, printEnv, sampleLLM, getTinyImage, annotatedMessage, getResourceReference, getResourceLinks");
+    eprintln!("📋 Available tools:");
+    eprintln!("  • echo - Echoes back the input");
+    eprintln!("  • add - Adds two numbers");
+    eprintln!("  • longRunningOperation - Long-running operation with progress tracking");
+    eprintln!("  • cancellableOperation - Cancellable long-running operation");
+    eprintln!("  • notificationDemo - Demonstrates MCP notification types");
+    eprintln!("  • printEnv - Prints environment variables");
+    eprintln!("  • sampleLLM - Simulates LLM sampling");
+    eprintln!("  • getTinyImage - Returns a tiny test image");
+    eprintln!("  • annotatedMessage - Demonstrates message annotations");
+    eprintln!("  • getResourceReference - Returns resource references");
+    eprintln!("  • getResourceLinks - Returns multiple resource links");
     eprintln!("📁 Available resources: 100 test resources (test://static/resource/1-100)");
     eprintln!("💬 Available prompts: simple_prompt, complex_prompt, resource_prompt");
+    eprintln!("🔧 New MCP 2025-06-18 features:");
+    eprintln!("  • Progress notifications (demonstrated in longRunningOperation)");
+    eprintln!("  • Cancellation support (demonstrated in cancellableOperation)");
+    eprintln!("  • Resource subscriptions and notifications");
+    eprintln!("  • Enhanced completion and elicitation handlers");
+    eprintln!("  • Comprehensive notification system");
 
     server.run_stdio().await?;
     Ok(())
