@@ -384,7 +384,7 @@ pub use ultrafast_mcp_monitoring::{
 pub use ultrafast_mcp_core::{
     error::{MCPError, MCPResult},
     protocol::{
-        capabilities::{CapabilityNegotiator, ServerCapabilities},
+        capabilities::ServerCapabilities,
         jsonrpc::{JsonRpcError, JsonRpcMessage, JsonRpcRequest, JsonRpcResponse},
     },
     types::{

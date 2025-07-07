@@ -806,31 +806,18 @@ impl UltraFastServer {
             // Continue with warning but don't fail
         }
 
-        // Negotiate capabilities
-        let negotiation_result =
-            match ultrafast_mcp_core::protocol::capabilities::CapabilityNegotiator::negotiate(
-                &request.capabilities,
-                &self.capabilities,
-                &negotiated_version,
-            ) {
-                Ok(result) => {
-                    // Log any warnings from capability negotiation
-                    for warning in &result.warnings {
-                        warn!("Capability negotiation warning: {}", warning);
-                    }
-                    info!(
-                        "Capabilities negotiated successfully with {} warnings",
-                        result.warnings.len()
-                    );
-                    result
-                }
-                Err(e) => {
-                    error!("Capability negotiation failed: {}", e);
-                    return Err(MCPError::Protocol(
-                        ultrafast_mcp_core::error::ProtocolError::CapabilityNotSupported(e),
-                    ));
-                }
-            };
+        // Validate compatibility
+        if let Err(e) = ultrafast_mcp_core::protocol::capabilities::validate_compatibility(
+            &request.capabilities,
+            &self.capabilities,
+        ) {
+            error!("Capability validation failed: {}", e);
+            return Err(MCPError::Protocol(
+                ultrafast_mcp_core::error::ProtocolError::CapabilityNotSupported(e),
+            ));
+        }
+
+        info!("Capabilities validated successfully");
 
         // Update server state to Operating directly for better client compatibility
         // This allows operations immediately after initialize without requiring initialized notification
@@ -844,21 +831,11 @@ impl UltraFastServer {
             negotiated_version
         );
 
-        // Create instructions if there were capability warnings
-        let instructions = if !negotiation_result.warnings.is_empty() {
-            Some(format!(
-                "Capability negotiation completed with warnings: {}",
-                negotiation_result.warnings.join("; ")
-            ))
-        } else {
-            None
-        };
-
         Ok(ultrafast_mcp_core::protocol::InitializeResponse {
             protocol_version: negotiated_version,
-            capabilities: negotiation_result.server_capabilities,
+            capabilities: self.capabilities.clone(),
             server_info: self.info.clone(),
-            instructions,
+            instructions: None,
         })
     }
 
@@ -1090,13 +1067,13 @@ impl UltraFastServer {
                 match serde_json::from_value::<ultrafast_mcp_core::protocol::InitializeRequest>(
                     request.params.unwrap_or_default(),
                 ) {
-                    Ok(init_request) => match self.handle_initialize(init_request).await {
-                        Ok(response) => JsonRpcResponse::success(
-                            serde_json::to_value(response).unwrap(),
-                            request.id,
-                        ),
-                        Err(e) => JsonRpcResponse::error(JsonRpcError::from(e), request.id),
-                    },
+                    Ok(init_request) =>                 match self.handle_initialize(init_request).await {
+                    Ok(response) => JsonRpcResponse::success(
+                        serde_json::to_value(response).unwrap(),
+                        request.id,
+                    ),
+                    Err(e) => JsonRpcResponse::error(JsonRpcError::new(-32603, e.to_string()), request.id),
+                },
                     Err(e) => JsonRpcResponse::error(
                         JsonRpcError::invalid_params(Some(format!(
                             "Invalid initialize request: {}",
@@ -1117,7 +1094,7 @@ impl UltraFastServer {
 
                 match self.handle_shutdown(shutdown_request).await {
                     Ok(_) => JsonRpcResponse::success(serde_json::json!({}), request.id),
-                    Err(e) => JsonRpcResponse::error(JsonRpcError::from(e), request.id),
+                    Err(e) => JsonRpcResponse::error(JsonRpcError::new(-32603, e.to_string()), request.id),
                 }
             }
 

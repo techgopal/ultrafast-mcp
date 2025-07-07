@@ -35,6 +35,9 @@ lazy_static = { workspace = true }
 chrono = { workspace = true }
 urlencoding = { workspace = true }
 
+# Internal dependencies
+# ultrafast-mcp-transport = { path = "../ultrafast-mcp-transport" }
+
 [dev-dependencies]
 tokio-test = { workspace = true }
 tempfile = { workspace = true }

@@ -1857,6 +1857,7 @@ impl MCPMessageValidator {
             "tools/call" => self.validate_tool_call_params(params, report)?,
             "resources/read" => self.validate_resource_read_params(params, report)?,
             "resources/subscribe" => self.validate_resource_subscribe_params(params, report)?,
+            "resources/unsubscribe" => self.validate_resource_unsubscribe_params(params, report)?,
             "prompts/get" => self.validate_prompt_get_params(params, report)?,
             "sampling/createMessage" => self.validate_sampling_params(params, report)?,
             "elicitation/request" => self.validate_elicitation_params(params, report)?,
@@ -2080,6 +2081,46 @@ impl MCPMessageValidator {
         } else {
             report.add_error(ValidationError::new(
                 "resources/subscribe.uri".to_string(),
+                "URI is required".to_string(),
+                ErrorSeverity::High,
+            ));
+        }
+
+        Ok(())
+    }
+
+    /// Validate resource unsubscribe parameters
+    fn validate_resource_unsubscribe_params(
+        &self,
+        params: &serde_json::Value,
+        report: &mut ValidationReport,
+    ) -> MCPResult<()> {
+        let obj = match params.as_object() {
+            Some(obj) => obj,
+            None => {
+                report.add_error(ValidationError::new(
+                    "resources/unsubscribe.params".to_string(),
+                    "Resource unsubscribe parameters must be an object".to_string(),
+                    ErrorSeverity::High,
+                ));
+                return Ok(());
+            }
+        };
+
+        // Validate URI
+        if let Some(uri) = obj.get("uri") {
+            if let Some(uri_str) = uri.as_str() {
+                self.validate_uri(uri_str, report)?;
+            } else {
+                report.add_error(ValidationError::new(
+                    "resources/unsubscribe.uri".to_string(),
+                    "URI must be a string".to_string(),
+                    ErrorSeverity::High,
+                ));
+            }
+        } else {
+            report.add_error(ValidationError::new(
+                "resources/unsubscribe.uri".to_string(),
                 "URI is required".to_string(),
                 ErrorSeverity::High,
             ));
@@ -3050,5 +3091,42 @@ mod mcp_message_validator_tests {
             "Expected valid notification: {:?}",
             report.errors
         );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_validate_resource_unsubscribe_params() {
+        let validator = MCPMessageValidator::new(1000, 100, 50, 10);
+        let mut report = ValidationReport::new("test".to_string());
+
+        // Test valid unsubscribe request
+        let valid_params = serde_json::json!({
+            "uri": "test://static/resource/0"
+        });
+        let result = validator.validate_resource_unsubscribe_params(&valid_params, &mut report);
+        assert!(result.is_ok());
+        assert!(report.errors.is_empty());
+
+        // Test missing URI
+        let mut report = ValidationReport::new("test".to_string());
+        let invalid_params = serde_json::json!({});
+        let result = validator.validate_resource_unsubscribe_params(&invalid_params, &mut report);
+        assert!(result.is_ok());
+        assert!(!report.errors.is_empty());
+        assert!(report.errors.iter().any(|e| e.path == "resources/unsubscribe.uri"));
+
+        // Test non-string URI
+        let mut report = ValidationReport::new("test".to_string());
+        let invalid_params = serde_json::json!({
+            "uri": 123
+        });
+        let result = validator.validate_resource_unsubscribe_params(&invalid_params, &mut report);
+        assert!(result.is_ok());
+        assert!(!report.errors.is_empty());
+        assert!(report.errors.iter().any(|e| e.path == "resources/unsubscribe.uri"));
     }
 }

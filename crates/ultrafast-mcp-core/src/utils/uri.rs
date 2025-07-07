@@ -1,9 +1,8 @@
 use crate::error::{MCPError, MCPResult, ResourceError};
 use serde::{Deserialize, Serialize};
 use std::fmt;
-use std::str::FromStr;
 
-/// A URI type for MCP resources and references
+/// A simple URI wrapper for MCP resources
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Uri(String);
 
@@ -28,51 +27,9 @@ impl Uri {
         self.0.starts_with("http://") || self.0.starts_with("https://")
     }
 
-    /// Check if this is a custom scheme URI
+    /// Get the scheme component of the URI
     pub fn scheme(&self) -> Option<&str> {
         self.0.split("://").next()
-    }
-
-    /// Get the path component of the URI
-    pub fn path(&self) -> Option<&str> {
-        if let Some(pos) = self.0.find("://") {
-            let after_scheme = &self.0[pos + 3..];
-            if let Some(path_start) = after_scheme.find('/') {
-                Some(&after_scheme[path_start..])
-            } else {
-                Some("/")
-            }
-        } else {
-            None
-        }
-    }
-
-    /// Join this URI with a relative path
-    pub fn join(&self, path: &str) -> MCPResult<Uri> {
-        if path.starts_with('/') {
-            // Absolute path - replace the path component
-            if let Some(scheme) = self.scheme() {
-                if let Some(authority_end) = self.0[scheme.len() + 3..].find('/') {
-                    let base = &self.0[..scheme.len() + 3 + authority_end];
-                    Ok(Uri::new(format!("{base}{path}")))
-                } else {
-                    Ok(Uri::new(format!("{}{path}", self.0)))
-                }
-            } else {
-                Err(MCPError::Resource(ResourceError::InvalidUri(format!(
-                    "Cannot join absolute path to non-URI: {}",
-                    self.0
-                ))))
-            }
-        } else {
-            // Relative path - append to current path
-            let mut result = self.0.clone();
-            if !result.ends_with('/') {
-                result.push('/');
-            }
-            result.push_str(path);
-            Ok(Uri::new(result))
-        }
     }
 
     /// Validate the URI format
@@ -84,13 +41,7 @@ impl Uri {
         }
 
         // Basic validation - must have a scheme or be a relative path
-        if !self.0.contains("://") && self.0.starts_with('/') {
-            // Absolute path without scheme is OK
-            return Ok(());
-        }
-
-        if !self.0.contains("://") && !self.0.starts_with('/') {
-            // Relative path is OK
+        if !self.0.contains("://") && (self.0.starts_with('/') || !self.0.starts_with('/')) {
             return Ok(());
         }
 
@@ -114,16 +65,6 @@ impl Uri {
 impl fmt::Display for Uri {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0)
-    }
-}
-
-impl FromStr for Uri {
-    type Err = MCPError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let uri = Uri::new(s);
-        uri.validate()?;
-        Ok(uri)
     }
 }
 
@@ -164,26 +105,6 @@ mod tests {
         let http_uri = Uri::new("https://example.com/path");
         assert_eq!(http_uri.scheme(), Some("https"));
         assert!(http_uri.is_http());
-    }
-
-    #[test]
-    fn test_uri_path() {
-        let uri = Uri::new("file:///path/to/file.txt");
-        assert_eq!(uri.path(), Some("/path/to/file.txt"));
-
-        let uri = Uri::new("https://example.com/api/v1");
-        assert_eq!(uri.path(), Some("/api/v1"));
-    }
-
-    #[test]
-    fn test_uri_join() {
-        let base = Uri::new("file:///path/to");
-        let joined = base.join("file.txt").unwrap();
-        assert_eq!(joined.as_str(), "file:///path/to/file.txt");
-
-        let base = Uri::new("https://example.com/api");
-        let joined = base.join("v1/users").unwrap();
-        assert_eq!(joined.as_str(), "https://example.com/api/v1/users");
     }
 
     #[test]

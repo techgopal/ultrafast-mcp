@@ -8,10 +8,10 @@ use std::collections::HashMap;
 use tokio::sync::{RwLock, oneshot};
 use tracing::{debug, info, warn, error};
 use ultrafast_mcp_core::{
-    error::{MCPError, MCPResult},
+    error::{MCPError, MCPResult, ProtocolError, TransportError},
     protocol::{
         capabilities::{ClientCapabilities, ServerCapabilities},
-        jsonrpc::{JsonRpcMessage, JsonRpcRequest, JsonRpcResponse},
+        jsonrpc::{JsonRpcMessage, JsonRpcRequest},
         lifecycle::{
             InitializeRequest, InitializeResponse, InitializedNotification, ShutdownRequest,
         },
@@ -61,26 +61,73 @@ impl ClientState {
 }
 
 /// Pending request information
+#[derive(Debug)]
 struct PendingRequest {
     response_sender: oneshot::Sender<JsonRpcMessage>,
     timeout: tokio::time::Instant,
+}
+
+/// Client state management
+#[derive(Debug)]
+struct ClientStateManager {
+    state: ClientState,
+    server_info: Option<ServerInfo>,
+    server_capabilities: Option<ServerCapabilities>,
+    negotiated_version: Option<String>,
+    request_id_counter: u64,
+    pending_requests: HashMap<u64, PendingRequest>,
+}
+
+impl ClientStateManager {
+    fn new() -> Self {
+        Self {
+            state: ClientState::Uninitialized,
+            server_info: None,
+            server_capabilities: None,
+            negotiated_version: None,
+            request_id_counter: 1,
+            pending_requests: HashMap::new(),
+        }
+    }
+
+    fn set_state(&mut self, state: ClientState) {
+        self.state = state;
+    }
+
+    fn set_server_info(&mut self, info: ServerInfo) {
+        self.server_info = Some(info);
+    }
+
+    fn set_server_capabilities(&mut self, capabilities: ServerCapabilities) {
+        self.server_capabilities = Some(capabilities);
+    }
+
+    fn set_negotiated_version(&mut self, version: String) {
+        self.negotiated_version = Some(version);
+    }
+
+    fn next_request_id(&mut self) -> u64 {
+        let id = self.request_id_counter;
+        self.request_id_counter += 1;
+        id
+    }
+
+    fn add_pending_request(&mut self, id: u64, request: PendingRequest) {
+        self.pending_requests.insert(id, request);
+    }
+
+    fn remove_pending_request(&mut self, id: &u64) -> Option<PendingRequest> {
+        self.pending_requests.remove(id)
+    }
 }
 
 /// UltraFast MCP Client
 pub struct UltraFastClient {
     info: ClientInfo,
     capabilities: ClientCapabilities,
-    state: Arc<RwLock<ClientState>>,
-    server_info: Arc<RwLock<Option<ServerInfo>>>,
-    server_capabilities: Arc<RwLock<Option<ServerCapabilities>>>,
-    negotiated_version: Arc<RwLock<Option<String>>>,
+    state_manager: Arc<RwLock<ClientStateManager>>,
     transport: Arc<RwLock<Option<Box<dyn Transport>>>>,
-    request_id_counter: Arc<RwLock<u64>>,
-    // NEW: Pending requests map for proper request/response correlation
-    pending_requests: Arc<RwLock<HashMap<u64, PendingRequest>>>,
-    // NEW: Message receiver task handle
     message_receiver: Arc<RwLock<Option<tokio::task::JoinHandle<()>>>>,
-    // NEW: Request timeout configuration
     request_timeout: std::time::Duration,
 }
 
@@ -90,15 +137,10 @@ impl UltraFastClient {
         Self {
             info,
             capabilities,
-            state: Arc::new(RwLock::new(ClientState::Uninitialized)),
-            server_info: Arc::new(RwLock::new(None)),
-            server_capabilities: Arc::new(RwLock::new(None)),
-            negotiated_version: Arc::new(RwLock::new(None)),
+            state_manager: Arc::new(RwLock::new(ClientStateManager::new())),
             transport: Arc::new(RwLock::new(None)),
-            request_id_counter: Arc::new(RwLock::new(1)),
-            pending_requests: Arc::new(RwLock::new(HashMap::new())),
             message_receiver: Arc::new(RwLock::new(None)),
-            request_timeout: std::time::Duration::from_secs(30), // Default 30 second timeout
+            request_timeout: std::time::Duration::from_secs(30),
         }
     }
 
@@ -111,13 +153,8 @@ impl UltraFastClient {
         Self {
             info,
             capabilities,
-            state: Arc::new(RwLock::new(ClientState::Uninitialized)),
-            server_info: Arc::new(RwLock::new(None)),
-            server_capabilities: Arc::new(RwLock::new(None)),
-            negotiated_version: Arc::new(RwLock::new(None)),
+            state_manager: Arc::new(RwLock::new(ClientStateManager::new())),
             transport: Arc::new(RwLock::new(None)),
-            request_id_counter: Arc::new(RwLock::new(1)),
-            pending_requests: Arc::new(RwLock::new(HashMap::new())),
             message_receiver: Arc::new(RwLock::new(None)),
             request_timeout: timeout,
         }
@@ -151,8 +188,7 @@ impl UltraFastClient {
     /// Start the message receiver task for handling responses
     async fn start_message_receiver(&self) -> MCPResult<()> {
         let transport = self.transport.clone();
-        let pending_requests = self.pending_requests.clone();
-        let _request_timeout = self.request_timeout;
+        let state_manager = self.state_manager.clone();
 
         let handle = tokio::spawn(async move {
             let mut transport_guard = transport.write().await;
@@ -167,8 +203,8 @@ impl UltraFastClient {
                             JsonRpcMessage::Response(response) => {
                                 if let Some(id) = &response.id {
                                     if let Ok(id_num) = serde_json::from_value::<u64>(serde_json::to_value(id).unwrap_or_default()) {
-                                        let mut pending = pending_requests.write().await;
-                                        if let Some(pending_req) = pending.remove(&id_num) {
+                                        let mut state = state_manager.write().await;
+                                        if let Some(pending_req) = state.remove_pending_request(&id_num) {
                                             // Send response to waiting request
                                             let _ = pending_req.response_sender.send(message);
                                         }
@@ -204,54 +240,22 @@ impl UltraFastClient {
         Ok(())
     }
 
-    /// Handle incoming notifications (static method for use in async task)
     async fn handle_notification_static(notification: JsonRpcRequest) {
-        debug!("Received notification: {}", notification.method);
-        
         match notification.method.as_str() {
-            "notifications/tools/listChanged" => {
-                info!("Tools list changed notification received");
-                // TODO: Emit event or call callback
+            "initialized" => {
+                info!("Received initialized notification");
             }
-            "notifications/resources/listChanged" => {
-                info!("Resources list changed notification received");
-                // TODO: Emit event or call callback
+            "tools/listChanged" => {
+                debug!("Tools list changed notification");
             }
-            "notifications/resources/updated" => {
-                info!("Resource updated notification received");
-                // TODO: Emit event or call callback
+            "resources/listChanged" => {
+                debug!("Resources list changed notification");
             }
-            "notifications/prompts/listChanged" => {
-                info!("Prompts list changed notification received");
-                // TODO: Emit event or call callback
+            "prompts/listChanged" => {
+                debug!("Prompts list changed notification");
             }
-            "notifications/roots/listChanged" => {
-                info!("Roots list changed notification received");
-                // TODO: Emit event or call callback
-            }
-            "notifications/progress" => {
-                if let Some(params) = &notification.params {
-                    if let Ok(progress) = serde_json::from_value::<ultrafast_mcp_core::types::notifications::ProgressNotification>(params.clone()) {
-                        info!("Progress notification: {}%", progress.progress);
-                        // TODO: Emit event or call callback
-                    }
-                }
-            }
-            "notifications/logging/message" => {
-                if let Some(params) = &notification.params {
-                    if let Ok(log_msg) = serde_json::from_value::<ultrafast_mcp_core::types::notifications::LoggingMessageNotification>(params.clone()) {
-                        info!("Log message notification: {:?} - {:?}", log_msg.level, log_msg.data);
-                        // TODO: Emit event or call callback
-                    }
-                }
-            }
-            "notifications/cancelled" => {
-                if let Some(params) = &notification.params {
-                    if let Ok(cancelled) = serde_json::from_value::<ultrafast_mcp_core::types::notifications::CancelledNotification>(params.clone()) {
-                        info!("Request cancelled notification: {:?}", cancelled.request_id);
-                        // TODO: Emit event or call callback
-                    }
-                }
+            "logging/message" => {
+                debug!("Logging message notification");
             }
             _ => {
                 warn!("Unknown notification method: {}", notification.method);
@@ -261,249 +265,173 @@ impl UltraFastClient {
 
     /// Connect to a server using STDIO transport
     pub async fn connect_stdio(&self) -> MCPResult<()> {
-        info!("Connecting to MCP server via STDIO");
-
-        let transport = ultrafast_mcp_transport::stdio::StdioTransport::new()
+        let stdio_transport = ultrafast_mcp_transport::stdio::StdioTransport::new()
             .await
-            .map_err(|e| {
-                MCPError::internal_error(format!("Failed to create STDIO transport: {}", e))
-            })?;
-        self.connect(Box::new(transport)).await
+            .map_err(|e| MCPError::Transport(TransportError::ConnectionFailed(e.to_string())))?;
+        self.connect(Box::new(stdio_transport)).await
     }
 
-    /// Initialize the MCP connection
+    /// Initialize the connection with the server
     async fn initialize(&self) -> MCPResult<()> {
-        info!("Initializing MCP connection");
-
-        // Update state to initializing
         {
-            let mut state = self.state.write().await;
-            *state = ClientState::Initializing;
+            let mut state = self.state_manager.write().await;
+            state.set_state(ClientState::Initializing);
         }
 
-        // Create initialize request
+        // Create initialization request
         let init_request = InitializeRequest {
             protocol_version: PROTOCOL_VERSION.to_string(),
-            client_info: self.info.clone(),
             capabilities: self.capabilities.clone(),
+            client_info: self.info.clone(),
         };
 
-        // Send initialize request
-        let response: InitializeResponse = self
-            .send_request("initialize", Some(serde_json::to_value(init_request)?))
-            .await?;
+        // Send initialization request
+        let init_response: InitializeResponse = self.send_request("initialize", Some(serde_json::to_value(init_request)?)).await?;
 
-        // Validate protocol version - accept any supported negotiated version
-        if !ultrafast_mcp_core::protocol::version::is_supported_version(&response.protocol_version)
-        {
-            return Err(MCPError::invalid_request(format!(
-                "Negotiated protocol version {} is not supported by client. Supported versions: {:?}",
-                response.protocol_version, ultrafast_mcp_core::protocol::version::SUPPORTED_VERSIONS
+        // Validate protocol version
+        if init_response.protocol_version != PROTOCOL_VERSION {
+            return Err(MCPError::Protocol(ProtocolError::InvalidVersion(
+                format!("Expected protocol version {}, got {}", PROTOCOL_VERSION, init_response.protocol_version)
             )));
         }
 
-        // Log version negotiation result
-        if response.protocol_version != PROTOCOL_VERSION {
-            info!(
-                "Protocol version negotiated: {} -> {}",
-                PROTOCOL_VERSION, response.protocol_version
-            );
-        } else {
-            info!(
-                "Using requested protocol version: {}",
-                response.protocol_version
-            );
-        }
-
-        // Store the negotiated version
+        // Store server information
         {
-            let mut negotiated_version = self.negotiated_version.write().await;
-            *negotiated_version = Some(response.protocol_version.clone());
-        }
-
-        // Store server info and capabilities
-        {
-            let mut server_info = self.server_info.write().await;
-            *server_info = Some(response.server_info);
-        }
-        {
-            let mut server_capabilities = self.server_capabilities.write().await;
-            *server_capabilities = Some(response.capabilities);
-        }
-
-        // Log any warnings from server instructions
-        if let Some(ref instructions) = response.instructions {
-            warn!("Server instructions: {}", instructions);
+            let mut state = self.state_manager.write().await;
+            state.set_server_info(init_response.server_info);
+            state.set_server_capabilities(init_response.capabilities);
+            state.set_negotiated_version(init_response.protocol_version);
+            state.set_state(ClientState::Initialized);
         }
 
         // Send initialized notification
-        let initialized_notification = InitializedNotification {};
-        self.send_notification(
-            "initialized",
-            Some(serde_json::to_value(initialized_notification)?),
-        )
-        .await?;
+        let init_notification = InitializedNotification {};
+        self.send_notification("initialized", Some(serde_json::to_value(init_notification)?)).await?;
 
-        // Update state to operating
         {
-            let mut state = self.state.write().await;
-            *state = ClientState::Operating;
+            let mut state = self.state_manager.write().await;
+            state.set_state(ClientState::Operating);
         }
 
-        info!(
-            "MCP connection initialized successfully with protocol version: {}",
-            response.protocol_version
-        );
+        info!("Client initialized successfully");
         Ok(())
     }
 
-    /// Shutdown the client gracefully
+    /// Shutdown the client
     pub async fn shutdown(&self, reason: Option<String>) -> MCPResult<()> {
-        let reason_display = reason.as_deref().unwrap_or("No reason provided");
-        info!("Shutting down MCP client: {}", reason_display);
-
-        // Update state to shutting down
         {
-            let mut state = self.state.write().await;
-            *state = ClientState::ShuttingDown;
+            let mut state = self.state_manager.write().await;
+            state.set_state(ClientState::ShuttingDown);
         }
 
-        // Send shutdown request if connected
-        if self.can_operate().await {
-            let shutdown_request = ShutdownRequest {
-                reason,
-            };
+        // Send shutdown request
+        let shutdown_request = ShutdownRequest { reason };
+        let _: serde_json::Value = self.send_request("shutdown", Some(serde_json::to_value(shutdown_request)?)).await?;
 
-            // Try to send shutdown request, but don't fail if it doesn't work
-            let _ = self.send_request::<()>("shutdown", Some(serde_json::to_value(shutdown_request)?)).await;
-        }
-
-        // Cancel all pending requests
         {
-            let mut pending = self.pending_requests.write().await;
-            for (id, pending_req) in pending.drain() {
-                            let _ = pending_req.response_sender.send(JsonRpcMessage::Response(JsonRpcResponse {
-                jsonrpc: "2.0".to_string(),
-                id: Some(ultrafast_mcp_core::protocol::jsonrpc::RequestId::Number(id as i64)),
-                result: None,
-                error: Some(ultrafast_mcp_core::protocol::jsonrpc::JsonRpcError {
-                    code: -32000,
-                    message: "Client shutdown".to_string(),
-                    data: None,
-                }),
-                meta: HashMap::new(),
-            }));
-            }
+            let mut state = self.state_manager.write().await;
+            state.set_state(ClientState::Shutdown);
         }
 
-        // Stop message receiver task
-        {
-            let mut receiver_guard = self.message_receiver.write().await;
-            if let Some(handle) = receiver_guard.take() {
-                handle.abort();
-            }
-        }
-
-        // Update state to shutdown
-        {
-            let mut state = self.state.write().await;
-            *state = ClientState::Shutdown;
-        }
-
-        info!("MCP client shutdown complete");
+        info!("Client shutdown completed");
         Ok(())
     }
 
     /// Disconnect from the server
     pub async fn disconnect(&self) -> MCPResult<()> {
-        self.shutdown(Some("Client disconnect".to_string())).await
+        // Stop message receiver
+        if let Some(handle) = self.message_receiver.write().await.take() {
+            handle.abort();
+        }
+
+        // Close transport
+        if let Some(mut transport) = self.transport.write().await.take() {
+            transport.close().await.map_err(|e| MCPError::Transport(TransportError::ConnectionFailed(e.to_string())))?;
+        }
+
+        {
+            let mut state = self.state_manager.write().await;
+            state.set_state(ClientState::Uninitialized);
+        }
+
+        info!("Client disconnected");
+        Ok(())
     }
 
     /// Get current client state
     pub async fn get_state(&self) -> ClientState {
-        self.state.read().await.clone()
+        self.state_manager.read().await.state.clone()
     }
 
     /// Check if client can perform operations
     pub async fn can_operate(&self) -> bool {
-        self.state.read().await.can_operate()
+        self.get_state().await.can_operate()
     }
 
-    /// Get server info
+    /// Get server information
     pub async fn get_server_info(&self) -> Option<ServerInfo> {
-        self.server_info.read().await.clone()
+        self.state_manager.read().await.server_info.clone()
     }
 
     /// Get server capabilities
     pub async fn get_server_capabilities(&self) -> Option<ServerCapabilities> {
-        self.server_capabilities.read().await.clone()
+        self.state_manager.read().await.server_capabilities.clone()
     }
 
-    /// Get the negotiated protocol version
+    /// Get negotiated protocol version
     pub async fn get_negotiated_version(&self) -> Option<String> {
-        self.negotiated_version.read().await.clone()
+        self.state_manager.read().await.negotiated_version.clone()
     }
 
-    /// Get client info
+    /// Get client information
     pub fn info(&self) -> &ClientInfo {
         &self.info
     }
 
-    /// Check if a server capability is supported
+    /// Check if server supports a specific capability
     pub async fn check_server_capability(&self, capability: &str) -> MCPResult<bool> {
-        let server_caps = self.server_capabilities.read().await;
-        match server_caps.as_ref() {
-            Some(caps) => Ok(ultrafast_mcp_core::protocol::capabilities::CapabilityNegotiator::supports_capability(caps, capability)),
-            None => Err(MCPError::invalid_request("Server capabilities not available".to_string())),
+        self.ensure_capability_supported(capability).await?;
+        
+        if let Some(caps) = self.get_server_capabilities().await {
+            Ok(caps.supports_capability(capability))
+        } else {
+            Ok(false)
         }
     }
 
-    /// Check if a specific feature within a capability is supported
+    /// Check if server supports a specific feature within a capability
     pub async fn check_server_feature(&self, capability: &str, feature: &str) -> MCPResult<bool> {
-        let server_caps = self.server_capabilities.read().await;
-        match server_caps.as_ref() {
-            Some(caps) => Ok(
-                ultrafast_mcp_core::protocol::capabilities::CapabilityNegotiator::supports_feature(
-                    caps, capability, feature,
-                ),
-            ),
-            None => Err(MCPError::invalid_request(
-                "Server capabilities not available".to_string(),
-            )),
+        self.ensure_capability_supported(capability).await?;
+        
+        if let Some(caps) = self.get_server_capabilities().await {
+            Ok(caps.supports_feature(capability, feature))
+        } else {
+            Ok(false)
         }
     }
 
-    /// Ensure a capability is supported before making a request
     async fn ensure_capability_supported(&self, capability: &str) -> MCPResult<()> {
-        if !self.check_server_capability(capability).await? {
-            return Err(MCPError::Protocol(
-                ultrafast_mcp_core::error::ProtocolError::CapabilityNotSupported(
-                    format!("Capability '{}' not supported by server", capability)
-                )
-            ));
+        if !self.can_operate().await {
+            return Err(MCPError::Protocol(ProtocolError::InternalError(
+                "Client is not in operating state".to_string()
+            )));
         }
         Ok(())
     }
 
     /// List available tools
     pub async fn list_tools(&self, request: ListToolsRequest) -> MCPResult<ListToolsResponse> {
-        self.ensure_operational().await?;
-        self.ensure_capability_supported("tools").await?;
-        self.send_request("tools/list", Some(serde_json::to_value(request)?))
-            .await
+        self.send_request("tools/list", Some(serde_json::to_value(request)?)).await
     }
 
-    /// List available tools with default request
+    /// List tools with default parameters
     pub async fn list_tools_default(&self) -> MCPResult<ListToolsResponse> {
         self.list_tools(ListToolsRequest::default()).await
     }
 
     /// Call a tool
     pub async fn call_tool(&self, tool_call: ToolCall) -> MCPResult<ToolResult> {
-        self.ensure_operational().await?;
-        self.ensure_capability_supported("tools").await?;
-        self.send_request("tools/call", Some(serde_json::to_value(tool_call)?))
-            .await
+        self.send_request("tools/call", Some(serde_json::to_value(tool_call)?)).await
     }
 
     /// List available resources
@@ -511,10 +439,7 @@ impl UltraFastClient {
         &self,
         request: ListResourcesRequest,
     ) -> MCPResult<ListResourcesResponse> {
-        self.ensure_operational().await?;
-        self.ensure_capability_supported("resources").await?;
-        self.send_request("resources/list", Some(serde_json::to_value(request)?))
-            .await
+        self.send_request("resources/list", Some(serde_json::to_value(request)?)).await
     }
 
     /// Read a resource
@@ -522,25 +447,15 @@ impl UltraFastClient {
         &self,
         request: ReadResourceRequest,
     ) -> MCPResult<ReadResourceResponse> {
-        self.ensure_operational().await?;
-        self.ensure_capability_supported("resources").await?;
-        self.send_request("resources/read", Some(serde_json::to_value(request)?))
-            .await
+        self.send_request("resources/read", Some(serde_json::to_value(request)?)).await
     }
 
     /// Subscribe to resource changes
     pub async fn subscribe_resource(&self, uri: String) -> MCPResult<()> {
-        self.ensure_operational().await?;
-        self.ensure_capability_supported("resources").await?;
-
-        let subscribe_request = ultrafast_mcp_core::types::resources::SubscribeRequest {
-            uri,
-        };
-
-        self.send_request::<()>("resources/subscribe", Some(serde_json::to_value(subscribe_request)?))
-            .await?;
-
-        Ok(())
+        let request = serde_json::json!({
+            "uri": uri
+        });
+        self.send_notification("resources/subscribe", Some(request)).await
     }
 
     /// List available prompts
@@ -548,109 +463,63 @@ impl UltraFastClient {
         &self,
         request: ListPromptsRequest,
     ) -> MCPResult<ListPromptsResponse> {
-        self.ensure_operational().await?;
-        self.ensure_capability_supported("prompts").await?;
-        self.send_request("prompts/list", Some(serde_json::to_value(request)?))
-            .await
+        self.send_request("prompts/list", Some(serde_json::to_value(request)?)).await
     }
 
-    /// Get a prompt
+    /// Get a specific prompt
     pub async fn get_prompt(&self, request: GetPromptRequest) -> MCPResult<GetPromptResponse> {
-        self.ensure_operational().await?;
-        self.ensure_capability_supported("prompts").await?;
-        self.send_request("prompts/get", Some(serde_json::to_value(request)?))
-            .await
+        self.send_request("prompts/get", Some(serde_json::to_value(request)?)).await
     }
 
-    /// Create a message (sampling)
+    /// Create a message using sampling
     pub async fn create_message(
         &self,
         request: CreateMessageRequest,
     ) -> MCPResult<CreateMessageResponse> {
-        self.ensure_operational().await?;
-
-        // Sampling requires tools capability on the server
-        self.ensure_capability_supported("tools").await?;
-
-        // Check protocol version support for sampling
-        let negotiated_version = self.get_negotiated_version().await.ok_or_else(|| {
-            MCPError::invalid_request("Protocol version not negotiated".to_string())
-        })?;
-
-        if !ultrafast_mcp_core::protocol::capabilities::CapabilityNegotiator::version_supports_feature(&negotiated_version, "sampling") {
-            return Err(MCPError::Protocol(
-                ultrafast_mcp_core::error::ProtocolError::CapabilityNotSupported(
-                    format!("Sampling not supported in protocol version {}", negotiated_version)
-                )
-            ));
-        }
-
-        self.send_request(
-            "sampling/createMessage",
-            Some(serde_json::to_value(request)?),
-        )
-        .await
+        self.send_request("sampling/createMessage", Some(serde_json::to_value(request)?)).await
     }
 
     /// Complete a request
     pub async fn complete(&self, request: CompleteRequest) -> MCPResult<CompleteResponse> {
-        self.ensure_operational().await?;
-        self.ensure_capability_supported("completion").await?;
-        self.send_request("completion/complete", Some(serde_json::to_value(request)?))
-            .await
+        self.send_request("completion/complete", Some(serde_json::to_value(request)?)).await
     }
 
-    /// Handle elicitation request
+    /// Handle elicitation
     pub async fn handle_elicitation(
         &self,
         request: ElicitationRequest,
     ) -> MCPResult<ElicitationResponse> {
-        self.ensure_operational().await?;
-        self.ensure_capability_supported("elicitation").await?;
-        self.send_request("elicitation/request", Some(serde_json::to_value(request)?))
-            .await
+        self.send_request("elicitation/handle", Some(serde_json::to_value(request)?)).await
     }
 
-    /// List available roots
+    /// List filesystem roots
     pub async fn list_roots(&self) -> MCPResult<Vec<ultrafast_mcp_core::types::roots::Root>> {
-        self.ensure_operational().await?;
-        self.ensure_capability_supported("roots").await?;
         self.send_request("roots/list", None).await
     }
 
-    /// Set logging level on server
+    /// Set log level
     pub async fn set_log_level(&self, level: ultrafast_mcp_core::types::notifications::LogLevel) -> MCPResult<()> {
-        self.ensure_operational().await?;
-        self.ensure_capability_supported("logging").await?;
-        
-        let request = ultrafast_mcp_core::types::notifications::LogLevelSetRequest::new(level);
-        let _response: ultrafast_mcp_core::types::notifications::LogLevelSetResponse = 
-            self.send_request("logging/setLevel", Some(serde_json::to_value(request)?)).await?;
-        Ok(())
+        let request = serde_json::json!({
+            "level": level
+        });
+        self.send_request("logging/setLevel", Some(request)).await
     }
 
-    /// Send ping to server
+    /// Send ping
     pub async fn ping(&self, data: Option<serde_json::Value>) -> MCPResult<ultrafast_mcp_core::types::notifications::PingResponse> {
-        self.ensure_operational().await?;
-        
-        let ping_request = match data {
-            Some(data) => ultrafast_mcp_core::types::notifications::PingRequest::new().with_data(data),
-            None => ultrafast_mcp_core::types::notifications::PingRequest::new(),
-        };
-        
-        self.send_request("ping", Some(serde_json::to_value(ping_request)?)).await
+        self.send_request("ping", data).await
     }
 
-    /// Send cancellation notification
+    /// Notify cancellation
     pub async fn notify_cancelled(&self, request_id: serde_json::Value, reason: Option<String>) -> MCPResult<()> {
-        let mut notification = ultrafast_mcp_core::types::notifications::CancelledNotification::new(request_id);
-        if let Some(reason) = reason {
-            notification = notification.with_reason(reason);
-        }
-        self.send_notification("notifications/cancelled", Some(serde_json::to_value(notification)?)).await
+        let request = serde_json::json!({
+            "requestId": request_id,
+            "reason": reason
+        });
+        self.send_notification("$/cancelRequest", Some(request)).await
     }
 
-    /// Send progress notification
+    /// Notify progress
     pub async fn notify_progress(
         &self,
         progress_token: serde_json::Value,
@@ -658,58 +527,49 @@ impl UltraFastClient {
         total: Option<f64>,
         message: Option<String>
     ) -> MCPResult<()> {
-        let mut notification = ultrafast_mcp_core::types::notifications::ProgressNotification::new(progress_token, progress);
-        if let Some(total) = total {
-            notification = notification.with_total(total);
-        }
-        if let Some(message) = message {
-            notification = notification.with_message(message);
-        }
-        self.send_notification("notifications/progress", Some(serde_json::to_value(notification)?)).await
+        let request = serde_json::json!({
+            "token": progress_token,
+            "progress": progress,
+            "total": total,
+            "message": message
+        });
+        self.send_notification("$/progress", Some(request)).await
     }
 
-    /// Ensure client is in operational state
     async fn ensure_operational(&self) -> MCPResult<()> {
         if !self.can_operate().await {
-            return Err(MCPError::invalid_request(
-                "Client is not in operational state".to_string(),
-            ));
+            return Err(MCPError::Protocol(ProtocolError::InternalError(
+                "Client is not in operating state".to_string()
+            )));
         }
         Ok(())
     }
 
-    /// Generate a unique request ID
     async fn generate_request_id(&self) -> u64 {
-        let mut counter = self.request_id_counter.write().await;
-        let id = *counter;
-        *counter += 1;
-        id
+        let mut state = self.state_manager.write().await;
+        state.next_request_id()
     }
 
-    /// Send a request and wait for response with proper correlation
     async fn send_request<T>(&self, method: &str, params: Option<Value>) -> MCPResult<T>
     where
         T: serde::de::DeserializeOwned,
     {
-        let request_id = self.generate_request_id().await;
-        debug!("Sending request: {} (id: {})", method, request_id);
+        self.ensure_operational().await?;
 
-        // Create request
-        let request = JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
-            id: Some(ultrafast_mcp_core::protocol::jsonrpc::RequestId::Number(request_id as i64)),
-            method: method.to_string(),
+        let request_id = self.generate_request_id().await;
+        let request = JsonRpcRequest::new(
+            method.to_string(),
             params,
-            meta: HashMap::new(),
-        };
+            Some(ultrafast_mcp_core::protocol::jsonrpc::RequestId::Number(request_id as i64)),
+        );
 
         // Create response channel
         let (response_sender, response_receiver) = oneshot::channel();
 
-        // Register pending request
+        // Add to pending requests
         {
-            let mut pending = self.pending_requests.write().await;
-            pending.insert(request_id, PendingRequest {
+            let mut state = self.state_manager.write().await;
+            state.add_pending_request(request_id, PendingRequest {
                 response_sender,
                 timeout: tokio::time::Instant::now() + self.request_timeout,
             });
@@ -720,25 +580,25 @@ impl UltraFastClient {
             let mut transport_guard = self.transport.write().await;
             let transport = transport_guard
                 .as_mut()
-                .ok_or_else(|| MCPError::internal_error("No transport available".to_string()))?;
-
+                .expect("Transport should be available");
             transport.send_message(JsonRpcMessage::Request(request)).await
-                .map_err(|e| MCPError::internal_error(format!("Failed to send request: {}", e)))?;
+                .map_err(|e| MCPError::Transport(TransportError::SendFailed(e.to_string())))?;
         }
 
         // Wait for response with timeout
         let response = tokio::time::timeout(self.request_timeout, response_receiver)
             .await
-            .map_err(|_| MCPError::internal_error("Request timeout".to_string()))?
-            .map_err(|_| MCPError::internal_error("Response channel closed".to_string()))?;
+            .map_err(|_| MCPError::Protocol(ProtocolError::RequestTimeout))?
+            .map_err(|_| MCPError::Protocol(ProtocolError::InternalError(
+                "Response channel closed".to_string()
+            )))?;
 
-        // Clean up pending request
+        // Remove from pending requests
         {
-            let mut pending = self.pending_requests.write().await;
-            pending.remove(&request_id);
+            let mut state = self.state_manager.write().await;
+            state.remove_pending_request(&request_id);
         }
 
-        // Parse response
         match response {
             JsonRpcMessage::Response(response) => {
                 if let Some(error) = response.error {
@@ -747,36 +607,31 @@ impl UltraFastClient {
 
                 if let Some(result) = response.result {
                     serde_json::from_value(result)
-                        .map_err(|e| MCPError::serialization_error(e.to_string()))
+                        .map_err(|e| MCPError::Serialization(e))
                 } else {
-                    Err(MCPError::internal_error("Response has no result".to_string()))
+                    Err(MCPError::Protocol(ProtocolError::InvalidResponse(
+                        "Response has no result or error".to_string()
+                    )))
                 }
             }
-            _ => Err(MCPError::internal_error("Unexpected message type".to_string())),
+            _ => Err(MCPError::Protocol(ProtocolError::InvalidResponse(
+                "Expected response, got different message type".to_string()
+            ))),
         }
     }
 
-    /// Send a notification (one-way message)
     async fn send_notification(&self, method: &str, params: Option<Value>) -> MCPResult<()> {
-        debug!("Sending notification: {}", method);
+        self.ensure_operational().await?;
 
-        let notification = JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
-            id: None,
-            method: method.to_string(),
-            params,
-            meta: HashMap::new(),
-        };
+        let notification = JsonRpcRequest::notification(method.to_string(), params);
 
         let mut transport_guard = self.transport.write().await;
         let transport = transport_guard
             .as_mut()
-            .ok_or_else(|| MCPError::internal_error("No transport available".to_string()))?;
-
-        transport.send_message(JsonRpcMessage::Request(notification)).await
-            .map_err(|e| MCPError::internal_error(format!("Failed to send notification: {}", e)))?;
-
-        Ok(())
+            .expect("Transport should be available");
+        
+        transport.send_message(JsonRpcMessage::Notification(notification)).await
+            .map_err(|e| MCPError::Transport(TransportError::SendFailed(e.to_string())))
     }
 }
 
@@ -785,7 +640,8 @@ impl std::fmt::Debug for UltraFastClient {
         f.debug_struct("UltraFastClient")
             .field("info", &self.info)
             .field("capabilities", &self.capabilities)
-            .field("state", &self.state)
+            .field("state", &"<state_manager>")
+            .field("transport", &"<transport>")
             .field("request_timeout", &self.request_timeout)
             .finish()
     }
@@ -797,36 +653,61 @@ mod tests {
 
     #[tokio::test]
     async fn test_client_creation() {
-        let info = ClientInfo::new("test-client".to_string(), "1.0.0".to_string());
+        let client_info = ClientInfo {
+            name: "test-client".to_string(),
+            version: "1.0.0".to_string(),
+            authors: None,
+            description: None,
+            homepage: None,
+            repository: None,
+            license: None,
+        };
         let capabilities = ClientCapabilities::default();
-
-        let client = UltraFastClient::new(info, capabilities);
+        let client = UltraFastClient::new(client_info, capabilities);
+        
         assert_eq!(client.get_state().await, ClientState::Uninitialized);
+        assert!(!client.can_operate().await);
     }
 
     #[tokio::test]
     async fn test_client_creation_with_timeout() {
-        let info = ClientInfo::new("test-client".to_string(), "1.0.0".to_string());
+        let client_info = ClientInfo {
+            name: "test-client".to_string(),
+            version: "1.0.0".to_string(),
+            authors: None,
+            description: None,
+            homepage: None,
+            repository: None,
+            license: None,
+        };
         let capabilities = ClientCapabilities::default();
         let timeout = std::time::Duration::from_secs(60);
-
-        let client = UltraFastClient::new_with_timeout(info, capabilities, timeout);
+        let client = UltraFastClient::new_with_timeout(client_info, capabilities, timeout);
+        
         assert_eq!(client.get_state().await, ClientState::Uninitialized);
     }
 
     #[tokio::test]
     async fn test_client_state_transitions() {
-        let info = ClientInfo::new("test-client".to_string(), "1.0.0".to_string());
+        let client_info = ClientInfo {
+            name: "test-client".to_string(),
+            version: "1.0.0".to_string(),
+            authors: None,
+            description: None,
+            homepage: None,
+            repository: None,
+            license: None,
+        };
         let capabilities = ClientCapabilities::default();
-
-        let client = UltraFastClient::new(info, capabilities);
-
-        // Initial state
+        let client = UltraFastClient::new(client_info, capabilities);
+        
         assert_eq!(client.get_state().await, ClientState::Uninitialized);
-        assert!(!client.can_operate().await);
-
-        // After initialization (this would require a mock transport)
-        // assert_eq!(client.get_state().await, ClientState::Operating);
-        // assert!(client.can_operate().await);
+        
+        // Test state transitions through the state manager
+        {
+            let mut state = client.state_manager.write().await;
+            state.set_state(ClientState::Initializing);
+        }
+        assert_eq!(client.get_state().await, ClientState::Initializing);
     }
 }
