@@ -14,6 +14,7 @@
 | **Server Features** | ✅ Complete | Tools, Resources, Prompts, Logging, Completion | All capabilities supported |
 | **Client Features** | ✅ Complete | Sampling, Roots, Elicitation | Full client-side support |
 | **Utilities** | ✅ Complete | Progress, Cancellation, Pagination, Ping/Pong | All utilities implemented |
+| **Protocol Versions** | ✅ Complete | 2025-06-18, 2025-03-26, 2024-11-05 | All three supported |
 
 ### 🎯 **Compliance Goals**
 
@@ -209,6 +210,7 @@ impl UltraFastServer {
     fn validate_protocol_version(&self, version: &str) -> Result<()> {
         let supported_versions = vec![
             "2025-06-18",
+            "2025-03-26",
             "2024-11-05", // Backward compatibility
         ];
         
@@ -850,6 +852,7 @@ impl UltraFastServer {
     fn get_supported_versions() -> Vec<&'static str> {
         vec![
             "2025-06-18", // Current version
+            "2025-03-26", // Intermediate version
             "2024-11-05", // Previous version
         ]
     }

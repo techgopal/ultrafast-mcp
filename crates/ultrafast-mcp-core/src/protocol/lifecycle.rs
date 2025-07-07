@@ -85,6 +85,14 @@ impl InitializeRequest {
             ));
         }
 
+        // Validate supported versions
+        let supported_versions = ["2025-06-18", "2025-03-26", "2024-11-05"];
+        if !supported_versions.contains(&self.protocol_version.as_str()) {
+            return Err(crate::error::ProtocolError::InvalidVersion(
+                format!("Unsupported protocol version: {}", self.protocol_version)
+            ));
+        }
+
         Ok(())
     }
 }

@@ -7,7 +7,7 @@ use std::fmt;
 pub const PROTOCOL_VERSION: &str = "2025-06-18";
 
 /// All supported protocol versions (latest first)
-pub const SUPPORTED_VERSIONS: &[&str] = &["2025-06-18", "2024-11-05"];
+pub const SUPPORTED_VERSIONS: &[&str] = &["2025-06-18", "2025-03-26", "2024-11-05"];
 
 /// Protocol version representation for comparison
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -104,6 +104,7 @@ impl ProtocolVersion {
                 // Cancellation introduced in 2025-06-18
                 *self >= ProtocolVersion::parse("2025-06-18").unwrap()
             }
+            // Add any features introduced in 2025-03-26 here if needed
             _ => {
                 // Unknown features are assumed to be supported for forward compatibility
                 true
@@ -240,13 +241,51 @@ mod tests {
     fn test_version_negotiation() {
         // Test exact match
         assert_eq!(negotiate_version("2025-06-18").unwrap(), "2025-06-18");
+        assert_eq!(negotiate_version("2025-03-26").unwrap(), "2025-03-26");
+        assert_eq!(negotiate_version("2024-11-05").unwrap(), "2024-11-05");
 
         // Test fallback
-        assert_eq!(negotiate_version("2024-11-05").unwrap(), "2024-11-05");
+        assert_eq!(negotiate_version("2025-04-01").unwrap(), "2025-03-26");
+        assert_eq!(negotiate_version("2025-01-01").unwrap(), "2024-11-05");
 
         // Test unknown version
         let result = negotiate_version("2023-01-01");
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_feature_support_matrix() {
+        let v1 = ProtocolVersion::parse("2024-11-05").unwrap();
+        let v2 = ProtocolVersion::parse("2025-03-26").unwrap();
+        let v3 = ProtocolVersion::parse("2025-06-18").unwrap();
+
+        // Features available in all versions
+        for v in [&v1, &v2, &v3] {
+            assert!(v.supports_feature("tools"));
+            assert!(v.supports_feature("resources"));
+            assert!(v.supports_feature("prompts"));
+            assert!(v.supports_feature("sampling"));
+            assert!(v.supports_feature("elicitation"));
+            assert!(v.supports_feature("completion"));
+            assert!(v.supports_feature("logging"));
+            assert!(v.supports_feature("roots"));
+        }
+        // Features introduced in 2025-06-18
+        assert!(!v1.supports_feature("resource_subscriptions"));
+        assert!(!v2.supports_feature("resource_subscriptions"));
+        assert!(v3.supports_feature("resource_subscriptions"));
+        assert!(!v1.supports_feature("progress_tracking"));
+        assert!(!v2.supports_feature("progress_tracking"));
+        assert!(v3.supports_feature("progress_tracking"));
+        assert!(!v1.supports_feature("enhanced_error_codes"));
+        assert!(!v2.supports_feature("enhanced_error_codes"));
+        assert!(v3.supports_feature("enhanced_error_codes"));
+        assert!(!v1.supports_feature("list_changed_notifications"));
+        assert!(!v2.supports_feature("list_changed_notifications"));
+        assert!(v3.supports_feature("list_changed_notifications"));
+        assert!(!v1.supports_feature("cancellation"));
+        assert!(!v2.supports_feature("cancellation"));
+        assert!(v3.supports_feature("cancellation"));
     }
 
     #[test]

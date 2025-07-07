@@ -319,13 +319,13 @@ mod tests {
         let response = manager.handle_ping(request).await.unwrap();
 
         // PingResponse is empty as per MCP 2025-06-18 specification
-        assert_eq!(format!("{:?}", response), "PingResponse");
+        assert_eq!(format!("{:?}", response), "PingResponse { data: None }");
     }
 
     #[test]
     fn test_ping_response() {
         let response = PingResponse::new();
         // PingResponse is empty as per MCP 2025-06-18 specification
-        assert_eq!(format!("{:?}", response), "PingResponse");
+        assert_eq!(format!("{:?}", response), "PingResponse { data: None }");
     }
 }

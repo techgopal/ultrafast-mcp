@@ -1902,7 +1902,7 @@ impl MCPMessageValidator {
         // Validate protocol version
         if let Some(version) = obj.get("protocolVersion") {
             if let Some(version_str) = version.as_str() {
-                if version_str != "2025-06-18" && version_str != "2024-11-05" {
+                if version_str != "2025-06-18" && version_str != "2025-03-26" && version_str != "2024-11-05" {
                     report.add_error(ValidationError::new(
                         "initialize.protocolVersion".to_string(),
                         format!("Unsupported protocol version: {}", version_str),

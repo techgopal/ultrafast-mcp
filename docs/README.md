@@ -12,7 +12,7 @@ Welcome to the comprehensive documentation for **ULTRAFAST_MCP**, the fastest, m
 
 ### 🏗️ **Core Concepts**
 - **[Architecture Overview](./core-concepts/architecture.md)** - Understanding the framework design
-- **[MCP Protocol](./core-concepts/mcp-protocol.md)** - Deep dive into MCP 2025-06-18
+- **[MCP Protocol](./core-concepts/mcp-protocol.md)** - Deep dive into MCP 2025-06-18, 2025-03-26, and 2024-11-05
 - **[Transport Layer](./core-concepts/transport.md)** - stdio and HTTP transport details
 - **[Error Handling](./core-concepts/error-handling.md)** - Comprehensive error management
 

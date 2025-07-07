@@ -9,7 +9,7 @@ pub mod protocol {
     pub const CURRENT_VERSION: &str = "2025-06-18";
     
     /// All supported protocol versions (latest first)
-    pub const SUPPORTED_VERSIONS: &[&str] = &["2025-06-18", "2024-11-05"];
+    pub const SUPPORTED_VERSIONS: &[&str] = &["2025-06-18", "2025-03-26", "2024-11-05"];
     
     /// JSON-RPC version string
     pub const JSONRPC_VERSION: &str = "2.0";

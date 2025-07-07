@@ -4,7 +4,7 @@
 //!
 //! This crate provides the foundational types, protocol implementations, and utilities
 //! for building high-performance MCP-compliant servers and clients. It implements the
-//! MCP 2025-06-18 specification with full type safety, comprehensive error handling,
+//! MCP 2025-06-18, 2025-03-26, and 2024-11-05 specifications with full type safety, comprehensive error handling,
 //! and optimized performance characteristics.
 //!
 //! ## Overview
@@ -18,6 +18,7 @@
 //! - **Comprehensive Error Handling**: Detailed error types with context and recovery information
 //! - **Performance Optimized**: Zero-copy deserialization and efficient memory usage
 //! - **Extensible Architecture**: Modular design for easy extension and customization
+//! - **Multi-Version Support**: 2025-06-18, 2025-03-26, and 2024-11-05
 //!
 //! ## Key Features
 //!
