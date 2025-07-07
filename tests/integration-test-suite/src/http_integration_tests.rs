@@ -1,21 +1,22 @@
 //! Basic integration tests for HTTP transport
 
-use async_trait::async_trait;
-use serde_json::json;
-use std::sync::Arc;
-use tokio::time::Duration;
-use ultrafast_mcp::{UltraFastClient, UltraFastServer};
-use ultrafast_mcp_core::types::tools::{ListToolsRequest, ListToolsResponse};
-use ultrafast_mcp_core::{
-    error::{MCPError, MCPResult},
-    protocol::capabilities::{ClientCapabilities, ServerCapabilities, ToolsCapability},
-    types::{
-        client::ClientInfo,
-        server::ServerInfo,
-        tools::{Tool, ToolCall, ToolContent, ToolResult},
-    },
-};
-use ultrafast_mcp_server::ToolHandler;
+#[cfg(test)]
+mod tests {
+    use async_trait::async_trait;
+    use serde_json::json;
+    use std::sync::Arc;
+    use ultrafast_mcp::{UltraFastClient, UltraFastServer};
+    use ultrafast_mcp_core::types::tools::{ListToolsRequest, ListToolsResponse};
+    use ultrafast_mcp_core::{
+        error::{MCPError, MCPResult},
+        protocol::capabilities::{ClientCapabilities, ServerCapabilities, ToolsCapability},
+        types::{
+            client::ClientInfo,
+            server::ServerInfo,
+            tools::{Tool, ToolCall, ToolContent, ToolResult},
+        },
+    };
+    use ultrafast_mcp_server::ToolHandler;
 
 // Mock tool handler for testing
 struct TestToolHandler;
@@ -64,6 +65,7 @@ impl ToolHandler for TestToolHandler {
     }
 }
 
+#[cfg(test)]
 fn create_test_server() -> UltraFastServer {
     let server_info = ServerInfo {
         name: "http-test-server".to_string(),
@@ -88,11 +90,7 @@ fn create_test_server() -> UltraFastServer {
 #[tokio::test]
 async fn test_http_transport_config() {
     // Test that we can create basic transport configurations
-    let config = ultrafast_mcp_transport::TransportConfig::Stdio;
-
-    if let ultrafast_mcp_transport::TransportConfig::Stdio = config {
-        // This is the only currently supported config
-    }
+    let _config = ultrafast_mcp_transport::TransportConfig::Stdio;
 
     println!("✅ HTTP transport config test passed!");
 }
@@ -122,7 +120,7 @@ async fn test_client_creation() {
 
     let capabilities = ClientCapabilities::default();
 
-    let client = UltraFastClient::new(client_info, capabilities);
+    let _client = UltraFastClient::new(client_info, capabilities);
 
     // Test that client is created successfully
     // Note: UltraFastClient doesn't expose info() method directly
@@ -210,4 +208,5 @@ async fn test_concurrent_access() {
     assert_eq!(results, (0..5).collect::<Vec<_>>());
 
     println!("✅ Concurrent access test passed!");
+}
 }

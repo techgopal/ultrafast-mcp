@@ -3,28 +3,29 @@
 //! This test suite validates that the ultrafast-mcp implementation is fully compliant
 //! with the MCP specification and works correctly with real MCP clients.
 
-use async_trait::async_trait;
-use serde_json::json;
-use std::sync::Arc;
-use tokio::time::Duration;
-use ultrafast_mcp::{UltraFastClient, UltraFastServer};
-use ultrafast_mcp_core::types::tools::{ListToolsRequest, ListToolsResponse};
-use ultrafast_mcp_core::{
-    error::{MCPError, MCPResult},
-    protocol::{
-        capabilities::{ClientCapabilities, ServerCapabilities, ToolsCapability},
-        jsonrpc::{JsonRpcMessage, JsonRpcRequest, JsonRpcResponse},
-        lifecycle::{InitializeRequest, InitializeResponse, InitializedNotification},
-        version::PROTOCOL_VERSION,
-    },
-    types::{
-        client::ClientInfo,
-        server::ServerInfo,
-        tools::{Tool, ToolCall, ToolContent, ToolResult},
-    },
-    RequestId,
-};
-use ultrafast_mcp_server::ToolHandler;
+#[cfg(test)]
+mod tests {
+    use async_trait::async_trait;
+    use serde_json::json;
+    use std::sync::Arc;
+    use ultrafast_mcp::UltraFastServer;
+    use ultrafast_mcp_core::types::tools::{ListToolsRequest, ListToolsResponse};
+    use ultrafast_mcp_core::{
+        error::{MCPError, MCPResult},
+        protocol::{
+            capabilities::{ClientCapabilities, ServerCapabilities, ToolsCapability},
+            jsonrpc::{JsonRpcRequest, JsonRpcResponse},
+            lifecycle::{InitializeRequest, InitializedNotification},
+            version::PROTOCOL_VERSION,
+        },
+        types::{
+            client::ClientInfo,
+            server::ServerInfo,
+            tools::{Tool, ToolCall, ToolContent, ToolResult},
+        },
+        RequestId,
+    };
+    use ultrafast_mcp_server::ToolHandler;
 
 // Mock tool handler for testing
 struct ComplianceToolHandler;
@@ -289,11 +290,7 @@ async fn test_mcp_inspector_compatibility() {
 #[tokio::test]
 async fn test_transport_lifecycle() {
     // Test that we can create transport configurations
-    let config = ultrafast_mcp_transport::TransportConfig::Stdio;
-
-    if let ultrafast_mcp_transport::TransportConfig::Stdio = config {
-        // This is the only currently supported config
-    }
+    let _config = ultrafast_mcp_transport::TransportConfig::Stdio;
 
     println!("✅ Transport lifecycle test passed!");
 }
@@ -326,4 +323,5 @@ async fn test_jsonrpc_compliance() {
     assert!(response_serialized.contains("success"));
 
     println!("✅ JSON-RPC 2.0 compliance test passed!");
+}
 }

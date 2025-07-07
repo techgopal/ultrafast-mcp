@@ -596,12 +596,16 @@ impl UltraFastServer {
     /// Add a roots handler to the server
     pub fn with_roots_handler(mut self, handler: Arc<dyn RootsHandler>) -> Self {
         self.roots_handler = Some(handler);
+        // Note: Roots is a client capability, not server capability
+        // The server responds to roots requests but doesn't advertise it
         self
     }
 
     /// Add an elicitation handler to the server
     pub fn with_elicitation_handler(mut self, handler: Arc<dyn ElicitationHandler>) -> Self {
         self.elicitation_handler = Some(handler);
+        // Note: Elicitation is a client capability, not server capability
+        // The server responds to elicitation requests but doesn't advertise it
         self
     }
 

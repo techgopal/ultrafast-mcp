@@ -1,20 +1,22 @@
-use async_trait::async_trait;
-use serde::{Deserialize, Serialize};
-use serde_json::json;
-use std::sync::Arc;
-use tokio::time::{timeout, Duration};
-use ultrafast_mcp::{UltraFastClient, UltraFastServer};
-use ultrafast_mcp_core::types::tools::{ListToolsRequest, ListToolsResponse};
-use ultrafast_mcp_core::{
-    error::{MCPError, MCPResult},
-    protocol::capabilities::{ClientCapabilities, ServerCapabilities, ToolsCapability},
-    types::{
-        client::ClientInfo,
-        server::ServerInfo,
-        tools::{Tool, ToolCall, ToolContent, ToolResult},
-    },
-};
-use ultrafast_mcp_server::ToolHandler;
+#[cfg(test)]
+mod tests {
+    use async_trait::async_trait;
+    use serde::{Deserialize, Serialize};
+    use serde_json::json;
+    use std::sync::Arc;
+    use tokio::time::Duration;
+    use ultrafast_mcp::UltraFastServer;
+    use ultrafast_mcp_core::types::tools::{ListToolsRequest, ListToolsResponse};
+    use ultrafast_mcp_core::{
+        error::{MCPError, MCPResult},
+        protocol::capabilities::{ClientCapabilities, ServerCapabilities, ToolsCapability},
+        types::{
+            client::ClientInfo,
+            server::ServerInfo,
+            tools::{Tool, ToolCall, ToolContent, ToolResult},
+        },
+    };
+    use ultrafast_mcp_server::ToolHandler;
 
 // Mock tool handler for testing
 struct TestToolHandler;
@@ -307,4 +309,5 @@ async fn test_schema_generation() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("✅ Schema generation test passed!");
     Ok(())
+}
 }

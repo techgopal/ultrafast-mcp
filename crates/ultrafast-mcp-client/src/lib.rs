@@ -4,13 +4,14 @@
 
 use serde_json::Value;
 use std::sync::Arc;
-use tokio::sync::RwLock;
-use tracing::{debug, info, warn};
+use std::collections::HashMap;
+use tokio::sync::{RwLock, oneshot};
+use tracing::{debug, info, warn, error};
 use ultrafast_mcp_core::{
     error::{MCPError, MCPResult},
     protocol::{
         capabilities::{ClientCapabilities, ServerCapabilities},
-        jsonrpc::{JsonRpcMessage, JsonRpcRequest},
+        jsonrpc::{JsonRpcMessage, JsonRpcRequest, JsonRpcResponse},
         lifecycle::{
             InitializeRequest, InitializeResponse, InitializedNotification, ShutdownRequest,
         },
@@ -59,6 +60,12 @@ impl ClientState {
     }
 }
 
+/// Pending request information
+struct PendingRequest {
+    response_sender: oneshot::Sender<JsonRpcMessage>,
+    timeout: tokio::time::Instant,
+}
+
 /// UltraFast MCP Client
 pub struct UltraFastClient {
     info: ClientInfo,
@@ -69,6 +76,12 @@ pub struct UltraFastClient {
     negotiated_version: Arc<RwLock<Option<String>>>,
     transport: Arc<RwLock<Option<Box<dyn Transport>>>>,
     request_id_counter: Arc<RwLock<u64>>,
+    // NEW: Pending requests map for proper request/response correlation
+    pending_requests: Arc<RwLock<HashMap<u64, PendingRequest>>>,
+    // NEW: Message receiver task handle
+    message_receiver: Arc<RwLock<Option<tokio::task::JoinHandle<()>>>>,
+    // NEW: Request timeout configuration
+    request_timeout: std::time::Duration,
 }
 
 impl UltraFastClient {
@@ -83,7 +96,37 @@ impl UltraFastClient {
             negotiated_version: Arc::new(RwLock::new(None)),
             transport: Arc::new(RwLock::new(None)),
             request_id_counter: Arc::new(RwLock::new(1)),
+            pending_requests: Arc::new(RwLock::new(HashMap::new())),
+            message_receiver: Arc::new(RwLock::new(None)),
+            request_timeout: std::time::Duration::from_secs(30), // Default 30 second timeout
         }
+    }
+
+    /// Create a new MCP client with custom timeout
+    pub fn new_with_timeout(
+        info: ClientInfo, 
+        capabilities: ClientCapabilities, 
+        timeout: std::time::Duration
+    ) -> Self {
+        Self {
+            info,
+            capabilities,
+            state: Arc::new(RwLock::new(ClientState::Uninitialized)),
+            server_info: Arc::new(RwLock::new(None)),
+            server_capabilities: Arc::new(RwLock::new(None)),
+            negotiated_version: Arc::new(RwLock::new(None)),
+            transport: Arc::new(RwLock::new(None)),
+            request_id_counter: Arc::new(RwLock::new(1)),
+            pending_requests: Arc::new(RwLock::new(HashMap::new())),
+            message_receiver: Arc::new(RwLock::new(None)),
+            request_timeout: timeout,
+        }
+    }
+
+    /// Set request timeout
+    pub fn with_timeout(mut self, timeout: std::time::Duration) -> Self {
+        self.request_timeout = timeout;
+        self
     }
 
     /// Connect to a server using the provided transport
@@ -95,10 +138,56 @@ impl UltraFastClient {
             *transport_guard = Some(transport);
         }
 
+        // Start message receiver task
+        self.start_message_receiver().await?;
+
         // Initialize the connection
         self.initialize().await?;
 
         info!("Successfully connected to MCP server");
+        Ok(())
+    }
+
+    /// Start the message receiver task for handling responses
+    async fn start_message_receiver(&self) -> MCPResult<()> {
+        let transport = self.transport.clone();
+        let pending_requests = self.pending_requests.clone();
+        let _request_timeout = self.request_timeout;
+
+        let handle = tokio::spawn(async move {
+            let mut transport_guard = transport.write().await;
+            let transport = transport_guard
+                .as_mut()
+                .expect("Transport should be available");
+
+            loop {
+                match transport.receive_message().await {
+                    Ok(message) => {
+                        if let JsonRpcMessage::Response(response) = &message {
+                            if let Some(id) = &response.id {
+                                if let Ok(id_num) = serde_json::from_value::<u64>(serde_json::to_value(id).unwrap_or_default()) {
+                                    let mut pending = pending_requests.write().await;
+                                    if let Some(pending_req) = pending.remove(&id_num) {
+                                        // Send response to waiting request
+                                        let _ = pending_req.response_sender.send(message);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        error!("Transport error in message receiver: {}", e);
+                        break;
+                    }
+                }
+            }
+        });
+
+        {
+            let mut receiver_guard = self.message_receiver.write().await;
+            *receiver_guard = Some(handle);
+        }
+
         Ok(())
     }
 
@@ -200,9 +289,10 @@ impl UltraFastClient {
         Ok(())
     }
 
-    /// Shutdown the MCP connection
+    /// Shutdown the client gracefully
     pub async fn shutdown(&self, reason: Option<String>) -> MCPResult<()> {
-        info!("Shutting down MCP connection: {:?}", reason);
+        let reason_display = reason.as_deref().unwrap_or("No reason provided");
+        info!("Shutting down MCP client: {}", reason_display);
 
         // Update state to shutting down
         {
@@ -210,10 +300,41 @@ impl UltraFastClient {
             *state = ClientState::ShuttingDown;
         }
 
-        // Send shutdown request
-        let shutdown_request = ShutdownRequest { reason };
-        self.send_request::<()>("shutdown", Some(serde_json::to_value(shutdown_request)?))
-            .await?;
+        // Send shutdown request if connected
+        if self.can_operate().await {
+            let shutdown_request = ShutdownRequest {
+                reason,
+            };
+
+            // Try to send shutdown request, but don't fail if it doesn't work
+            let _ = self.send_request::<()>("shutdown", Some(serde_json::to_value(shutdown_request)?)).await;
+        }
+
+        // Cancel all pending requests
+        {
+            let mut pending = self.pending_requests.write().await;
+            for (id, pending_req) in pending.drain() {
+                            let _ = pending_req.response_sender.send(JsonRpcMessage::Response(JsonRpcResponse {
+                jsonrpc: "2.0".to_string(),
+                id: Some(ultrafast_mcp_core::protocol::jsonrpc::RequestId::Number(id as i64)),
+                result: None,
+                error: Some(ultrafast_mcp_core::protocol::jsonrpc::JsonRpcError {
+                    code: -32000,
+                    message: "Client shutdown".to_string(),
+                    data: None,
+                }),
+                meta: HashMap::new(),
+            }));
+            }
+        }
+
+        // Stop message receiver task
+        {
+            let mut receiver_guard = self.message_receiver.write().await;
+            if let Some(handle) = receiver_guard.take() {
+                handle.abort();
+            }
+        }
 
         // Update state to shutdown
         {
@@ -221,13 +342,13 @@ impl UltraFastClient {
             *state = ClientState::Shutdown;
         }
 
-        info!("MCP connection shutdown completed");
+        info!("MCP client shutdown complete");
         Ok(())
     }
 
-    /// Disconnect from the server (alias for shutdown)
+    /// Disconnect from the server
     pub async fn disconnect(&self) -> MCPResult<()> {
-        self.shutdown(None).await
+        self.shutdown(Some("Client disconnect".to_string())).await
     }
 
     /// Get current client state
@@ -253,6 +374,11 @@ impl UltraFastClient {
     /// Get the negotiated protocol version
     pub async fn get_negotiated_version(&self) -> Option<String> {
         self.negotiated_version.read().await.clone()
+    }
+
+    /// Get client info
+    pub fn info(&self) -> &ClientInfo {
+        &self.info
     }
 
     /// Check if a server capability is supported
@@ -283,10 +409,9 @@ impl UltraFastClient {
     async fn ensure_capability_supported(&self, capability: &str) -> MCPResult<()> {
         if !self.check_server_capability(capability).await? {
             return Err(MCPError::Protocol(
-                ultrafast_mcp_core::error::ProtocolError::CapabilityNotSupported(format!(
-                    "Server does not support {} capability",
-                    capability
-                )),
+                ultrafast_mcp_core::error::ProtocolError::CapabilityNotSupported(
+                    format!("Capability '{}' not supported by server", capability)
+                )
             ));
         }
         Ok(())
@@ -300,7 +425,7 @@ impl UltraFastClient {
             .await
     }
 
-    /// List available tools with default parameters
+    /// List available tools with default request
     pub async fn list_tools_default(&self) -> MCPResult<ListToolsResponse> {
         self.list_tools(ListToolsRequest::default()).await
     }
@@ -335,23 +460,19 @@ impl UltraFastClient {
             .await
     }
 
-    /// Subscribe to a resource (if supported)
+    /// Subscribe to resource changes
     pub async fn subscribe_resource(&self, uri: String) -> MCPResult<()> {
         self.ensure_operational().await?;
         self.ensure_capability_supported("resources").await?;
 
-        // Check if resource subscriptions are supported
-        if !self.check_server_feature("resources", "subscribe").await? {
-            return Err(MCPError::Protocol(
-                ultrafast_mcp_core::error::ProtocolError::CapabilityNotSupported(
-                    "Server does not support resource subscriptions".to_string(),
-                ),
-            ));
-        }
+        let subscribe_request = ultrafast_mcp_core::types::resources::SubscribeRequest {
+            uri,
+        };
 
-        let request = serde_json::json!({ "uri": uri });
-        self.send_request::<()>("resources/subscribe", Some(request))
-            .await
+        self.send_request::<()>("resources/subscribe", Some(serde_json::to_value(subscribe_request)?))
+            .await?;
+
+        Ok(())
     }
 
     /// List available prompts
@@ -365,7 +486,7 @@ impl UltraFastClient {
             .await
     }
 
-    /// Get a specific prompt
+    /// Get a prompt
     pub async fn get_prompt(&self, request: GetPromptRequest) -> MCPResult<GetPromptResponse> {
         self.ensure_operational().await?;
         self.ensure_capability_supported("prompts").await?;
@@ -373,7 +494,7 @@ impl UltraFastClient {
             .await
     }
 
-    /// Create a message using sampling
+    /// Create a message (sampling)
     pub async fn create_message(
         &self,
         request: CreateMessageRequest,
@@ -417,25 +538,19 @@ impl UltraFastClient {
         request: ElicitationRequest,
     ) -> MCPResult<ElicitationResponse> {
         self.ensure_operational().await?;
-
-        // Check protocol version support for elicitation
-        let negotiated_version = self.get_negotiated_version().await.ok_or_else(|| {
-            MCPError::invalid_request("Protocol version not negotiated".to_string())
-        })?;
-
-        if !ultrafast_mcp_core::protocol::capabilities::CapabilityNegotiator::version_supports_feature(&negotiated_version, "elicitation") {
-            return Err(MCPError::Protocol(
-                ultrafast_mcp_core::error::ProtocolError::CapabilityNotSupported(
-                    format!("Elicitation not supported in protocol version {}", negotiated_version)
-                )
-            ));
-        }
-
+        self.ensure_capability_supported("elicitation").await?;
         self.send_request("elicitation/request", Some(serde_json::to_value(request)?))
             .await
     }
 
-    /// Ensure the client is in operational state
+    /// List available roots
+    pub async fn list_roots(&self) -> MCPResult<Vec<ultrafast_mcp_core::types::roots::Root>> {
+        self.ensure_operational().await?;
+        self.ensure_capability_supported("roots").await?;
+        self.send_request("roots/list", None).await
+    }
+
+    /// Ensure client is in operational state
     async fn ensure_operational(&self) -> MCPResult<()> {
         if !self.can_operate().await {
             return Err(MCPError::invalid_request(
@@ -448,118 +563,102 @@ impl UltraFastClient {
     /// Generate a unique request ID
     async fn generate_request_id(&self) -> u64 {
         let mut counter = self.request_id_counter.write().await;
+        let id = *counter;
         *counter += 1;
-        *counter
+        id
     }
 
-    /// Send a request and wait for response
+    /// Send a request and wait for response with proper correlation
     async fn send_request<T>(&self, method: &str, params: Option<Value>) -> MCPResult<T>
     where
         T: serde::de::DeserializeOwned,
     {
         let request_id = self.generate_request_id().await;
-        let request = JsonRpcRequest::new(method.to_string(), params, Some(request_id.into()));
-
         debug!("Sending request: {} (id: {})", method, request_id);
 
-        // Get mutable transport reference for sending
-        let mut transport_guard = self.transport.write().await;
-        let transport = transport_guard
-            .as_mut()
-            .ok_or_else(|| MCPError::internal_error("No transport available".to_string()))?;
+        // Create request
+        let request = JsonRpcRequest {
+            jsonrpc: "2.0".to_string(),
+            id: Some(ultrafast_mcp_core::protocol::jsonrpc::RequestId::Number(request_id as i64)),
+            method: method.to_string(),
+            params,
+            meta: HashMap::new(),
+        };
+
+        // Create response channel
+        let (response_sender, response_receiver) = oneshot::channel();
+
+        // Register pending request
+        {
+            let mut pending = self.pending_requests.write().await;
+            pending.insert(request_id, PendingRequest {
+                response_sender,
+                timeout: tokio::time::Instant::now() + self.request_timeout,
+            });
+        }
 
         // Send request
-        transport
-            .send_message(JsonRpcMessage::Request(request))
+        {
+            let mut transport_guard = self.transport.write().await;
+            let transport = transport_guard
+                .as_mut()
+                .ok_or_else(|| MCPError::internal_error("No transport available".to_string()))?;
+
+            transport.send_message(JsonRpcMessage::Request(request)).await
+                .map_err(|e| MCPError::internal_error(format!("Failed to send request: {}", e)))?;
+        }
+
+        // Wait for response with timeout
+        let response = tokio::time::timeout(self.request_timeout, response_receiver)
             .await
-            .map_err(|e| MCPError::internal_error(format!("Failed to send request: {}", e)))?;
+            .map_err(|_| MCPError::internal_error("Request timeout".to_string()))?
+            .map_err(|_| MCPError::internal_error("Response channel closed".to_string()))?;
 
-        // Wait for response
-        drop(transport_guard); // Release lock before waiting for response
-        let response = self.wait_for_response(request_id).await?;
+        // Clean up pending request
+        {
+            let mut pending = self.pending_requests.write().await;
+            pending.remove(&request_id);
+        }
 
+        // Parse response
         match response {
-            JsonRpcMessage::Response(jsonrpc_response) => {
-                if let Some(result) = jsonrpc_response.result {
-                    let value: T = serde_json::from_value(result).map_err(|e| {
-                        MCPError::internal_error(format!("Failed to deserialize response: {}", e))
-                    })?;
-                    Ok(value)
-                } else if let Some(error) = jsonrpc_response.error {
-                    Err(MCPError::invalid_request(format!(
-                        "Server error: {}",
-                        error.message
-                    )))
+            JsonRpcMessage::Response(response) => {
+                if let Some(error) = response.error {
+                    return Err(MCPError::from(error));
+                }
+
+                if let Some(result) = response.result {
+                    serde_json::from_value(result)
+                        .map_err(|e| MCPError::serialization_error(e.to_string()))
                 } else {
-                    Err(MCPError::internal_error(
-                        "Invalid response format".to_string(),
-                    ))
+                    Err(MCPError::internal_error("Response has no result".to_string()))
                 }
             }
-            _ => Err(MCPError::internal_error(
-                "Unexpected message type".to_string(),
-            )),
+            _ => Err(MCPError::internal_error("Unexpected message type".to_string())),
         }
     }
 
-    /// Send a notification
+    /// Send a notification (one-way message)
     async fn send_notification(&self, method: &str, params: Option<Value>) -> MCPResult<()> {
-        let notification = JsonRpcRequest::notification(method.to_string(), params);
-
         debug!("Sending notification: {}", method);
 
-        // Get mutable transport reference for sending
+        let notification = JsonRpcRequest {
+            jsonrpc: "2.0".to_string(),
+            id: None,
+            method: method.to_string(),
+            params,
+            meta: HashMap::new(),
+        };
+
         let mut transport_guard = self.transport.write().await;
         let transport = transport_guard
             .as_mut()
             .ok_or_else(|| MCPError::internal_error("No transport available".to_string()))?;
 
-        transport
-            .send_message(JsonRpcMessage::Notification(notification))
-            .await
+        transport.send_message(JsonRpcMessage::Request(notification)).await
             .map_err(|e| MCPError::internal_error(format!("Failed to send notification: {}", e)))?;
 
         Ok(())
-    }
-
-    /// Wait for a specific response
-    async fn wait_for_response(&self, request_id: u64) -> MCPResult<JsonRpcMessage> {
-        // This is a simplified implementation
-        // In a real implementation, you would need to maintain a map of pending requests
-        // and handle the message routing properly
-
-        // Get mutable transport reference for receiving
-        let mut transport_guard = self.transport.write().await;
-        let transport = transport_guard
-            .as_mut()
-            .ok_or_else(|| MCPError::internal_error("No transport available".to_string()))?;
-
-        // For now, we'll just wait for any message and assume it's the response
-        // This is not ideal but works for basic functionality
-        loop {
-            match transport.receive_message().await {
-                Ok(message) => {
-                    if let JsonRpcMessage::Response(response) = &message {
-                        if let Some(id) = &response.id {
-                            if let Ok(id_num) =
-                                serde_json::from_value::<u64>(serde_json::to_value(id)?)
-                            {
-                                if id_num == request_id {
-                                    return Ok(message);
-                                }
-                            }
-                        }
-                    }
-                    // Continue waiting for the correct response
-                }
-                Err(e) => {
-                    return Err(MCPError::internal_error(format!(
-                        "Failed to receive response: {}",
-                        e
-                    )));
-                }
-            }
-        }
     }
 }
 
@@ -569,6 +668,7 @@ impl std::fmt::Debug for UltraFastClient {
             .field("info", &self.info)
             .field("capabilities", &self.capabilities)
             .field("state", &self.state)
+            .field("request_timeout", &self.request_timeout)
             .finish()
     }
 }
@@ -583,6 +683,16 @@ mod tests {
         let capabilities = ClientCapabilities::default();
 
         let client = UltraFastClient::new(info, capabilities);
+        assert_eq!(client.get_state().await, ClientState::Uninitialized);
+    }
+
+    #[tokio::test]
+    async fn test_client_creation_with_timeout() {
+        let info = ClientInfo::new("test-client".to_string(), "1.0.0".to_string());
+        let capabilities = ClientCapabilities::default();
+        let timeout = std::time::Duration::from_secs(60);
+
+        let client = UltraFastClient::new_with_timeout(info, capabilities, timeout);
         assert_eq!(client.get_state().await, ClientState::Uninitialized);
     }
 

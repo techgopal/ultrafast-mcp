@@ -874,7 +874,7 @@ mod tests {
         let jsonrpc_err: crate::protocol::jsonrpc::JsonRpcError = mcp_err.into();
         
         assert_eq!(jsonrpc_err.code, error_codes::METHOD_NOT_FOUND);
-        assert_eq!(jsonrpc_err.message, Some("test_method".to_string()));
+        assert_eq!(jsonrpc_err.message, "test_method".to_string());
     }
 
     #[test]

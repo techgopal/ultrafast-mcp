@@ -153,7 +153,7 @@
 //!
 //! ```rust
 //! use ultrafast_mcp_server::{UltraFastServer, ToolHandler, ResourceHandler, PromptHandler};
-//! use ultrafast_mcp_core::types::tools::{ToolCall, ToolResult, ListToolsRequest, ListToolsResponse};
+//! use ultrafast_mcp_core::types::tools::{ToolCall, ToolResult, ListToolsRequest, ListToolsResponse, ToolContent};
 //! use ultrafast_mcp_core::types::resources::{ReadResourceRequest, ReadResourceResponse};
 //! use ultrafast_mcp_core::types::prompts::{GetPromptRequest, GetPromptResponse};
 //! use ultrafast_mcp_core::error::{MCPError, MCPResult};
@@ -184,7 +184,6 @@
 //!     async fn read_resource(&self, _request: ReadResourceRequest) -> MCPResult<ReadResourceResponse> {
 //!         Ok(ReadResourceResponse {
 //!             contents: vec![],
-//!             mime_type: "text/plain".to_string(),
 //!         })
 //!     }
 //!     async fn list_resources(&self, _request: ultrafast_mcp_core::types::resources::ListResourcesRequest) -> MCPResult<ultrafast_mcp_core::types::resources::ListResourcesResponse> {
@@ -207,6 +206,7 @@
 //! impl PromptHandler for TemplatePromptHandler {
 //!     async fn get_prompt(&self, _request: GetPromptRequest) -> MCPResult<GetPromptResponse> {
 //!         Ok(GetPromptResponse {
+//!             description: None,
 //!             messages: vec![],
 //!         })
 //!     }

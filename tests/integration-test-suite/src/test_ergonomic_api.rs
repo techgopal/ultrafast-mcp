@@ -3,28 +3,28 @@
 //! These tests verify that the high-level API works correctly and provides
 //! the expected developer experience.
 
-use async_trait::async_trait;
-use serde::{Deserialize, Serialize};
-use serde_json::json;
-use std::sync::Arc;
-use tokio::time::{timeout, Duration};
-use ultrafast_mcp::{UltraFastClient, UltraFastServer};
-use ultrafast_mcp_core::types::resources::{
-    ListResourceTemplatesRequest, ListResourceTemplatesResponse, ListResourcesRequest,
-    ListResourcesResponse, ReadResourceRequest, ReadResourceResponse, Resource, ResourceContent,
-    ResourceTemplate,
-};
-use ultrafast_mcp_core::types::tools::{ListToolsRequest, ListToolsResponse, ToolContent};
-use ultrafast_mcp_core::{
-    error::{MCPError, MCPResult},
-    protocol::capabilities::{ClientCapabilities, ServerCapabilities, ToolsCapability},
-    types::{
-        client::ClientInfo,
-        server::ServerInfo,
-        tools::{Tool, ToolCall, ToolResult},
-    },
-};
-use ultrafast_mcp_server::{ResourceHandler, ToolHandler};
+#[cfg(test)]
+mod tests {
+    use serde::{Deserialize, Serialize};
+    use std::sync::Arc;
+    use tokio::time::{timeout, Duration};
+    use ultrafast_mcp::{UltraFastClient, UltraFastServer};
+    use ultrafast_mcp_core::types::resources::{
+        ListResourceTemplatesRequest, ListResourceTemplatesResponse, ListResourcesRequest,
+        ListResourcesResponse, ReadResourceRequest, ReadResourceResponse, Resource, ResourceContent,
+        ResourceTemplate,
+    };
+    use ultrafast_mcp_core::types::tools::{ListToolsRequest, ListToolsResponse, ToolContent};
+    use ultrafast_mcp_core::{
+        error::{MCPError, MCPResult},
+        protocol::capabilities::{ClientCapabilities, ServerCapabilities, ToolsCapability},
+        types::{
+            client::ClientInfo,
+            server::ServerInfo,
+            tools::{Tool, ToolCall, ToolResult},
+        },
+    };
+    use ultrafast_mcp_server::{ResourceHandler, ToolHandler};
 
 #[derive(Debug, Serialize, Deserialize)]
 struct TestRequest {
@@ -201,10 +201,10 @@ async fn test_client_creation() {
 
     let client_capabilities = ClientCapabilities::default();
 
-    let client = UltraFastClient::new(client_info, client_capabilities);
+    let _client = UltraFastClient::new(client_info, client_capabilities);
 
+    // Test that client is created successfully
     // Note: UltraFastClient doesn't expose info() method directly
-    // We can only test that it was created successfully
 
     println!("✅ Client creation test passed!");
 }
@@ -396,7 +396,7 @@ async fn test_capability_negotiation() {
         ..Default::default()
     };
 
-    let client_capabilities = ClientCapabilities::default();
+    let _client_capabilities = ClientCapabilities::default();
 
     // Test that capabilities can be created
     assert!(server_capabilities.tools.is_some());
@@ -407,11 +407,7 @@ async fn test_capability_negotiation() {
 #[tokio::test]
 async fn test_transport_config() {
     // Test that we can create transport configurations
-    let config = ultrafast_mcp_transport::TransportConfig::Stdio;
-
-    if let ultrafast_mcp_transport::TransportConfig::Stdio = config {
-        // This is the only currently supported config
-    }
+    let _config = ultrafast_mcp_transport::TransportConfig::Stdio;
 
     println!("✅ Transport config test passed!");
 }
@@ -570,10 +566,11 @@ async fn test_memory_usage() {
         // Commented out: assert_eq!(server.info().description, None);
     }
 
-    for (i, client) in clients.iter().enumerate() {
+    for (_i, _client) in clients.iter().enumerate() {
         // Note: UltraFastClient doesn't expose info() method directly
         // We can only test that it was created successfully
     }
 
     println!("✅ Memory usage test passed!");
+}
 }

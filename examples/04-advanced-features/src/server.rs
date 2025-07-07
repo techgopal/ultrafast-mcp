@@ -618,6 +618,7 @@ impl CompletionHandler for AdvancedCompletionHandler {
             completion: completion::Completion::new(vec![completion::CompletionValue::new(
                 "completion",
             )]),
+            metadata: None,
         })
     }
 }
@@ -648,6 +649,8 @@ impl ElicitationHandler for AdvancedElicitationHandler {
             step: None,
             value: serde_json::json!("elicitation response"),
             cancelled: None,
+            validation_errors: None,
+            timestamp: None,
         })
     }
 }

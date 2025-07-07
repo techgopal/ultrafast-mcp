@@ -249,7 +249,7 @@ impl FileOperationsHandler {
             content,
             size: metadata.len(),
             modified: chrono::DateTime::<chrono::Utc>::from(
-                metadata.modified().unwrap_or_else(|| std::time::SystemTime::now()),
+                metadata.modified().unwrap_or_else(|_| std::time::SystemTime::now()),
             )
             .to_rfc3339(),
             path: request.path,
@@ -358,7 +358,7 @@ impl FileOperationsHandler {
                     None
                 },
                 modified: chrono::DateTime::<chrono::Utc>::from(
-                    metadata.modified().unwrap_or_else(|| std::time::SystemTime::now()),
+                    metadata.modified().unwrap_or_else(|_| std::time::SystemTime::now()),
                 )
                 .to_rfc3339()
                 .into(),

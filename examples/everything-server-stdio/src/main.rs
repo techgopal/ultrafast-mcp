@@ -591,6 +591,7 @@ impl CompletionHandler for EverythingCompletionHandler {
 
                 Ok(completion::CompleteResponse {
                     completion: completion::Completion::new(values),
+                    metadata: None,
                 })
             }
             "ref/prompt" => {
@@ -616,10 +617,12 @@ impl CompletionHandler for EverythingCompletionHandler {
 
                 Ok(completion::CompleteResponse {
                     completion: completion::Completion::new(filtered_values),
+                    metadata: None,
                 })
             }
             _ => Ok(completion::CompleteResponse {
                 completion: completion::Completion::new(vec![]),
+                metadata: None,
             }),
         }
     }
@@ -649,6 +652,8 @@ impl ElicitationHandler for EverythingElicitationHandler {
             step: Some(1),
             value: serde_json::json!("elicitation response"),
             cancelled: Some(false),
+            validation_errors: None,
+            timestamp: None,
         })
     }
 }
