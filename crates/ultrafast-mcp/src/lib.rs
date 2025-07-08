@@ -243,14 +243,14 @@
 //! ### Transport Configuration
 //!
 //! ```no_run
-//! use ultrafast_mcp::{TransportConfig, UltraFastClient, ClientInfo, ClientCapabilities};
+//! use ultrafast_mcp::{TransportConfig, ClientInfo, ClientCapabilities};
 //!
 //! #[tokio::main]
 //! async fn main() -> anyhow::Result<()> {
 //!     // Configure custom transport
 //!     let transport_config = TransportConfig::Stdio;
 //!
-//!     // Create client
+//!     // Create client info
 //!     let client_info = ClientInfo {
 //!         name: "example-client".to_string(),
 //!         version: "1.0.0".to_string(),
@@ -261,10 +261,8 @@
 //!         license: None,
 //!     };
 //!     let capabilities = ClientCapabilities::default();
-//!     let client = UltraFastClient::new(client_info, capabilities);
 //!     
-//!     // Connect using STDIO transport
-//!     client.connect_stdio().await?;
+//!     // Note: Client implementation is available in ultrafast-mcp-client crate
 //!     
 //!     Ok(())
 //! }
@@ -276,7 +274,6 @@
 //!
 //! - **[`ultrafast-mcp-core`]**: Core protocol implementation and types
 //! - **[`ultrafast-mcp-server`]**: Server implementation and handler traits
-//! - **[`ultrafast-mcp-client`]**: Client implementation and connection management
 //! - **[`ultrafast-mcp-transport`]**: Transport layer with HTTP, STDIO, and custom options
 //! - **[`ultrafast-mcp-auth`]**: Authentication and authorization support
 //! - **[`ultrafast-mcp-monitoring`]**: Observability and monitoring capabilities
@@ -446,6 +443,8 @@ pub use ultrafast_mcp_core::protocol::capabilities::{
 // =========================
 // Server API
 // =========================
+// Use handler traits from server crate
+#[cfg(not(doc))]
 pub use ultrafast_mcp_server::{
     CompletionHandler, Context, ContextLogger, ElicitationHandler, LoggerConfig, PromptHandler,
     ResourceHandler, ResourceSubscriptionHandler, RootsHandler, SamplingHandler,

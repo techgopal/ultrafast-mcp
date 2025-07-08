@@ -20,11 +20,11 @@ targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
 # Internal dependencies
-ultrafast-mcp-core = { path = "../ultrafast-mcp-core", version = "20250618.1.0-rc.2" }
-ultrafast-mcp-server = { path = "../ultrafast-mcp-server", version = "20250618.1.0-rc.2" }
-ultrafast-mcp-client = { path = "../ultrafast-mcp-client", version = "20250618.1.0-rc.2" }
-ultrafast-mcp-transport = { path = "../ultrafast-mcp-transport", version = "20250618.1.0-rc.2" }
-ultrafast-mcp-auth = { path = "../ultrafast-mcp-auth", version = "20250618.1.0-rc.2", optional = true }
+ultrafast-mcp-core = { path = "../ultrafast-mcp-core", version = "202506018.1.0-rc.1.4" }
+ultrafast-mcp-server = { path = "../ultrafast-mcp-server", version = "202506018.1.0-rc.1.4" }
+ultrafast-mcp-client = { path = "../ultrafast-mcp-client", version = "202506018.1.0-rc.1.4" }
+ultrafast-mcp-transport = { path = "../ultrafast-mcp-transport", version = "202506018.1.0-rc.1.4" }
+ultrafast-mcp-auth = { path = "../ultrafast-mcp-auth", version = "202506018.1.0-rc.1.4", optional = true }
 # ultrafast-mcp-macros dependency removed - macros were stub implementations
 
 # Runtime dependencies
@@ -73,7 +73,7 @@ default = []
 # Enables monitoring and metrics collection
 monitoring = ["ultrafast-mcp-monitoring"]
 # Enables HTTP transport support
-http = ["ultrafast-mcp-transport/http", "ultrafast-mcp-client/http", "ultrafast-mcp-server/http", "axum", "reqwest", "tower", "tower-http"]
+http = ["ultrafast-mcp-transport/http", "ultrafast-mcp-server/http", "axum", "reqwest", "tower", "tower-http"]
 # Enables OAuth authentication support
 oauth = ["ultrafast-mcp-auth/oauth", "oauth2", "jsonwebtoken", "base64", "url", "rand", "sha2"]
 # Enables all features
