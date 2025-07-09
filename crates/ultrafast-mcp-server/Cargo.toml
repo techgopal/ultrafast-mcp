@@ -19,9 +19,9 @@ rustdoc-args = ["--cfg", "docsrs"]
 targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
-ultrafast-mcp-core = { path = "../ultrafast-mcp-core", version = "20250618.1.0-rc.2" }
-ultrafast-mcp-transport = { path = "../ultrafast-mcp-transport", version = "20250618.1.0-rc.2" }
-ultrafast-mcp-monitoring = { path = "../ultrafast-mcp-monitoring", version = "20250618.1.0-rc.2", optional = true }
+ultrafast-mcp-core = { path = "../ultrafast-mcp-core" }
+ultrafast-mcp-transport = { path = "../ultrafast-mcp-transport" }
+ultrafast-mcp-monitoring = { path = "../ultrafast-mcp-monitoring", optional = true }
 
 # Async runtime
 tokio = { workspace = true }

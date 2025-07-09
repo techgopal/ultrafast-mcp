@@ -461,7 +461,7 @@ impl MonitoringSystem {
 
         // Add basic health checks
         health_checker
-            .add_check(Box::new(health::SystemHealthCheck::new()))
+            .add_check(Box::new(health::SystemHealthCheck::new("system")))
             .await;
 
         let metrics_collector = Arc::new(MetricsCollector::new());
@@ -486,7 +486,7 @@ impl MonitoringSystem {
     /// Initialize health checks asynchronously
     pub async fn init_health_checks(&self) -> Result<()> {
         self.health_checker
-            .add_check(Box::new(health::SystemHealthCheck::new()))
+            .add_check(Box::new(health::SystemHealthCheck::new("system")))
             .await;
         Ok(())
     }
@@ -507,7 +507,7 @@ impl MonitoringSystem {
                 get({
                     let health = self.health_checker.clone();
                     move || async move {
-                        match health.check_all().await {
+                        match health.get_overall_health().await {
                             HealthStatus::Healthy => "OK",
                             HealthStatus::Unhealthy(_) => "UNHEALTHY",
                             HealthStatus::Degraded(_) => "DEGRADED",

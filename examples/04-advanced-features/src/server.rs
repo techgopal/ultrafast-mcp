@@ -465,7 +465,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         loop {
             tokio::time::sleep(tokio::time::Duration::from_secs(30)).await;
 
-            match health_monitor.health().check_all().await {
+            match health_monitor.health().get_overall_health().await {
                 HealthStatus::Healthy => {
                     info!("System health check: All systems healthy");
                 }
@@ -552,6 +552,7 @@ impl HealthCheck for DatabaseHealthCheck {
             status,
             duration: start.elapsed(),
             timestamp: std::time::SystemTime::now(),
+            details: None,
         }
     }
 
@@ -570,13 +571,14 @@ impl HealthCheck for FileSystemHealthCheck {
         // Check if /tmp directory is writable
         let status = match std::fs::metadata("/tmp") {
             Ok(metadata) if metadata.is_dir() => HealthStatus::Healthy,
-            _ => HealthStatus::Unhealthy("Cannot access /tmp directory".to_string()),
+            _ => HealthStatus::Unhealthy(vec!["Cannot access /tmp directory".to_string()]),
         };
 
         HealthCheckResult {
             status,
             duration: start.elapsed(),
             timestamp: std::time::SystemTime::now(),
+            details: None,
         }
     }
 

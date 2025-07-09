@@ -40,7 +40,10 @@ opentelemetry-otlp = { workspace = true, optional = true }
 # Tracing integration
 tracing = { workspace = true }
 tracing-opentelemetry = { workspace = true, optional = true }
-tracing-subscriber = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["time"] }
+
+# UUID generation
+uuid = { workspace = true, features = ["v4"] }
 
 # Metrics
 metrics = { workspace = true, optional = true }

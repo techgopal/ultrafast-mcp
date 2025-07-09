@@ -75,7 +75,7 @@ description = "UltraFast MCP - High-performance Model Context Protocol implement
 
 [workspace.dependencies]
 # Core runtime dependencies
-tokio = { version = "1.46", features = ["full"] }
+tokio = { version = "1.46", features = ["macros", "rt-multi-thread", "net", "time", "sync", "io-util", "signal", "process"] }
 tokio-util = { version = "0.7", features = ["codec"] }
 tokio-stream = { version = "0.1", features = ["sync"] }
 serde = { version = "1.0", features = ["derive"] }
