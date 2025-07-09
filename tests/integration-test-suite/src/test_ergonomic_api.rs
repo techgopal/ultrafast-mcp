@@ -92,6 +92,7 @@ mod tests {
                         "required": ["message", "count"]
                     }),
                     output_schema: None,
+                    annotations: None,
                 }],
                 next_cursor: None,
             })

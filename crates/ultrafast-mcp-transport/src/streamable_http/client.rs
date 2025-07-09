@@ -6,7 +6,7 @@
 use crate::{Result, Transport, TransportError};
 use async_trait::async_trait;
 use ultrafast_mcp_auth::{OAuthClient, OAuthConfig};
-use ultrafast_mcp_core::protocol::JsonRpcMessage;
+use ultrafast_mcp_core::protocol::{JsonRpcMessage, jsonrpc::{JsonRpcRequest, RequestId}};
 
 /// Streamable HTTP client configuration
 #[derive(Debug, Clone)]
@@ -146,7 +146,7 @@ impl StreamableHttpClient {
 
         // For Streamable HTTP, we establish a session by sending an initialize request
         let initialize_request =
-            JsonRpcMessage::Request(ultrafast_mcp_core::protocol::JsonRpcRequest {
+            JsonRpcMessage::Request(JsonRpcRequest {
                 jsonrpc: "2.0".to_string(),
                 method: "initialize".to_string(),
                 params: Some(serde_json::json!({
@@ -157,9 +157,7 @@ impl StreamableHttpClient {
                         "version": "1.0.0"
                     }
                 })),
-                id: Some(ultrafast_mcp_core::protocol::RequestId::String(
-                    "1".to_string(),
-                )),
+                id: Some(RequestId::String("1".to_string())),
                 meta: std::collections::HashMap::new(),
             });
 

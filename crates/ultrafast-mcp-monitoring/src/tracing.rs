@@ -3,13 +3,10 @@
 //! This module provides comprehensive distributed tracing capabilities for MCP servers
 //! and clients, including OpenTelemetry integration, span management, and trace export.
 
-use std::sync::Arc;
 use tracing::{debug, error, info, warn, Level};
 use tracing_subscriber::{
     fmt::{format::FmtSpan, time::UtcTime},
-    layer::SubscriberExt,
-    util::SubscriberInitExt,
-    EnvFilter, Registry,
+    EnvFilter,
 };
 
 /// Configuration for tracing system
@@ -126,9 +123,9 @@ impl TracingSystem {
         name: &str,
         attrs: &[(&str, &str)],
     ) -> tracing::Span {
-        let mut span = tracing::info_span!("operation", name = name);
+        let span = tracing::info_span!("operation", name = name);
         
-        for (key, value) in attrs.iter().take(self.config.max_attributes) {
+        for (_key, _value) in attrs.iter().take(self.config.max_attributes) {
             // TODO: tracing::Span::record only supports static keys, so dynamic keys are not supported here.
             // span.record(key, value);
         }
@@ -373,16 +370,16 @@ mod tests {
     #[test]
     fn test_tracing_utils_spans() {
         let span = TracingUtils::mcp_request_span("test_method", "test_id");
-        assert_eq!(span.name(), "mcp_request");
+        assert_eq!(span.metadata().expect("span should have metadata").name(), "mcp_request");
 
         let span = TracingUtils::tool_execution_span("test_tool", "test_id");
-        assert_eq!(span.name(), "tool_execution");
+        assert_eq!(span.metadata().expect("span should have metadata").name(), "tool_execution");
 
         let span = TracingUtils::resource_operation_span("read", "test://uri");
-        assert_eq!(span.name(), "resource_operation");
+        assert_eq!(span.metadata().expect("span should have metadata").name(), "resource_operation");
 
         let span = TracingUtils::transport_operation_span("send", "http");
-        assert_eq!(span.name(), "transport_operation");
+        assert_eq!(span.metadata().expect("span should have metadata").name(), "transport_operation");
     }
 
     #[test]

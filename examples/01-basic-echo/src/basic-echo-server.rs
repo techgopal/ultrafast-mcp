@@ -101,6 +101,7 @@ impl ToolHandler for EchoToolHandler {
                     }
                 }),
                 output_schema: None,
+                annotations: None,
             }],
             next_cursor: None,
         })

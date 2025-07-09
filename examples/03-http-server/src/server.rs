@@ -124,6 +124,7 @@ impl ToolHandler for HttpOperationsHandler {
                         "required": ["url"]
                     }),
                     output_schema: None,
+                    annotations: None,
                 },
                 Tool {
                     name: "http_post".to_string(),
@@ -147,6 +148,7 @@ impl ToolHandler for HttpOperationsHandler {
                         "required": ["url"]
                     }),
                     output_schema: None,
+                    annotations: None,
                 },
                 Tool {
                     name: "http_status".to_string(),
@@ -162,6 +164,7 @@ impl ToolHandler for HttpOperationsHandler {
                         "required": ["url"]
                     }),
                     output_schema: None,
+                    annotations: None,
                 },
                 Tool {
                     name: "http_info".to_string(),
@@ -177,6 +180,7 @@ impl ToolHandler for HttpOperationsHandler {
                         "required": ["url"]
                     }),
                     output_schema: None,
+                    annotations: None,
                 },
             ],
             next_cursor: None,

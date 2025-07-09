@@ -5,7 +5,7 @@
 
 use std::sync::Arc;
 use std::time::Instant;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, info};
 
 use crate::metrics::MetricsCollector;
 

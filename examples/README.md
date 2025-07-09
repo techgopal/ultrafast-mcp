@@ -92,6 +92,23 @@ A comprehensive example demonstrating all MCP capabilities:
 - Dynamic resource management
 - Prompt generation
 
+### 5. [Lifecycle Compliance](./05-lifecycle-compliance/) - MCP 2025-06-18 Compliance
+**Difficulty**: Intermediate  
+**Focus**: Protocol compliance and timeout management
+
+A demonstration of MCP 2025-06-18 lifecycle compliance improvements:
+- Proper state transitions (Initialized → Operating)
+- Comprehensive timeout configuration
+- High-performance and long-running operation presets
+- Operation-specific timeout handling
+
+**Key Features**:
+- Protocol-compliant state management
+- Configurable timeout system with presets
+- Timeout validation and error handling
+- Progress tracking with configurable intervals
+- Cancellation notification support
+
 ## Common Patterns
 
 ### Server Creation

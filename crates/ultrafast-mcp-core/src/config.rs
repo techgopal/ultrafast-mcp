@@ -32,101 +32,200 @@ pub const DEFAULT_LOG_LEVEL: &str = "info";
 pub const MAX_LOG_MESSAGE_LENGTH: usize = 10000;
 pub const DEFAULT_LOG_FORMAT: &str = "json";
 
+/// Timeout configuration constants (MCP 2025-06-18 compliance)
+pub const DEFAULT_INITIALIZE_TIMEOUT: u64 = 30;      // 30 seconds for initialization
+pub const DEFAULT_OPERATION_TIMEOUT: u64 = 300;      // 5 minutes for normal operations
+pub const DEFAULT_TOOL_CALL_TIMEOUT: u64 = 60;       // 1 minute for tool calls
+pub const DEFAULT_RESOURCE_TIMEOUT: u64 = 30;        // 30 seconds for resource operations
+pub const DEFAULT_SAMPLING_TIMEOUT: u64 = 600;       // 10 minutes for sampling operations
+pub const DEFAULT_ELICITATION_TIMEOUT: u64 = 300;    // 5 minutes for elicitation
+pub const DEFAULT_COMPLETION_TIMEOUT: u64 = 30;      // 30 seconds for completion
+pub const DEFAULT_PING_TIMEOUT: u64 = 10;            // 10 seconds for ping/pong
+pub const DEFAULT_SHUTDOWN_TIMEOUT: u64 = 30;        // 30 seconds for graceful shutdown
+pub const MAX_OPERATION_TIMEOUT: u64 = 3600;         // 1 hour maximum timeout
+pub const MIN_OPERATION_TIMEOUT: u64 = 1;            // 1 second minimum timeout
+
+/// Progress notification configuration
+pub const DEFAULT_PROGRESS_INTERVAL: u64 = 5;        // 5 seconds between progress updates
+pub const MAX_PROGRESS_INTERVAL: u64 = 60;           // 1 minute maximum progress interval
+pub const MIN_PROGRESS_INTERVAL: u64 = 1;            // 1 second minimum progress interval
+
+/// Cancellation configuration
+pub const DEFAULT_CANCELLATION_TIMEOUT: u64 = 10;    // 10 seconds for cancellation to take effect
+pub const MAX_CANCELLATION_TIMEOUT: u64 = 60;        // 1 minute maximum cancellation timeout
+
+use std::time::Duration;
+
+/// Comprehensive timeout configuration for MCP operations
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TimeoutConfig {
+    /// Timeout for initialization phase
+    pub initialize_timeout: Duration,
+    /// Timeout for normal operations
+    pub operation_timeout: Duration,
+    /// Timeout for tool calls
+    pub tool_call_timeout: Duration,
+    /// Timeout for resource operations
+    pub resource_timeout: Duration,
+    /// Timeout for sampling operations
+    pub sampling_timeout: Duration,
+    /// Timeout for elicitation operations
+    pub elicitation_timeout: Duration,
+    /// Timeout for completion operations
+    pub completion_timeout: Duration,
+    /// Timeout for ping/pong operations
+    pub ping_timeout: Duration,
+    /// Timeout for shutdown operations
+    pub shutdown_timeout: Duration,
+    /// Timeout for cancellation to take effect
+    pub cancellation_timeout: Duration,
+    /// Interval for progress notifications
+    pub progress_interval: Duration,
+    /// Maximum timeout for any operation
+    pub max_timeout: Duration,
+    /// Minimum timeout for any operation
+    pub min_timeout: Duration,
+}
+
+impl Default for TimeoutConfig {
+    fn default() -> Self {
+        Self {
+            initialize_timeout: Duration::from_secs(DEFAULT_INITIALIZE_TIMEOUT),
+            operation_timeout: Duration::from_secs(DEFAULT_OPERATION_TIMEOUT),
+            tool_call_timeout: Duration::from_secs(DEFAULT_TOOL_CALL_TIMEOUT),
+            resource_timeout: Duration::from_secs(DEFAULT_RESOURCE_TIMEOUT),
+            sampling_timeout: Duration::from_secs(DEFAULT_SAMPLING_TIMEOUT),
+            elicitation_timeout: Duration::from_secs(DEFAULT_ELICITATION_TIMEOUT),
+            completion_timeout: Duration::from_secs(DEFAULT_COMPLETION_TIMEOUT),
+            ping_timeout: Duration::from_secs(DEFAULT_PING_TIMEOUT),
+            shutdown_timeout: Duration::from_secs(DEFAULT_SHUTDOWN_TIMEOUT),
+            cancellation_timeout: Duration::from_secs(DEFAULT_CANCELLATION_TIMEOUT),
+            progress_interval: Duration::from_secs(DEFAULT_PROGRESS_INTERVAL),
+            max_timeout: Duration::from_secs(MAX_OPERATION_TIMEOUT),
+            min_timeout: Duration::from_secs(MIN_OPERATION_TIMEOUT),
+        }
+    }
+}
+
+impl TimeoutConfig {
+    /// Create a new timeout configuration with custom values
+    pub fn new(
+        initialize_timeout: Duration,
+        operation_timeout: Duration,
+        tool_call_timeout: Duration,
+        resource_timeout: Duration,
+        sampling_timeout: Duration,
+        elicitation_timeout: Duration,
+        completion_timeout: Duration,
+        ping_timeout: Duration,
+        shutdown_timeout: Duration,
+        cancellation_timeout: Duration,
+        progress_interval: Duration,
+    ) -> Self {
+        Self {
+            initialize_timeout: Self::clamp_timeout(initialize_timeout),
+            operation_timeout: Self::clamp_timeout(operation_timeout),
+            tool_call_timeout: Self::clamp_timeout(tool_call_timeout),
+            resource_timeout: Self::clamp_timeout(resource_timeout),
+            sampling_timeout: Self::clamp_timeout(sampling_timeout),
+            elicitation_timeout: Self::clamp_timeout(elicitation_timeout),
+            completion_timeout: Self::clamp_timeout(completion_timeout),
+            ping_timeout: Self::clamp_timeout(ping_timeout),
+            shutdown_timeout: Self::clamp_timeout(shutdown_timeout),
+            cancellation_timeout: Self::clamp_timeout(cancellation_timeout),
+            progress_interval: Self::clamp_progress_interval(progress_interval),
+            max_timeout: Duration::from_secs(MAX_OPERATION_TIMEOUT),
+            min_timeout: Duration::from_secs(MIN_OPERATION_TIMEOUT),
+        }
+    }
+
+    /// Create a timeout configuration optimized for high-performance scenarios
+    pub fn high_performance() -> Self {
+        Self {
+            initialize_timeout: Duration::from_secs(10),
+            operation_timeout: Duration::from_secs(60),
+            tool_call_timeout: Duration::from_secs(30),
+            resource_timeout: Duration::from_secs(15),
+            sampling_timeout: Duration::from_secs(120),
+            elicitation_timeout: Duration::from_secs(60),
+            completion_timeout: Duration::from_secs(15),
+            ping_timeout: Duration::from_secs(5),
+            shutdown_timeout: Duration::from_secs(15),
+            cancellation_timeout: Duration::from_secs(5),
+            progress_interval: Duration::from_secs(2),
+            max_timeout: Duration::from_secs(300),
+            min_timeout: Duration::from_secs(1),
+        }
+    }
+
+    /// Create a timeout configuration optimized for long-running operations
+    pub fn long_running() -> Self {
+        Self {
+            initialize_timeout: Duration::from_secs(60),
+            operation_timeout: Duration::from_secs(1800), // 30 minutes
+            tool_call_timeout: Duration::from_secs(300),  // 5 minutes
+            resource_timeout: Duration::from_secs(60),
+            sampling_timeout: Duration::from_secs(3600),  // 1 hour
+            elicitation_timeout: Duration::from_secs(600), // 10 minutes
+            completion_timeout: Duration::from_secs(60),
+            ping_timeout: Duration::from_secs(30),
+            shutdown_timeout: Duration::from_secs(60),
+            cancellation_timeout: Duration::from_secs(30),
+            progress_interval: Duration::from_secs(10),
+            max_timeout: Duration::from_secs(7200), // 2 hours
+            min_timeout: Duration::from_secs(5),
+        }
+    }
+
+    /// Get timeout for a specific operation type
+    pub fn get_timeout_for_operation(&self, operation: &str) -> Duration {
+        match operation {
+            "initialize" => self.initialize_timeout,
+            "shutdown" => self.shutdown_timeout,
+            "ping" => self.ping_timeout,
+            "tools/call" => self.tool_call_timeout,
+            "resources/read" | "resources/list" => self.resource_timeout,
+            "sampling/createMessage" => self.sampling_timeout,
+            "elicitation/request" => self.elicitation_timeout,
+            "completion/complete" => self.completion_timeout,
+            _ => self.operation_timeout,
+        }
+    }
+
+    /// Validate that a timeout is within acceptable bounds
+    pub fn validate_timeout(&self, timeout: Duration) -> bool {
+        timeout >= self.min_timeout && timeout <= self.max_timeout
+    }
+
+    /// Clamp a timeout to valid bounds
+    fn clamp_timeout(timeout: Duration) -> Duration {
+        let min = Duration::from_secs(MIN_OPERATION_TIMEOUT);
+        let max = Duration::from_secs(MAX_OPERATION_TIMEOUT);
+        timeout.clamp(min, max)
+    }
+
+    /// Clamp a progress interval to valid bounds
+    fn clamp_progress_interval(interval: Duration) -> Duration {
+        let min = Duration::from_secs(MIN_PROGRESS_INTERVAL);
+        let max = Duration::from_secs(MAX_PROGRESS_INTERVAL);
+        interval.clamp(min, max)
+    }
+
+    /// Check if progress notifications should be sent based on interval
+    pub fn should_send_progress(&self, last_progress: std::time::Instant) -> bool {
+        last_progress.elapsed() >= self.progress_interval
+    }
+}
+
 /// Validation error types
 #[derive(Debug, thiserror::Error)]
-pub enum ValidationError {
-    #[error("Tool name '{0}' exceeds maximum length of {1}")]
-    ToolNameTooLong(String, usize),
-    #[error("Method name '{0}' exceeds maximum length of {1}")]
-    MethodNameTooLong(String, usize),
-    #[error("URI '{0}' exceeds maximum length of {1}")]
-    UriTooLong(String, usize),
-    #[error("Error message '{0}' exceeds maximum length of {1}")]
-    ErrorMessageTooLong(String, usize),
-    #[error("Request ID '{0}' exceeds maximum length of {1}")]
-    RequestIdTooLong(String, usize),
-    #[error("Request ID number {0} is outside valid range [{1}, {2}]")]
-    RequestIdNumberOutOfRange(i64, i64, i64),
-    #[error("Token length {0} exceeds maximum length of {1}")]
-    TokenTooLong(usize, usize),
-    #[error("Log message length {0} exceeds maximum length of {1}")]
-    LogMessageTooLong(usize, usize),
-}
-
-/// Validation functions to enforce configuration constants
-pub fn validate_tool_name(name: &str) -> Result<(), ValidationError> {
-    if name.len() > MAX_TOOL_NAME_LENGTH {
-        return Err(ValidationError::ToolNameTooLong(
-            name.to_string(),
-            MAX_TOOL_NAME_LENGTH,
-        ));
-    }
-    Ok(())
-}
-
-pub fn validate_method_name(name: &str) -> Result<(), ValidationError> {
-    if name.len() > MAX_METHOD_NAME_LENGTH {
-        return Err(ValidationError::MethodNameTooLong(
-            name.to_string(),
-            MAX_METHOD_NAME_LENGTH,
-        ));
-    }
-    Ok(())
-}
-
-pub fn validate_uri(uri: &str) -> Result<(), ValidationError> {
-    if uri.len() > MAX_URI_LENGTH {
-        return Err(ValidationError::UriTooLong(uri.to_string(), MAX_URI_LENGTH));
-    }
-    Ok(())
-}
-
-pub fn validate_error_message(message: &str) -> Result<(), ValidationError> {
-    if message.len() > MAX_ERROR_MESSAGE_LENGTH {
-        return Err(ValidationError::ErrorMessageTooLong(
-            message.to_string(),
-            MAX_ERROR_MESSAGE_LENGTH,
-        ));
-    }
-    Ok(())
-}
-
-pub fn validate_request_id_string(id: &str) -> Result<(), ValidationError> {
-    if id.len() > MAX_REQUEST_ID_LENGTH {
-        return Err(ValidationError::RequestIdTooLong(
-            id.to_string(),
-            MAX_REQUEST_ID_LENGTH,
-        ));
-    }
-    Ok(())
-}
-
-pub fn validate_request_id_number(id: i64) -> Result<(), ValidationError> {
-    if !(MIN_REQUEST_ID_NUMBER..=MAX_REQUEST_ID_NUMBER).contains(&id) {
-        return Err(ValidationError::RequestIdNumberOutOfRange(
-            id,
-            MIN_REQUEST_ID_NUMBER,
-            MAX_REQUEST_ID_NUMBER,
-        ));
-    }
-    Ok(())
-}
-
-pub fn validate_token_length(length: usize) -> Result<(), ValidationError> {
-    if length > MAX_TOKEN_LENGTH {
-        return Err(ValidationError::TokenTooLong(length, MAX_TOKEN_LENGTH));
-    }
-    Ok(())
-}
-
-pub fn validate_log_message_length(length: usize) -> Result<(), ValidationError> {
-    if length > MAX_LOG_MESSAGE_LENGTH {
-        return Err(ValidationError::LogMessageTooLong(
-            length,
-            MAX_LOG_MESSAGE_LENGTH,
-        ));
-    }
-    Ok(())
+pub enum ConfigError {
+    #[error("Invalid timeout value: {0}")]
+    InvalidTimeout(String),
+    #[error("Invalid configuration: {0}")]
+    InvalidConfiguration(String),
+    #[error("Unsupported feature: {0}")]
+    UnsupportedFeature(String),
 }
 
 #[cfg(test)]
@@ -134,42 +233,55 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_config_constants() {
-        assert_eq!(JSONRPC_VERSION, "2.0");
+    fn test_timeout_config_default() {
+        let config = TimeoutConfig::default();
+        assert_eq!(config.initialize_timeout, Duration::from_secs(DEFAULT_INITIALIZE_TIMEOUT));
+        assert_eq!(config.operation_timeout, Duration::from_secs(DEFAULT_OPERATION_TIMEOUT));
+        assert_eq!(config.tool_call_timeout, Duration::from_secs(DEFAULT_TOOL_CALL_TIMEOUT));
     }
 
     #[test]
-    fn test_validation_functions() {
-        // Test valid inputs
-        assert!(validate_tool_name("valid_tool").is_ok());
-        assert!(validate_method_name("valid_method").is_ok());
-        assert!(validate_uri("file:///valid/path").is_ok());
-        assert!(validate_error_message("valid error").is_ok());
-        assert!(validate_request_id_string("valid_id").is_ok());
-        assert!(validate_request_id_number(0).is_ok());
-        assert!(validate_token_length(100).is_ok());
-        assert!(validate_log_message_length(100).is_ok());
+    fn test_timeout_config_high_performance() {
+        let config = TimeoutConfig::high_performance();
+        assert_eq!(config.initialize_timeout, Duration::from_secs(10));
+        assert_eq!(config.operation_timeout, Duration::from_secs(60));
+        assert_eq!(config.progress_interval, Duration::from_secs(2));
+    }
 
-        // Test invalid inputs
-        let long_tool_name = "a".repeat(MAX_TOOL_NAME_LENGTH + 1);
-        assert!(validate_tool_name(&long_tool_name).is_err());
+    #[test]
+    fn test_timeout_config_long_running() {
+        let config = TimeoutConfig::long_running();
+        assert_eq!(config.operation_timeout, Duration::from_secs(1800));
+        assert_eq!(config.sampling_timeout, Duration::from_secs(3600));
+        assert_eq!(config.progress_interval, Duration::from_secs(10));
+    }
 
-        let long_method_name = "a".repeat(MAX_METHOD_NAME_LENGTH + 1);
-        assert!(validate_method_name(&long_method_name).is_err());
+    #[test]
+    fn test_get_timeout_for_operation() {
+        let config = TimeoutConfig::default();
+        assert_eq!(config.get_timeout_for_operation("initialize"), config.initialize_timeout);
+        assert_eq!(config.get_timeout_for_operation("tools/call"), config.tool_call_timeout);
+        assert_eq!(config.get_timeout_for_operation("unknown"), config.operation_timeout);
+    }
 
-        let long_uri = "a".repeat(MAX_URI_LENGTH + 1);
-        assert!(validate_uri(&long_uri).is_err());
+    #[test]
+    fn test_validate_timeout() {
+        let config = TimeoutConfig::default();
+        assert!(config.validate_timeout(Duration::from_secs(30)));
+        assert!(!config.validate_timeout(Duration::from_secs(0)));
+        assert!(!config.validate_timeout(Duration::from_secs(4000)));
+    }
 
-        let long_error = "a".repeat(MAX_ERROR_MESSAGE_LENGTH + 1);
-        assert!(validate_error_message(&long_error).is_err());
-
-        let long_id = "a".repeat(MAX_REQUEST_ID_LENGTH + 1);
-        assert!(validate_request_id_string(&long_id).is_err());
-
-        assert!(validate_request_id_number(MIN_REQUEST_ID_NUMBER - 1).is_err());
-        assert!(validate_request_id_number(MAX_REQUEST_ID_NUMBER + 1).is_err());
-
-        assert!(validate_token_length(MAX_TOKEN_LENGTH + 1).is_err());
-        assert!(validate_log_message_length(MAX_LOG_MESSAGE_LENGTH + 1).is_err());
+    #[test]
+    fn test_should_send_progress() {
+        let config = TimeoutConfig::default();
+        let now = std::time::Instant::now();
+        
+        // Should not send progress immediately
+        assert!(!config.should_send_progress(now));
+        
+        // Should send progress after interval
+        let past = now - Duration::from_secs(10);
+        assert!(config.should_send_progress(past));
     }
 }

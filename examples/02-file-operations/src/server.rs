@@ -135,18 +135,16 @@ impl ToolHandler for FileOperationsHandler {
             tools: vec![
                 Tool {
                     name: "read_file".to_string(),
-                    description: "Read the contents of a file".to_string(),
+                    description: "Read a file from disk".to_string(),
                     input_schema: serde_json::json!({
                         "type": "object",
                         "properties": {
-                            "path": {
-                                "type": "string",
-                                "description": "Path to the file to read"
-                            }
+                            "path": {"type": "string", "description": "Path to file"}
                         },
                         "required": ["path"]
                     }),
                     output_schema: None,
+                    annotations: None,
                 },
                 Tool {
                     name: "write_file".to_string(),
@@ -154,22 +152,26 @@ impl ToolHandler for FileOperationsHandler {
                     input_schema: serde_json::json!({
                         "type": "object",
                         "properties": {
-                            "path": {
-                                "type": "string",
-                                "description": "Path to the file to write"
-                            },
-                            "content": {
-                                "type": "string",
-                                "description": "Content to write to the file"
-                            },
-                            "append": {
-                                "type": "boolean",
-                                "description": "Whether to append to existing file (default: false)"
-                            }
+                            "path": {"type": "string", "description": "Path to file"},
+                            "content": {"type": "string", "description": "Content to write"}
                         },
                         "required": ["path", "content"]
                     }),
                     output_schema: None,
+                    annotations: None,
+                },
+                Tool {
+                    name: "delete_file".to_string(),
+                    description: "Delete a file from disk".to_string(),
+                    input_schema: serde_json::json!({
+                        "type": "object",
+                        "properties": {
+                            "path": {"type": "string", "description": "Path to file"}
+                        },
+                        "required": ["path"]
+                    }),
+                    output_schema: None,
+                    annotations: None,
                 },
                 Tool {
                     name: "list_files".to_string(),
@@ -177,37 +179,12 @@ impl ToolHandler for FileOperationsHandler {
                     input_schema: serde_json::json!({
                         "type": "object",
                         "properties": {
-                            "path": {
-                                "type": "string",
-                                "description": "Path to the directory to list"
-                            },
-                            "recursive": {
-                                "type": "boolean",
-                                "description": "Whether to list files recursively (default: false)"
-                            }
+                            "directory": {"type": "string", "description": "Directory path"}
                         },
-                        "required": ["path"]
+                        "required": ["directory"]
                     }),
                     output_schema: None,
-                },
-                Tool {
-                    name: "delete_file".to_string(),
-                    description: "Delete a file or directory".to_string(),
-                    input_schema: serde_json::json!({
-                        "type": "object",
-                        "properties": {
-                            "path": {
-                                "type": "string",
-                                "description": "Path to the file or directory to delete"
-                            },
-                            "recursive": {
-                                "type": "boolean",
-                                "description": "Whether to delete directories recursively (default: false)"
-                            }
-                        },
-                        "required": ["path"]
-                    }),
-                    output_schema: None,
+                    annotations: None,
                 },
             ],
             next_cursor: None,

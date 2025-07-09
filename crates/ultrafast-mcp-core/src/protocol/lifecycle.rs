@@ -149,8 +149,10 @@ pub trait LifecycleManager {
     async fn shutdown(&mut self, request: ShutdownRequest) -> Result<(), crate::error::MCPError>;
 
     /// Check if operation is allowed in current phase
+    /// According to MCP 2025-06-18 specification, operations are allowed
+    /// once the phase is initialized (after initialize response)
     fn can_operate(&self) -> bool {
-        matches!(self.phase(), LifecyclePhase::Operating)
+        matches!(self.phase(), LifecyclePhase::Initialized | LifecyclePhase::Operating)
     }
 }
 

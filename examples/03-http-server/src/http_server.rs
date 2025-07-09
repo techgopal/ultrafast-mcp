@@ -90,6 +90,7 @@ impl ToolHandler for EchoToolHandler {
                     },
                     "required": ["message", "timestamp"]
                 })),
+                annotations: None,
             }],
             next_cursor: None,
         })

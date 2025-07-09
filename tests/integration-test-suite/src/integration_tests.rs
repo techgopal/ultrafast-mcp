@@ -89,6 +89,7 @@ mod tests {
                         "required": ["message"]
                     }),
                     output_schema: None,
+                    annotations: None,
                 },
                 Tool {
                     name: "concurrent_tool".to_string(),
@@ -102,6 +103,7 @@ mod tests {
                         "required": ["input", "worker_id"]
                     }),
                     output_schema: None,
+                    annotations: None,
                 },
                 Tool {
                     name: "error_tool".to_string(),
@@ -111,6 +113,7 @@ mod tests {
                         "properties": {}
                     }),
                     output_schema: None,
+                    annotations: None,
                 },
             ];
 

@@ -29,6 +29,7 @@ pub use crate::{
     ToolCall,
     ToolHandler,
     ToolResult,
+    ToolAnnotations,
     UltraFastClient,
     UltraFastServer,
 };

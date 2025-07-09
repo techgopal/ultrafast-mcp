@@ -179,7 +179,7 @@ mod validation_middleware_tests {
             id: Some(RequestId::from("1".to_string())),
             method: "tools/list".to_string(),
             params: None,
-            meta: HashMap::new(),
+            meta: std::collections::HashMap::new(),
         });
         assert!(middleware
             .process_outgoing(&mut valid_request)
@@ -195,7 +195,7 @@ mod validation_middleware_tests {
             id: Some(RequestId::from("1".to_string())),
             method: "invalid/method".to_string(),
             params: None,
-            meta: HashMap::new(),
+            meta: std::collections::HashMap::new(),
         });
         let result = middleware.process_outgoing(&mut invalid_request).await;
         assert!(result.is_err());
@@ -213,7 +213,7 @@ mod validation_middleware_tests {
             id: Some(RequestId::from("1".to_string())),
             method: "tools/list".to_string(),
             params: None,
-            meta: HashMap::new(),
+            meta: std::collections::HashMap::new(),
         });
         let result = middleware.process_outgoing(&mut invalid_request).await;
         assert!(result.is_err());
@@ -231,7 +231,7 @@ mod validation_middleware_tests {
             id: None,
             method: "tools/list".to_string(),
             params: None,
-            meta: HashMap::new(),
+            meta: std::collections::HashMap::new(),
         });
         assert!(middleware
             .process_outgoing(&mut invalid_request)
@@ -247,7 +247,7 @@ mod validation_middleware_tests {
             id: None,
             method: "tools/list".to_string(),
             params: None,
-            meta: HashMap::new(),
+            meta: std::collections::HashMap::new(),
         });
         let result = middleware.process_outgoing(&mut invalid_request).await;
         assert!(result.is_err());
@@ -270,7 +270,7 @@ mod validation_middleware_tests {
                     "input": "hello\0world"
                 }
             })),
-            meta: HashMap::new(),
+            meta: std::collections::HashMap::new(),
         });
         assert!(middleware
             .process_outgoing(&mut request_with_nulls)
@@ -299,7 +299,7 @@ mod validation_middleware_tests {
                     "items": large_array
                 }
             })),
-            meta: HashMap::new(),
+            meta: std::collections::HashMap::new(),
         });
         let result = middleware
             .process_outgoing(&mut request_with_large_array)
@@ -323,7 +323,7 @@ mod validation_middleware_tests {
             id: Some(RequestId::from("1".to_string())),
             method: "tools/call".to_string(),
             params: Some(Value::Object(large_object)),
-            meta: HashMap::new(),
+            meta: std::collections::HashMap::new(),
         });
         let result = middleware
             .process_outgoing(&mut request_with_large_object)
@@ -346,7 +346,7 @@ mod validation_middleware_tests {
                 "name": "test",
                 "_internal": "value"
             })),
-            meta: HashMap::new(),
+            meta: std::collections::HashMap::new(),
         });
         let result = middleware
             .process_outgoing(&mut request_with_reserved_key)
@@ -371,7 +371,7 @@ mod validation_middleware_tests {
                     "timestamp": 1234567890
                 }
             })),
-            meta: HashMap::new(),
+            meta: std::collections::HashMap::new(),
         });
         assert!(middleware
             .process_outgoing(&mut request_with_meta)
@@ -389,7 +389,7 @@ mod validation_middleware_tests {
             params: Some(json!({
                 "uri": "file:///path/to/file.txt"
             })),
-            meta: HashMap::new(),
+            meta: std::collections::HashMap::new(),
         });
         assert!(middleware
             .process_outgoing(&mut request_with_valid_uri)
@@ -402,7 +402,7 @@ mod validation_middleware_tests {
             params: Some(json!({
                 "uri": "file:///path/../secret.txt"
             })),
-            meta: HashMap::new(),
+            meta: std::collections::HashMap::new(),
         });
         let result = middleware
             .process_outgoing(&mut request_with_invalid_uri)
@@ -425,7 +425,7 @@ mod validation_middleware_tests {
                 "protocolVersion": "2025-06-18",
                 "capabilities": {}
             })),
-            meta: HashMap::new(),
+            meta: std::collections::HashMap::new(),
         });
         assert!(middleware
             .process_outgoing(&mut request_with_valid_version)
@@ -439,7 +439,7 @@ mod validation_middleware_tests {
                 "protocolVersion": "2023-01-01",
                 "capabilities": {}
             })),
-            meta: HashMap::new(),
+            meta: std::collections::HashMap::new(),
         });
         let result = middleware
             .process_outgoing(&mut request_with_invalid_version)
@@ -461,7 +461,7 @@ mod validation_middleware_tests {
             params: Some(json!({
                 "name": "valid_tool_name"
             })),
-            meta: HashMap::new(),
+            meta: std::collections::HashMap::new(),
         });
         assert!(middleware
             .process_outgoing(&mut request_with_valid_tool)
@@ -474,7 +474,7 @@ mod validation_middleware_tests {
             params: Some(json!({
                 "name": "_invalid_tool_name"
             })),
-            meta: HashMap::new(),
+            meta: std::collections::HashMap::new(),
         });
         let result = middleware
             .process_outgoing(&mut request_with_invalid_tool)
@@ -497,7 +497,7 @@ mod validation_middleware_tests {
                 "level": "info",
                 "message": "Test log message"
             })),
-            meta: HashMap::new(),
+            meta: std::collections::HashMap::new(),
         });
         assert!(middleware
             .process_outgoing(&mut request_with_valid_level)
@@ -511,7 +511,7 @@ mod validation_middleware_tests {
                 "level": "invalid_level",
                 "message": "Test log message"
             })),
-            meta: HashMap::new(),
+            meta: std::collections::HashMap::new(),
         });
         let result = middleware
             .process_outgoing(&mut request_with_invalid_level)
@@ -536,7 +536,7 @@ mod validation_middleware_tests {
                 "name": "test",
                 "data": "small data"
             })),
-            meta: HashMap::new(),
+            meta: std::collections::HashMap::new(),
         });
         assert!(middleware
             .process_incoming(&mut small_request)
@@ -553,7 +553,7 @@ mod validation_middleware_tests {
                 "name": "test",
                 "data": huge_string
             })),
-            meta: HashMap::new(),
+            meta: std::collections::HashMap::new(),
         });
 
         // This should fail due to the message size limit
@@ -577,7 +577,7 @@ mod validation_middleware_tests {
                 "name": "test",
                 "data": deep_object
             })),
-            meta: HashMap::new(),
+            meta: std::collections::HashMap::new(),
         });
         let result = middleware
             .process_outgoing(&mut request_with_deep_object)
@@ -600,7 +600,7 @@ mod validation_middleware_tests {
             id: Some(RequestId::from("1".to_string())),
             method: "custom/method".to_string(),
             params: None,
-            meta: HashMap::new(),
+            meta: std::collections::HashMap::new(),
         });
         assert!(middleware
             .process_outgoing(&mut request_with_custom_method)
@@ -611,7 +611,7 @@ mod validation_middleware_tests {
             id: Some(RequestId::from("1".to_string())),
             method: "tools/list".to_string(),
             params: None,
-            meta: HashMap::new(),
+            meta: std::collections::HashMap::new(),
         });
         let result = middleware
             .process_outgoing(&mut request_with_standard_method)

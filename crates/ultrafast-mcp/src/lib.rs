@@ -431,7 +431,7 @@ pub use ultrafast_mcp_core::types::{
     // Server types
     server::{ServerCapabilities, ServerInfo},
     // Tool types
-    tools::{ListToolsRequest, ListToolsResponse, Tool, ToolCall, ToolContent, ToolResult},
+    tools::{ListToolsRequest, ListToolsResponse, Tool, ToolAnnotations, ToolCall, ToolContent, ToolResult},
 };
 
 // Re-export capability types from protocol
@@ -456,7 +456,7 @@ pub use ultrafast_mcp_server::{
 // =========================
 pub use ultrafast_mcp_client::{
     UltraFastClient,
-    // If client handler traits are added in future, re-export here
+    ClientElicitationHandler,
 };
 
 // =========================

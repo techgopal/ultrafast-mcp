@@ -244,7 +244,7 @@ impl Context {
                 id: None, // Notifications don't have IDs
                 method: "notifications/progress".to_string(),
                 params: Some(serde_json::to_value(notification)?),
-                meta: HashMap::new(),
+                meta: std::collections::HashMap::new(),
             };
 
             sender(JsonRpcMessage::Notification(notification_request)).await?;
@@ -514,7 +514,7 @@ impl Context {
                     id: None, // Notifications don't have IDs
                     method: "notifications/message".to_string(),
                     params: Some(serde_json::to_value(notification)?),
-                    meta: HashMap::new(),
+                    meta: std::collections::HashMap::new(),
                 };
 
                 // Send notification but don't fail if it doesn't work

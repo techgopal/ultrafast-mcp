@@ -8,29 +8,35 @@ use std::sync::Arc;
 use tokio::sync::{oneshot, RwLock};
 use tracing::{debug, error, info, warn};
 use ultrafast_mcp_core::{
+    config::TimeoutConfig,
     error::{MCPError, MCPResult, ProtocolError, TransportError},
     protocol::{
-        capabilities::{ClientCapabilities, ServerCapabilities},
         jsonrpc::{JsonRpcMessage, JsonRpcRequest},
-        lifecycle::{
-            InitializeRequest, InitializeResponse, InitializedNotification, ShutdownRequest,
-        },
-        version::PROTOCOL_VERSION,
+        InitializeRequest, InitializeResponse, InitializedNotification, ShutdownRequest,
     },
     types::{
-        client::ClientInfo,
+        client::{ClientCapabilities, ClientInfo},
         completion::{CompleteRequest, CompleteResponse},
         elicitation::{ElicitationRequest, ElicitationResponse},
         prompts::{GetPromptRequest, GetPromptResponse, ListPromptsRequest, ListPromptsResponse},
-        resources::{
-            ListResourcesRequest, ListResourcesResponse, ReadResourceRequest, ReadResourceResponse,
-        },
+        resources::{ListResourcesRequest, ListResourcesResponse, ReadResourceRequest, ReadResourceResponse},
         sampling::{CreateMessageRequest, CreateMessageResponse},
-        server::ServerInfo,
+        server::{ServerCapabilities, ServerInfo},
         tools::{ListToolsRequest, ListToolsResponse, ToolCall, ToolResult},
     },
 };
 use ultrafast_mcp_transport::Transport;
+
+/// Client-side elicitation handler trait
+#[async_trait::async_trait]
+pub trait ClientElicitationHandler: Send + Sync {
+    /// Handle an elicitation request from the server
+    /// This method should present the request to the user and return their response
+    async fn handle_elicitation_request(
+        &self,
+        request: ElicitationRequest,
+    ) -> MCPResult<ElicitationResponse>;
+}
 
 /// MCP Client state
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -45,8 +51,10 @@ pub enum ClientState {
 
 impl ClientState {
     /// Check if the client can perform operations
+    /// According to MCP 2025-06-18 specification, operations are allowed
+    /// once the client is initialized (after initialize response)
     pub fn can_operate(&self) -> bool {
-        matches!(self, ClientState::Operating)
+        matches!(self, ClientState::Initialized | ClientState::Operating)
     }
 
     /// Check if the client is initialized
@@ -69,7 +77,6 @@ struct PendingRequest {
 }
 
 /// Client state management
-#[derive(Debug)]
 struct ClientStateManager {
     state: ClientState,
     server_info: Option<ServerInfo>,
@@ -77,6 +84,7 @@ struct ClientStateManager {
     negotiated_version: Option<String>,
     request_id_counter: u64,
     pending_requests: HashMap<u64, PendingRequest>,
+    elicitation_handler: Option<Arc<dyn ClientElicitationHandler>>,
 }
 
 impl ClientStateManager {
@@ -88,6 +96,7 @@ impl ClientStateManager {
             negotiated_version: None,
             request_id_counter: 1,
             pending_requests: HashMap::new(),
+            elicitation_handler: None,
         }
     }
 
@@ -105,6 +114,10 @@ impl ClientStateManager {
 
     fn set_negotiated_version(&mut self, version: String) {
         self.negotiated_version = Some(version);
+    }
+
+    fn set_elicitation_handler(&mut self, handler: Option<Arc<dyn ClientElicitationHandler>>) {
+        self.elicitation_handler = handler;
     }
 
     fn next_request_id(&mut self) -> u64 {
@@ -130,6 +143,8 @@ pub struct UltraFastClient {
     transport: Arc<RwLock<Option<Box<dyn Transport>>>>,
     message_receiver: Arc<RwLock<Option<tokio::task::JoinHandle<()>>>>,
     request_timeout: std::time::Duration,
+    // Timeout configuration (MCP 2025-06-18 compliance)
+    timeout_config: Arc<TimeoutConfig>,
 }
 
 impl UltraFastClient {
@@ -142,6 +157,7 @@ impl UltraFastClient {
             transport: Arc::new(RwLock::new(None)),
             message_receiver: Arc::new(RwLock::new(None)),
             request_timeout: std::time::Duration::from_secs(30),
+            timeout_config: Arc::new(TimeoutConfig::default()),
         }
     }
 
@@ -158,12 +174,51 @@ impl UltraFastClient {
             transport: Arc::new(RwLock::new(None)),
             message_receiver: Arc::new(RwLock::new(None)),
             request_timeout: timeout,
+            timeout_config: Arc::new(TimeoutConfig::default()),
         }
     }
 
     /// Set request timeout
     pub fn with_timeout(mut self, timeout: std::time::Duration) -> Self {
         self.request_timeout = timeout;
+        self
+    }
+
+    /// Set timeout configuration
+    pub fn with_timeout_config(mut self, config: TimeoutConfig) -> Self {
+        self.timeout_config = Arc::new(config);
+        self
+    }
+
+    /// Get current timeout configuration
+    pub fn get_timeout_config(&self) -> TimeoutConfig {
+        (*self.timeout_config).clone()
+    }
+
+    /// Set timeout configuration for high-performance scenarios
+    pub fn with_high_performance_timeouts(mut self) -> Self {
+        self.timeout_config = Arc::new(TimeoutConfig::high_performance());
+        self
+    }
+
+    /// Set timeout configuration for long-running operations
+    pub fn with_long_running_timeouts(mut self) -> Self {
+        self.timeout_config = Arc::new(TimeoutConfig::long_running());
+        self
+    }
+
+    /// Get operation-specific timeout
+    pub fn get_operation_timeout(&self, operation: &str) -> std::time::Duration {
+        self.timeout_config.get_timeout_for_operation(operation)
+    }
+
+    /// Set elicitation handler for handling server-initiated elicitation requests
+    pub fn with_elicitation_handler(self, handler: Arc<dyn ClientElicitationHandler>) -> Self {
+        let state_manager = self.state_manager.clone();
+        tokio::spawn(async move {
+            let mut state = state_manager.write().await;
+            state.set_elicitation_handler(Some(handler));
+        });
         self
     }
 
@@ -220,12 +275,53 @@ impl UltraFastClient {
                                 // This is a notification, handle it
                                 Self::handle_notification_static(request.clone()).await;
                             }
+                            JsonRpcMessage::Request(request) => {
+                                // This is a request without ID, handle as elicitation
+                                if request.method == "elicitation/create" {
+                                    info!("Processing elicitation request from server");
+                                    
+                                    // Get the elicitation handler from state manager
+                                    let elicitation_handler = {
+                                        let state = state_manager.read().await;
+                                        state.elicitation_handler.clone()
+                                    };
+                                    
+                                    if let Some(handler) = elicitation_handler {
+                                        // Parse the elicitation request
+                                        if let Ok(elicitation_request) = serde_json::from_value::<ElicitationRequest>(
+                                            request.params.clone().unwrap_or_default()
+                                        ) {
+                                            // Handle the elicitation request
+                                            match handler.handle_elicitation_request(elicitation_request).await {
+                                                Ok(response) => {
+                                                    // Send the response back to the server
+                                                    let response_message = JsonRpcMessage::Request(JsonRpcRequest::new(
+                                                        "elicitation/respond".to_string(),
+                                                        Some(serde_json::to_value(response).unwrap()),
+                                                        None, // No ID for elicitation response
+                                                    ));
+                                                    
+                                                    if let Err(e) = transport.send_message(response_message).await {
+                                                        error!("Failed to send elicitation response: {}", e);
+                                                    }
+                                                }
+                                                Err(e) => {
+                                                    error!("Failed to handle elicitation request: {}", e);
+                                                }
+                                            }
+                                        } else {
+                                            error!("Failed to parse elicitation request");
+                                        }
+                                    } else {
+                                        warn!("No elicitation handler configured, ignoring elicitation request");
+                                    }
+                                } else {
+                                    warn!("Received unexpected request without ID: {}", request.method);
+                                }
+                            }
                             JsonRpcMessage::Notification(notification) => {
                                 // Handle notification
                                 Self::handle_notification_static(notification.clone()).await;
-                            }
-                            _ => {
-                                warn!("Received unexpected message type");
                             }
                         }
                     }
@@ -250,17 +346,22 @@ impl UltraFastClient {
             "initialized" => {
                 info!("Received initialized notification");
             }
-            "tools/listChanged" => {
-                debug!("Tools list changed notification");
+            "notifications/tools/listChanged" => {
+                info!("Received tools list changed notification");
             }
-            "resources/listChanged" => {
-                debug!("Resources list changed notification");
+            "notifications/resources/listChanged" => {
+                info!("Received resources list changed notification");
             }
-            "prompts/listChanged" => {
-                debug!("Prompts list changed notification");
+            "notifications/prompts/listChanged" => {
+                info!("Received prompts list changed notification");
             }
-            "logging/message" => {
-                debug!("Logging message notification");
+            "notifications/roots/listChanged" => {
+                info!("Received roots list changed notification");
+            }
+            "elicitation/create" => {
+                info!("Received elicitation request from server");
+                // Note: This should be handled by the client's elicitation handler
+                // The actual handling is done in the message receiver loop
             }
             _ => {
                 warn!("Unknown notification method: {}", notification.method);
@@ -285,7 +386,7 @@ impl UltraFastClient {
 
         // Create initialization request
         let init_request = InitializeRequest {
-            protocol_version: PROTOCOL_VERSION.to_string(),
+            protocol_version: ultrafast_mcp_core::protocol::version::PROTOCOL_VERSION.to_string(),
             capabilities: self.capabilities.clone(),
             client_info: self.info.clone(),
         };
@@ -296,10 +397,10 @@ impl UltraFastClient {
             .await?;
 
         // Validate protocol version
-        if init_response.protocol_version != PROTOCOL_VERSION {
+        if init_response.protocol_version != ultrafast_mcp_core::protocol::version::PROTOCOL_VERSION {
             return Err(MCPError::Protocol(ProtocolError::InvalidVersion(format!(
                 "Expected protocol version {}, got {}",
-                PROTOCOL_VERSION, init_response.protocol_version
+                ultrafast_mcp_core::protocol::version::PROTOCOL_VERSION, init_response.protocol_version
             ))));
         }
 
@@ -512,12 +613,12 @@ impl UltraFastClient {
             .await
     }
 
-    /// Handle elicitation
-    pub async fn handle_elicitation(
+    /// Respond to elicitation request (called by client-side elicitation handler)
+    pub async fn respond_to_elicitation(
         &self,
-        request: ElicitationRequest,
-    ) -> MCPResult<ElicitationResponse> {
-        self.send_request("elicitation/handle", Some(serde_json::to_value(request)?))
+        response: ElicitationResponse,
+    ) -> MCPResult<()> {
+        self.send_request("elicitation/respond", Some(serde_json::to_value(response)?))
             .await
     }
 
@@ -576,6 +677,16 @@ impl UltraFastClient {
         self.send_notification("$/progress", Some(request)).await
     }
 
+    /// Check if progress notification should be sent based on timeout configuration
+    pub fn should_send_progress(&self, last_progress: std::time::Instant) -> bool {
+        self.timeout_config.should_send_progress(last_progress)
+    }
+
+    /// Get progress interval from timeout configuration
+    pub fn get_progress_interval(&self) -> std::time::Duration {
+        self.timeout_config.progress_interval
+    }
+
     async fn ensure_operational(&self) -> MCPResult<()> {
         if !self.can_operate().await {
             return Err(MCPError::Protocol(ProtocolError::InternalError(
@@ -605,6 +716,9 @@ impl UltraFastClient {
             )),
         );
 
+        // Get operation-specific timeout
+        let operation_timeout = self.get_operation_timeout(method);
+
         // Create response channel
         let (response_sender, response_receiver) = oneshot::channel();
 
@@ -615,7 +729,7 @@ impl UltraFastClient {
                 request_id,
                 PendingRequest {
                     response_sender,
-                    timeout: tokio::time::Instant::now() + self.request_timeout,
+                    timeout: tokio::time::Instant::now() + operation_timeout,
                 },
             );
         }
@@ -632,8 +746,8 @@ impl UltraFastClient {
                 .map_err(|e| MCPError::Transport(TransportError::SendFailed(e.to_string())))?;
         }
 
-        // Wait for response with timeout
-        let response = tokio::time::timeout(self.request_timeout, response_receiver)
+        // Wait for response with operation-specific timeout
+        let response = tokio::time::timeout(operation_timeout, response_receiver)
             .await
             .map_err(|_| MCPError::Protocol(ProtocolError::RequestTimeout))?
             .map_err(|_| {

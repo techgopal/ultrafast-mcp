@@ -65,6 +65,7 @@ mod tests {
                     "required": ["message"]
                 }),
                 output_schema: None,
+                annotations: None,
             }];
 
             Ok(ListToolsResponse {

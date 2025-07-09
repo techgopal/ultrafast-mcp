@@ -7,6 +7,7 @@ use tokio::sync::{broadcast, RwLock};
 use tracing::{error, info, warn};
 
 use ultrafast_mcp_core::{
+    config::TimeoutConfig,
     error::{MCPError, MCPResult},
     protocol::{
         capabilities::ServerCapabilities,
@@ -19,6 +20,7 @@ use ultrafast_mcp_core::{
         resources::{Resource, ResourceTemplate, SubscribeResponse},
         server::ServerInfo,
         tools::Tool,
+        roots::{SetRootsRequest, SetRootsResponse, RootsListChangedNotification},
     },
     utils::{CancellationManager, PingManager},
 };
@@ -42,8 +44,10 @@ pub enum ServerState {
 
 impl ServerState {
     /// Check if the server can accept operations
+    /// According to MCP 2025-06-18 specification, operations are allowed
+    /// once the server is initialized (after initialize response)
     pub fn can_operate(&self) -> bool {
-        matches!(self, ServerState::Operating)
+        matches!(self, ServerState::Initialized | ServerState::Operating)
     }
 
     /// Check if the server is initialized
@@ -126,6 +130,15 @@ pub struct UltraFastServer {
     #[cfg(feature = "monitoring")]
     #[allow(dead_code)]
     monitoring_system: Option<Arc<crate::MonitoringSystem>>,
+
+    // Advanced handlers
+    advanced_sampling_handler: Option<Arc<dyn AdvancedSamplingHandler>>,
+    
+    // Monitoring
+    monitoring_enabled: bool,
+    
+    // Timeout configuration (MCP 2025-06-18 compliance)
+    timeout_config: Arc<TimeoutConfig>,
 }
 
 impl std::fmt::Debug for UltraFastServer {
@@ -163,6 +176,15 @@ impl UltraFastServer {
 
             #[cfg(feature = "monitoring")]
             monitoring_system: None,
+
+            // Advanced handlers
+            advanced_sampling_handler: None,
+            
+            // Monitoring
+            monitoring_enabled: false,
+            
+            // Timeout configuration (MCP 2025-06-18 compliance)
+            timeout_config: Arc::new(TimeoutConfig::default()),
         }
     }
 
@@ -176,6 +198,73 @@ impl UltraFastServer {
     /// Get current server logging configuration
     pub async fn get_logging_config(&self) -> ServerLoggingConfig {
         self.logging_config.read().await.clone()
+    }
+
+    /// Set timeout configuration
+    pub fn with_timeout_config(mut self, config: TimeoutConfig) -> Self {
+        self.timeout_config = Arc::new(config);
+        self
+    }
+
+    /// Get current timeout configuration
+    pub fn get_timeout_config(&self) -> TimeoutConfig {
+        (*self.timeout_config).clone()
+    }
+
+    /// Set timeout configuration for high-performance scenarios
+    pub fn with_high_performance_timeouts(mut self) -> Self {
+        self.timeout_config = Arc::new(TimeoutConfig::high_performance());
+        self
+    }
+
+    /// Set timeout configuration for long-running operations
+    pub fn with_long_running_timeouts(mut self) -> Self {
+        self.timeout_config = Arc::new(TimeoutConfig::long_running());
+        self
+    }
+
+    /// Get timeout for a specific operation
+    pub fn get_operation_timeout(&self, operation: &str) -> std::time::Duration {
+        self.timeout_config.get_timeout_for_operation(operation)
+    }
+
+    /// Validate timeout configuration
+    pub fn validate_timeout_config(&self) -> Result<(), String> {
+        let config = &self.timeout_config;
+        
+        // Validate all timeouts are within bounds
+        if !config.validate_timeout(config.initialize_timeout) {
+            return Err("Initialize timeout is out of bounds".to_string());
+        }
+        if !config.validate_timeout(config.operation_timeout) {
+            return Err("Operation timeout is out of bounds".to_string());
+        }
+        if !config.validate_timeout(config.tool_call_timeout) {
+            return Err("Tool call timeout is out of bounds".to_string());
+        }
+        if !config.validate_timeout(config.resource_timeout) {
+            return Err("Resource timeout is out of bounds".to_string());
+        }
+        if !config.validate_timeout(config.sampling_timeout) {
+            return Err("Sampling timeout is out of bounds".to_string());
+        }
+        if !config.validate_timeout(config.elicitation_timeout) {
+            return Err("Elicitation timeout is out of bounds".to_string());
+        }
+        if !config.validate_timeout(config.completion_timeout) {
+            return Err("Completion timeout is out of bounds".to_string());
+        }
+        if !config.validate_timeout(config.ping_timeout) {
+            return Err("Ping timeout is out of bounds".to_string());
+        }
+        if !config.validate_timeout(config.shutdown_timeout) {
+            return Err("Shutdown timeout is out of bounds".to_string());
+        }
+        if !config.validate_timeout(config.cancellation_timeout) {
+            return Err("Cancellation timeout is out of bounds".to_string());
+        }
+        
+        Ok(())
     }
 
     /// Set the current log level
@@ -819,15 +908,15 @@ impl UltraFastServer {
 
         info!("Capabilities validated successfully");
 
-        // Update server state to Operating directly for better client compatibility
-        // This allows operations immediately after initialize without requiring initialized notification
+        // Update server state to Initialized (not Operating yet)
+        // This follows MCP 2025-06-18 specification: server should wait for initialized notification
         {
             let mut state = self.state.write().await;
-            *state = ServerState::Operating;
+            *state = ServerState::Initialized;
         }
 
         info!(
-            "Server initialized and ready for operations with protocol version: {}",
+            "Server initialized with protocol version: {} (waiting for initialized notification)",
             negotiated_version
         );
 
@@ -1034,14 +1123,43 @@ impl UltraFastServer {
                     // This is a notification, handle it as such
                     self.handle_notification(request).await?;
                 } else {
-                    // This is a request, handle it and send response
-                    let response = self.handle_request(request).await;
-                    transport
-                        .send_message(JsonRpcMessage::Response(response))
-                        .await
-                        .map_err(|e| {
-                            MCPError::internal_error(format!("Failed to send message: {}", e))
-                        })?;
+                    // This is a request, handle it with timeout
+                    let operation_timeout = self.get_operation_timeout(&request.method);
+                    let request_id = request.id.clone(); // Clone before moving request
+                    let response = tokio::time::timeout(operation_timeout, self.handle_request(request)).await;
+                    
+                    match response {
+                        Ok(response) => {
+                            transport
+                                .send_message(JsonRpcMessage::Response(response))
+                                .await
+                                .map_err(|e| {
+                                    MCPError::internal_error(format!("Failed to send message: {}", e))
+                                })?;
+                        }
+                        Err(_) => {
+                            // Request timed out, send timeout error
+                            let timeout_error = JsonRpcResponse::error(
+                                JsonRpcError::new(-32000, "Request timeout".to_string()),
+                                request_id.clone(),
+                            );
+                            transport
+                                .send_message(JsonRpcMessage::Response(timeout_error))
+                                .await
+                                .map_err(|e| {
+                                    MCPError::internal_error(format!("Failed to send timeout error: {}", e))
+                                })?;
+                            
+                            // Send cancellation notification
+                            if let Some(request_id) = &request_id {
+                                self.notify_cancelled(
+                                    serde_json::Value::String(request_id.to_string()),
+                                    Some("Request timed out".to_string()),
+                                    transport,
+                                ).await?;
+                            }
+                        }
+                    }
                 }
             }
             JsonRpcMessage::Notification(notification) => {
@@ -1288,6 +1406,9 @@ impl UltraFastServer {
                 let list_request = self.deserialize_list_resources_request(request.params.clone());
 
                 if let Some(handler) = &self.resource_handler {
+                    // For resources/list, we don't validate against roots since it's a general listing
+                    // Root validation will be done when individual resources are accessed
+
                     match handler.list_resources(list_request).await {
                         Ok(response) => match serde_json::to_value(response) {
                             Ok(value) => JsonRpcResponse::success(value, request.id),
@@ -1319,6 +1440,33 @@ impl UltraFastServer {
                 let read_request = self.deserialize_read_resource_request(request.params.clone());
 
                 if let Some(handler) = &self.resource_handler {
+                    // Validate against roots if roots handler is available
+                    if let Some(roots_handler) = &self.roots_handler {
+                        match roots_handler.list_roots().await {
+                            Ok(roots) => {
+                                if let Err(e) = handler
+                                    .validate_resource_access(
+                                        &read_request.uri,
+                                        ultrafast_mcp_core::types::roots::RootOperation::Read,
+                                        &roots,
+                                    )
+                                    .await
+                                {
+                                    return JsonRpcResponse::error(
+                                        JsonRpcError::new(-32603, format!("Root validation failed: {}", e)),
+                                        request.id,
+                                    );
+                                }
+                            }
+                            Err(e) => {
+                                return JsonRpcResponse::error(
+                                    JsonRpcError::new(-32603, format!("Failed to get roots: {}", e)),
+                                    request.id,
+                                );
+                            }
+                        }
+                    }
+
                     match handler.read_resource(read_request).await {
                         Ok(response) => match serde_json::to_value(response) {
                             Ok(value) => JsonRpcResponse::success(value, request.id),
@@ -1380,6 +1528,35 @@ impl UltraFastServer {
                 }
 
                 let subscribe_request = self.deserialize_subscribe_request(request.params.clone());
+
+                // Validate against roots if roots handler is available
+                if let Some(roots_handler) = &self.roots_handler {
+                    if let Some(resource_handler) = &self.resource_handler {
+                        match roots_handler.list_roots().await {
+                            Ok(roots) => {
+                                if let Err(e) = resource_handler
+                                    .validate_resource_access(
+                                        &subscribe_request.uri,
+                                        ultrafast_mcp_core::types::roots::RootOperation::Read,
+                                        &roots,
+                                    )
+                                    .await
+                                {
+                                    return JsonRpcResponse::error(
+                                        JsonRpcError::new(-32603, format!("Root validation failed: {}", e)),
+                                        request.id,
+                                    );
+                                }
+                            }
+                            Err(e) => {
+                                return JsonRpcResponse::error(
+                                    JsonRpcError::new(-32603, format!("Failed to get roots: {}", e)),
+                                    request.id,
+                                );
+                            }
+                        }
+                    }
+                }
 
                 if let Some(handler) = &self.subscription_handler {
                     match handler.subscribe(subscribe_request.uri.clone()).await {
@@ -1588,7 +1765,7 @@ impl UltraFastServer {
             }
 
             // Elicitation methods
-            "elicitation/request" => {
+            "elicitation/create" => {
                 if !self.can_operate().await {
                     return JsonRpcResponse::error(
                         JsonRpcError::new(-32000, "Server not ready".to_string()),
@@ -1616,6 +1793,34 @@ impl UltraFastServer {
                         request.id,
                     )
                 }
+            }
+
+            "elicitation/respond" => {
+                if !self.can_operate().await {
+                    return JsonRpcResponse::error(
+                        JsonRpcError::new(-32000, "Server not ready".to_string()),
+                        request.id,
+                    );
+                }
+
+                let elicitation_response = match serde_json::from_value::<ultrafast_mcp_core::types::elicitation::ElicitationResponse>(
+                    request.params.unwrap_or_default()
+                ) {
+                    Ok(response) => response,
+                    Err(e) => {
+                        return JsonRpcResponse::error(
+                            JsonRpcError::new(-32602, format!("Invalid elicitation response: {}", e)),
+                            request.id,
+                        );
+                    }
+                };
+
+                // Log the elicitation response
+                info!("Received elicitation response: {:?}", elicitation_response.action);
+                
+                // In a real implementation, this would be handled by the server's elicitation flow
+                // For now, we'll just return success
+                JsonRpcResponse::success(serde_json::json!({}), request.id)
             }
 
             // Logging methods
@@ -1668,6 +1873,30 @@ impl UltraFastServer {
                     ),
                     Err(e) => JsonRpcResponse::error(
                         JsonRpcError::new(-32603, format!("Ping failed: {}", e)),
+                        request.id,
+                    ),
+                }
+            }
+
+            // Roots methods
+            "roots/set" => {
+                let params = match &request.params {
+                    Some(params) => params,
+                    None => {
+                        return JsonRpcResponse::error(
+                            JsonRpcError::new(-32602, "Missing parameters".to_string()),
+                            request.id,
+                        );
+                    }
+                };
+
+                match serde_json::from_value::<SetRootsRequest>(params.clone()) {
+                    Ok(set_request) => {
+                        let response = self.handle_set_roots(set_request.roots, &mut Box::new(create_transport(TransportConfig::Stdio).await.unwrap())).await;
+                        JsonRpcResponse::success(serde_json::to_value(response).unwrap(), request.id)
+                    }
+                    Err(e) => JsonRpcResponse::error(
+                        JsonRpcError::new(-32602, format!("Invalid roots set request: {}", e)),
                         request.id,
                     ),
                 }
@@ -1864,6 +2093,40 @@ impl UltraFastServer {
         info!("Sent notification: {}", method);
         Ok(())
     }
+
+    /// Set the advanced sampling handler for context collection and human-in-the-loop features
+    pub fn with_advanced_sampling_handler(
+        mut self,
+        handler: Arc<dyn AdvancedSamplingHandler>,
+    ) -> Self {
+        self.advanced_sampling_handler = Some(handler);
+        self
+    }
+
+    /// Set the advanced sampling handler with default implementation
+    pub fn with_default_advanced_sampling(mut self) -> Self {
+        let default_handler = Arc::new(DefaultAdvancedSamplingHandler::new(self.info.clone()));
+        self.advanced_sampling_handler = Some(default_handler);
+        self
+    }
+
+    /// Handle a roots/set request
+    pub async fn handle_set_roots(&self, roots: Vec<ultrafast_mcp_core::types::roots::Root>, transport: &mut Box<dyn Transport>) -> SetRootsResponse {
+        if let Some(handler) = &self.roots_handler {
+            match handler.set_roots(roots.clone()).await {
+                Ok(_) => {
+                    // Send notification to all clients (for demo, just send to this transport)
+                    let notification = RootsListChangedNotification { roots };
+                    let params = serde_json::to_value(notification).ok();
+                    let _ = self.send_notification("roots/listChanged", params, transport).await;
+                    SetRootsResponse { success: true, error: None }
+                }
+                Err(e) => SetRootsResponse { success: false, error: Some(e.to_string()) },
+            }
+        } else {
+            SetRootsResponse { success: false, error: Some("Roots handler not available".to_string()) }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -1977,6 +2240,7 @@ mod tests {
                     "output": {"type": "string"}
                 }
             })),
+            annotations: None,
         }
     }
 

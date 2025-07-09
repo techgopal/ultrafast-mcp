@@ -103,8 +103,9 @@ mod types_tests {
         let tool = types::tools::Tool {
             name: "test_tool".to_string(),
             description: "A test tool".to_string(),
-            input_schema: json!({"type": "object"}),
+            input_schema: serde_json::json!({"type": "object"}),
             output_schema: None,
+            annotations: None,
         };
 
         assert_eq!(tool.name, "test_tool");
@@ -201,6 +202,7 @@ mod integration_tests {
                 }
             }),
             output_schema: None,
+            annotations: None,
         };
 
         // Create a tool call request
@@ -224,10 +226,11 @@ mod integration_tests {
     #[test]
     fn test_serialization_roundtrip() {
         let original_tool = types::tools::Tool {
-            name: "test_tool".to_string(),
-            description: "Test tool".to_string(),
-            input_schema: json!({"type": "string"}),
+            name: "original_tool".to_string(),
+            description: "Original tool".to_string(),
+            input_schema: serde_json::json!({"type": "object"}),
             output_schema: None,
+            annotations: None,
         };
 
         // Serialize

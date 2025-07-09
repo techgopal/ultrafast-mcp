@@ -104,6 +104,30 @@ pub struct RootListChangedNotification {
     pub roots: Vec<Root>,
 }
 
+/// Request to set/update the list of roots
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct SetRootsRequest {
+    /// New list of roots to set
+    pub roots: Vec<Root>,
+}
+
+/// Response to a set roots request
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct SetRootsResponse {
+    /// Whether the update was successful
+    pub success: bool,
+    /// Optional error message
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+}
+
+/// Notification sent when the list of roots changes
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct RootsListChangedNotification {
+    /// Updated list of roots
+    pub roots: Vec<Root>,
+}
+
 /// Operation type for security validation
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RootOperation {

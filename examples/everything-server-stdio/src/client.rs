@@ -1,103 +1,113 @@
 //! Everything MCP Client Example (STDIO)
 //! Connects to the everything server via stdio and demonstrates tool calls.
 
+use std::sync::Arc;
+use tracing::info;
 use ultrafast_mcp::{
-    ClientCapabilities, ClientInfo, ListPromptsRequest, ListResourcesRequest, ListToolsRequest,
-    ToolCall, ToolContent, UltraFastClient,
+    ClientCapabilities, ClientInfo, ListToolsRequest, ToolCall, ToolContent, ToolResult,
+    UltraFastClient, ClientElicitationHandler, types::elicitation::{ElicitationRequest, ElicitationResponse, ElicitationAction},
 };
 
+/// Example client-side elicitation handler
+struct ExampleElicitationHandler;
+
+#[async_trait::async_trait]
+impl ClientElicitationHandler for ExampleElicitationHandler {
+    async fn handle_elicitation_request(
+        &self,
+        request: ElicitationRequest,
+    ) -> ultrafast_mcp::MCPResult<ElicitationResponse> {
+        info!("Client received elicitation request: {}", request.message);
+        info!("Requested schema: {:?}", request.requested_schema);
+
+        // In a real implementation, this would present the request to the user
+        // For demonstration, we'll simulate different responses based on the message content
+        
+        if request.message.contains("username") {
+            // Simulate user providing a username
+            Ok(ElicitationResponse {
+                action: ElicitationAction::Accept,
+                content: Some(serde_json::json!({
+                    "username": "demo_user"
+                })),
+            })
+        } else if request.message.contains("confirm") {
+            // Simulate user declining a confirmation
+            Ok(ElicitationResponse {
+                action: ElicitationAction::Decline,
+                content: None,
+            })
+        } else {
+            // Simulate user cancelling for other requests
+            Ok(ElicitationResponse {
+                action: ElicitationAction::Cancel,
+                content: None,
+            })
+        }
+    }
+}
+
 #[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    println!("🚀 Starting Everything MCP Client (STDIO)");
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Initialize tracing
+    tracing_subscriber::fmt::init();
+
+    info!("Starting UltraFast MCP Everything Client");
 
     // Create client info
-    let client_info = ClientInfo {
-        name: "everything-client-stdio".to_string(),
-        version: "1.0.0".to_string(),
-        description: Some("MCP Everything Example Client (STDIO)".to_string()),
-        authors: None,
-        homepage: None,
-        license: None,
-        repository: None,
-    };
+    let client_info = ClientInfo::new(
+        "ultrafast-everything-client".to_string(),
+        "1.0.0".to_string(),
+    );
 
     // Create client capabilities
     let capabilities = ClientCapabilities::default();
 
-    // Create the client
-    let client = UltraFastClient::new(client_info, capabilities);
+    // Create client with elicitation handler
+    let client = UltraFastClient::new(client_info, capabilities)
+        .with_elicitation_handler(Arc::new(ExampleElicitationHandler));
 
-    println!("🔗 Connecting to MCP server via STDIO...");
+    info!("Client created, connecting to server");
 
-    // Connect via stdio
+    // Connect to server using STDIO
     client.connect_stdio().await?;
 
-    println!("✅ Connected to MCP server successfully");
+    info!("Connected to server, testing tools");
 
-    // List available tools
-    println!("📋 Listing available tools...");
-    let tools_response = client.list_tools(ListToolsRequest { cursor: None }).await?;
-    println!("Found {} tools:", tools_response.tools.len());
-    for tool in &tools_response.tools {
-        println!("  - {}: {}", tool.name, tool.description);
-    }
+    // Test listing tools
+    let tools_request = ListToolsRequest { cursor: None };
+    let tools_response = client.list_tools(tools_request).await?;
+    info!("Available tools: {:?}", tools_response.tools);
 
-    // Call the echo tool
-    if let Some(_echo_tool) = tools_response.tools.iter().find(|t| t.name == "echo") {
-        println!("🔧 Calling echo tool...");
+    // Test calling a tool
+    let tool_call = ToolCall {
+        name: "echo".to_string(),
+        arguments: Some(serde_json::json!({
+            "message": "Hello from UltraFast MCP!"
+        })),
+    };
 
-        let tool_call = ToolCall {
-            name: "echo".to_string(),
-            arguments: Some(serde_json::json!({
-                "message": "Hello from Everything Client!"
-            })),
-        };
+    let result: ToolResult = client.call_tool(tool_call).await?;
+    
+    info!("Tool result: {:?}", result);
 
-        let result = client.call_tool(tool_call).await?;
-
-        println!("📤 Echo tool result:");
-        for content in &result.content {
-            match content {
-                ToolContent::Text { text } => {
-                    println!("  Text: {}", text);
-                }
-                _ => {
-                    println!("  Other content: {:?}", content);
-                }
+    // Extract the text content
+    if let Some(content) = result.content.first() {
+        match content {
+            ToolContent::Text { text } => {
+                println!("Server response: {}", text);
+            }
+            _ => {
+                println!("Unexpected content type from tool");
             }
         }
-    } else {
-        println!("❌ Echo tool not found");
     }
 
-    // List available resources
-    println!("📁 Listing available resources...");
-    let resources_response = client
-        .list_resources(ListResourcesRequest { cursor: None })
-        .await?;
-    println!("Found {} resources:", resources_response.resources.len());
-    for resource in &resources_response.resources {
-        println!(
-            "  - {}: {}",
-            resource.name,
-            resource.description.as_deref().unwrap_or("No description")
-        );
-    }
+    info!("Test completed, shutting down");
 
-    // List available prompts
-    println!("💬 Listing available prompts...");
-    let prompts_response = client
-        .list_prompts(ListPromptsRequest { cursor: None })
-        .await?;
-    println!("Found {} prompts:", prompts_response.prompts.len());
-    for prompt in &prompts_response.prompts {
-        println!(
-            "  - {}: {}",
-            prompt.name,
-            prompt.description.as_deref().unwrap_or("No description")
-        );
-    }
+    // Shutdown the connection
+    client.shutdown(Some("Test completed".to_string())).await?;
 
-    println!("✅ Everything client completed successfully");
+    info!("Client shutdown complete");
     Ok(())
 }

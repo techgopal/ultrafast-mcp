@@ -5,9 +5,9 @@
 
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, info};
 
-use crate::metrics::{Metrics, MetricsCollector};
+use crate::metrics::MetricsCollector;
 
 /// Base trait for all exporters
 #[async_trait::async_trait]

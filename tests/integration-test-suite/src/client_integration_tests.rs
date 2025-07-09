@@ -87,6 +87,7 @@ mod tests {
                             "output": {"type": "string"}
                         }
                     })),
+                    annotations: None,
                 },
                 Tool {
                     name: "calculator".to_string(),
@@ -104,6 +105,7 @@ mod tests {
                             "result": {"type": "string"}
                         }
                     })),
+                    annotations: None,
                 },
             ];
 

@@ -62,7 +62,10 @@ use ultrafast_mcp::{
     ToolResult,
     ToolsCapability,
     UltraFastServer,
+    ToolAnnotations,
 };
+use ultrafast_mcp::types::roots::{RootOperation, RootSecurityValidator};
+use ultrafast_mcp::McpCoreError::ResourceError;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct CalculatorRequest {
@@ -178,6 +181,21 @@ impl ToolHandler for AdvancedToolHandler {
                     is_error: None,
                 })
             }
+            "delete_file" => {
+                let args = call.arguments.unwrap_or_default();
+                let path = args
+                    .get("path")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| MCPError::invalid_params("Path is required".to_string()))?;
+
+                // Simulate file deletion (in a real implementation, you would actually delete the file)
+                let result = format!("File '{}' would be deleted (simulation only)", path);
+
+                Ok(ToolResult {
+                    content: vec![ToolContent::text(result)],
+                    is_error: None,
+                })
+            }
             _ => Err(MCPError::method_not_found(format!(
                 "Unknown tool: {}",
                 call.name
@@ -220,10 +238,14 @@ impl ToolHandler for AdvancedToolHandler {
                         "required": ["operation", "a", "b"]
                     }),
                     output_schema: None,
+                    annotations: Some(ToolAnnotations::read_only()
+                        .with_title("Calculator".to_string())
+                        .with_read_only_hint(true)
+                        .with_open_world_hint(false)),
                 },
                 Tool {
                     name: "weather".to_string(),
-                    description: "Get weather information for a city".to_string(),
+                    description: "Get weather information for a location".to_string(),
                     input_schema: serde_json::json!({
                         "type": "object",
                         "properties": {
@@ -233,12 +255,37 @@ impl ToolHandler for AdvancedToolHandler {
                             },
                             "country": {
                                 "type": "string",
-                                "description": "Country code (optional)"
+                                "description": "Country code (e.g., US, UK)"
                             }
                         },
                         "required": ["city"]
                     }),
                     output_schema: None,
+                    annotations: Some(ToolAnnotations::open_world()
+                        .with_title("Weather Lookup".to_string())
+                        .with_read_only_hint(true)
+                        .with_open_world_hint(true)),
+                },
+                Tool {
+                    name: "delete_file".to_string(),
+                    description: "Delete a file from the filesystem".to_string(),
+                    input_schema: serde_json::json!({
+                        "type": "object",
+                        "properties": {
+                            "path": {
+                                "type": "string",
+                                "description": "Path to the file to delete"
+                            }
+                        },
+                        "required": ["path"]
+                    }),
+                    output_schema: None,
+                    annotations: Some(ToolAnnotations::destructive()
+                        .with_title("Delete File".to_string())
+                        .with_read_only_hint(false)
+                        .with_destructive_hint(true)
+                        .with_idempotent_hint(true)
+                        .with_open_world_hint(false)),
                 },
             ],
             next_cursor: None,
@@ -308,6 +355,30 @@ impl ResourceHandler for FileResourceHandler {
             ],
             next_cursor: None,
         })
+    }
+
+    async fn validate_resource_access(
+        &self,
+        uri: &str,
+        operation: RootOperation,
+        roots: &[roots::Root],
+    ) -> MCPResult<()> {
+        if roots.is_empty() {
+            return Ok(());
+        }
+        for root in roots {
+            if uri.starts_with(&root.uri) {
+                if root.uri.starts_with("file://") && uri.starts_with("file://") {
+                    let validator = RootSecurityValidator::default();
+                    return validator
+                        .validate_access(root, uri, operation)
+                        .map_err(|e| MCPError::Resource(ResourceError::AccessDenied(format!("Root validation failed: {}", e))));
+                } else {
+                    return Ok(());
+                }
+            }
+        }
+        Ok(())
     }
 }
 
@@ -597,12 +668,19 @@ impl SamplingHandler for AdvancedSamplingHandler {
         _request: sampling::CreateMessageRequest,
     ) -> MCPResult<sampling::CreateMessageResponse> {
         Ok(sampling::SamplingResponse {
-            role: "assistant".to_string(),
+            role: sampling::SamplingRole::Assistant,
             content: sampling::SamplingContent::Text {
                 text: "Sample message created".to_string(),
             },
             model: None,
             stop_reason: None,
+            approval_status: None,
+            request_id: None,
+            processing_time_ms: None,
+            cost_info: None,
+            included_context: None,
+            human_feedback: None,
+            warnings: None,
         })
     }
 }
@@ -643,15 +721,21 @@ struct AdvancedElicitationHandler;
 impl ElicitationHandler for AdvancedElicitationHandler {
     async fn handle_elicitation(
         &self,
-        _request: elicitation::ElicitationRequest,
+        request: elicitation::ElicitationRequest,
     ) -> MCPResult<elicitation::ElicitationResponse> {
+        // Log the elicitation request
+        println!("Advanced elicitation request: {}", request.message);
+        println!("Requested schema: {:?}", request.requested_schema);
+
+        // In a real implementation, this would present the request to the user
+        // For demonstration, we'll simulate an accept response with project details
         Ok(elicitation::ElicitationResponse {
-            session_id: None,
-            step: None,
-            value: serde_json::json!("elicitation response"),
-            cancelled: None,
-            validation_errors: None,
-            timestamp: None,
+            action: elicitation::ElicitationAction::Accept,
+            content: Some(serde_json::json!({
+                "name": "my-awesome-project",
+                "framework": "react",
+                "useTypeScript": true
+            })),
         })
     }
 }
