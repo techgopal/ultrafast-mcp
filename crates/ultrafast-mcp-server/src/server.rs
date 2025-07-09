@@ -15,7 +15,7 @@ use ultrafast_mcp_core::{
     },
     schema::validation::validate_tool_schema,
     types::{
-        notifications::{LogLevel, LogLevelSetRequest, LogLevelSetResponse},
+        notifications::{LogLevel, LogLevelSetRequest, LogLevelSetResponse, CancelledNotification},
         prompts::Prompt,
         resources::{Resource, ResourceTemplate, SubscribeResponse},
         server::ServerInfo,
@@ -1923,6 +1923,18 @@ impl UltraFastServer {
                 self.handle_initialized(notification).await?;
                 Ok(())
             }
+            "notifications/cancelled" => {
+                // Handle cancellation notification
+                if let Some(params) = notification.params {
+                    let cancellation_notification: ultrafast_mcp_core::types::notifications::CancelledNotification = 
+                        serde_json::from_value(params)?;
+                    
+                    // Use the cancellation manager to handle the cancellation
+                    let _cancelled = self.cancellation_manager.handle_cancellation(cancellation_notification).await?;
+                    info!("Cancellation notification processed");
+                }
+                Ok(())
+            }
             _ => {
                 warn!("Unknown notification method: {}", notification.method);
                 Ok(())
@@ -2127,6 +2139,8 @@ impl UltraFastServer {
             SetRootsResponse { success: false, error: Some("Roots handler not available".to_string()) }
         }
     }
+
+
 }
 
 #[cfg(test)]

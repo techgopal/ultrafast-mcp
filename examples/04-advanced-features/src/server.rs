@@ -568,6 +568,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             protocol_version: "2025-06-18".to_string(),
             allow_origin: Some("http://localhost:*".to_string()),
             monitoring_enabled: true,
+            enable_sse_resumability: true,
         };
 
         let transport_server = HttpTransportServer::new(transport_config);

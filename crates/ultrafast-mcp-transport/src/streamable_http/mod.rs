@@ -65,6 +65,7 @@ pub fn create_streamable_http_server_default(host: &str, port: u16) -> HttpTrans
         protocol_version: "2025-06-18".to_string(),
         allow_origin: Some("*".to_string()), // Allow all origins for development
         monitoring_enabled: true,
+        enable_sse_resumability: true,
     };
 
     HttpTransportServer::new(config)

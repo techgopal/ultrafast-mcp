@@ -947,12 +947,13 @@ async fn main() -> anyhow::Result<()> {
 
     // Create explicit HTTP transport configuration with monitoring enabled
     let transport_config = HttpTransportConfig {
-        host: "0.0.0.0".to_string(),
+        host: "127.0.0.1".to_string(),
         port: 8080,
         cors_enabled: true,
         protocol_version: "2025-06-18".to_string(),
         allow_origin: Some("*".to_string()), // Allow all origins for development
         monitoring_enabled: true,            // Explicitly enable monitoring
+        enable_sse_resumability: true,
     };
 
     // Run the server with explicit monitoring configuration

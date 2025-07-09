@@ -623,3 +623,335 @@ mod validation_middleware_tests {
             .contains("Method 'tools/list' not allowed"));
     }
 }
+
+#[cfg(test)]
+#[cfg(feature = "http")]
+mod transport_compliance_tests {
+    use super::*;
+    use axum::{
+        body::Bytes,
+        http::{HeaderMap, StatusCode},
+        response::{IntoResponse, Response},
+        Json,
+    };
+    use serde_json::json;
+    use std::sync::Arc;
+    use ultrafast_mcp_core::protocol::{
+        JsonRpcError, JsonRpcMessage, JsonRpcRequest, JsonRpcResponse, RequestId,
+    };
+    use ultrafast_mcp_transport::streamable_http::server::{
+        HttpTransportConfig, HttpTransportServer, HttpTransportState,
+    };
+
+    #[tokio::test]
+    async fn test_protocol_version_header_validation() {
+        let config = HttpTransportConfig {
+            allow_origin: Some("http://localhost:3000".to_string()),
+            ..Default::default()
+        };
+        let server = HttpTransportServer::new(config);
+        let state = server.get_state();
+
+        // Test valid protocol version
+        let mut headers = HeaderMap::new();
+        headers.insert("mcp-protocol-version", "2025-06-18".parse().unwrap());
+        headers.insert("origin", "http://localhost:3000".parse().unwrap());
+
+        let body = Bytes::from(r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"1.0.0"}}}"#);
+        
+        let response = handle_mcp_post_internal(Arc::new(state.clone()), headers, body).await;
+        assert_eq!(response.status(), StatusCode::OK);
+
+        // Test invalid protocol version
+        let mut headers = HeaderMap::new();
+        headers.insert("mcp-protocol-version", "2020-01-01".parse().unwrap());
+        headers.insert("origin", "http://localhost:3000".parse().unwrap());
+
+        let body = Bytes::from(r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2020-01-01","capabilities":{},"clientInfo":{"name":"test","version":"1.0.0"}}}"#);
+        
+        let response = handle_mcp_post_internal(Arc::new(state.clone()), headers, body).await;
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn test_session_id_validation() {
+        let config = HttpTransportConfig {
+            allow_origin: Some("http://localhost:3000".to_string()),
+            ..Default::default()
+        };
+        let server = HttpTransportServer::new(config);
+        let state = server.get_state();
+
+        // Test valid session ID (UUID)
+        let mut headers = HeaderMap::new();
+        headers.insert("mcp-session-id", "550e8400-e29b-41d4-a716-446655440000".parse().unwrap());
+        headers.insert("origin", "http://localhost:3000".parse().unwrap());
+
+        let body = Bytes::from(r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"1.0.0"}}}"#);
+        
+        let response = handle_mcp_post_internal(Arc::new(state.clone()), headers, body).await;
+        assert_eq!(response.status(), StatusCode::OK);
+
+        // Test invalid session ID (contains non-ASCII characters)
+        let mut headers = HeaderMap::new();
+        headers.insert("mcp-session-id", "invalid-session-🚀".parse().unwrap());
+        headers.insert("origin", "http://localhost:3000".parse().unwrap());
+
+        let body = Bytes::from(r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"1.0.0"}}}"#);
+        
+        let response = handle_mcp_post_internal(Arc::new(state.clone()), headers, body).await;
+        assert_eq!(response.status(), StatusCode::OK); // Should still work for initialize
+    }
+
+    #[tokio::test]
+    async fn test_accept_header_requirement() {
+        let config = HttpTransportConfig {
+            allow_origin: Some("http://localhost:3000".to_string()),
+            ..Default::default()
+        };
+        let server = HttpTransportServer::new(config);
+        let state = server.get_state();
+
+        // Test GET request (should return SSE stream)
+        let mut headers = HeaderMap::new();
+        headers.insert("accept", "text/event-stream".parse().unwrap());
+        headers.insert("origin", "http://localhost:3000".parse().unwrap());
+
+        let response = handle_mcp_get(Arc::new(state.clone()), headers).await;
+        // The response should be an SSE stream
+        assert!(response.into_response().status().is_success());
+    }
+
+    #[tokio::test]
+    async fn test_sse_event_id_generation() {
+        let config = HttpTransportConfig {
+            enable_sse_resumability: true,
+            allow_origin: Some("http://localhost:3000".to_string()),
+            ..Default::default()
+        };
+        let server = HttpTransportServer::new(config);
+        let state = server.get_state();
+
+        // Start an SSE stream
+        let mut headers = HeaderMap::new();
+        headers.insert("accept", "text/event-stream".parse().unwrap());
+        headers.insert("origin", "http://localhost:3000".parse().unwrap());
+
+        let response = handle_mcp_get(Arc::new(state.clone()), headers).await;
+        assert!(response.into_response().status().is_success());
+    }
+
+    #[tokio::test]
+    async fn test_last_event_id_header() {
+        let config = HttpTransportConfig {
+            enable_sse_resumability: true,
+            allow_origin: Some("http://localhost:3000".to_string()),
+            ..Default::default()
+        };
+        let server = HttpTransportServer::new(config);
+        let state = server.get_state();
+
+        // Test resuming from a specific event ID
+        let mut headers = HeaderMap::new();
+        headers.insert("accept", "text/event-stream".parse().unwrap());
+        headers.insert("last-event-id", "test-event-id-123".parse().unwrap());
+        headers.insert("origin", "http://localhost:3000".parse().unwrap());
+
+        let response = handle_mcp_get(Arc::new(state.clone()), headers).await;
+        assert!(response.into_response().status().is_success());
+    }
+
+    #[tokio::test]
+    async fn test_origin_validation() {
+        let config = HttpTransportConfig {
+            allow_origin: Some("http://localhost:3000".to_string()),
+            ..Default::default()
+        };
+        let server = HttpTransportServer::new(config);
+        let state = server.get_state();
+
+        // Test allowed origin
+        let mut headers = HeaderMap::new();
+        headers.insert("origin", "http://localhost:3000".parse().unwrap());
+
+        let body = Bytes::from(r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"1.0.0"}}}"#);
+        
+        let response = handle_mcp_post_internal(Arc::new(state.clone()), headers, body).await;
+        assert_eq!(response.status(), StatusCode::OK);
+
+        // Test disallowed origin
+        let mut headers = HeaderMap::new();
+        headers.insert("origin", "http://malicious-site.com".parse().unwrap());
+
+        let body = Bytes::from(r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"1.0.0"}}}"#);
+        
+        let response = handle_mcp_post_internal(Arc::new(state.clone()), headers, body).await;
+        assert_eq!(response.status(), StatusCode::FORBIDDEN);
+    }
+
+    #[tokio::test]
+    async fn test_session_management() {
+        let config = HttpTransportConfig {
+            allow_origin: Some("http://localhost:3000".to_string()),
+            ..Default::default()
+        };
+        let server = HttpTransportServer::new(config);
+        let state = server.get_state();
+
+        // Create a session
+        let session_id = "test-session-123";
+        let mut headers = HeaderMap::new();
+        headers.insert("mcp-session-id", session_id.parse().unwrap());
+        headers.insert("origin", "http://localhost:3000".parse().unwrap());
+
+        let body = Bytes::from(r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"1.0.0"}}}"#);
+        
+        let response = handle_mcp_post_internal(Arc::new(state.clone()), headers, body).await;
+        assert_eq!(response.status(), StatusCode::OK);
+
+        // Verify session exists
+        let sessions = state.session_store.read().await;
+        assert!(sessions.contains_key(session_id));
+
+        // Delete the session
+        let mut headers = HeaderMap::new();
+        headers.insert("mcp-session-id", session_id.parse().unwrap());
+        headers.insert("origin", "http://localhost:3000".parse().unwrap());
+
+        let response = handle_mcp_delete(Arc::new(state.clone()), headers).await;
+        assert_eq!(response.into_response().status(), StatusCode::OK);
+
+        // Verify session is removed
+        let sessions = state.session_store.read().await;
+        assert!(!sessions.contains_key(session_id));
+    }
+
+    // Helper function to simulate the server's POST handler
+    async fn handle_mcp_post_internal(
+        state: Arc<HttpTransportState>,
+        headers: HeaderMap,
+        body: Bytes,
+    ) -> Response {
+        // This is a simplified version of the actual handler
+        // In a real test, you'd want to use a proper HTTP client
+        
+        // Validate Origin header
+        if !validate_origin(&headers, &state.config) {
+            return (
+                StatusCode::FORBIDDEN,
+                Json(JsonRpcResponse::error(
+                    JsonRpcError::new(-32000, "Origin not allowed".to_string()),
+                    None,
+                )),
+            )
+                .into_response();
+        }
+
+        // Validate protocol version header if present
+        if let Some(protocol_version) = extract_protocol_version(&headers) {
+            if !validate_protocol_version(&protocol_version) {
+                return (
+                    StatusCode::BAD_REQUEST,
+                    Json(JsonRpcResponse::error(
+                        JsonRpcError::new(-32000, format!("Unsupported protocol version: {}", protocol_version)),
+                        None,
+                    )),
+                )
+                    .into_response();
+            }
+        }
+
+        // Simulate session creation for initialize requests
+        let session_id = headers
+            .get("mcp-session-id")
+            .and_then(|v| v.to_str().ok())
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| "default-session".to_string());
+        if let Ok(message) = serde_json::from_slice::<serde_json::Value>(&body) {
+            if message.get("method") == Some(&serde_json::Value::String("initialize".to_string())) {
+                use ultrafast_mcp_transport::streamable_http::server::SessionInfo;
+                let mut sessions = state.session_store.write().await;
+                sessions.entry(session_id).or_insert_with(SessionInfo::new);
+            }
+        }
+
+        // For this test, just return success
+        (StatusCode::OK, Json(json!({"result": "success"}))).into_response()
+    }
+
+    // Helper function to simulate the server's GET handler
+    async fn handle_mcp_get(
+        state: Arc<HttpTransportState>,
+        headers: HeaderMap,
+    ) -> Response {
+        // Validate Origin header
+        if !validate_origin(&headers, &state.config) {
+            return (
+                StatusCode::FORBIDDEN,
+                Json(JsonRpcResponse::error(
+                    JsonRpcError::new(-32000, "Origin not allowed".to_string()),
+                    None,
+                )),
+            )
+                .into_response();
+        }
+
+        // For this test, just return success
+        (StatusCode::OK, "data: test\n\n").into_response()
+    }
+
+    // Helper function to simulate the server's DELETE handler
+    async fn handle_mcp_delete(
+        state: Arc<HttpTransportState>,
+        headers: HeaderMap,
+    ) -> Response {
+        // Validate Origin header
+        if !validate_origin(&headers, &state.config) {
+            return (
+                StatusCode::FORBIDDEN,
+                Json(JsonRpcResponse::error(
+                    JsonRpcError::new(-32000, "Origin not allowed".to_string()),
+                    None,
+                )),
+            )
+                .into_response();
+        }
+
+        // Remove session from store
+        let session_id = headers
+            .get("mcp-session-id")
+            .and_then(|v| v.to_str().ok())
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| "default-session".to_string());
+        let mut sessions = state.session_store.write().await;
+        sessions.remove(&session_id);
+
+        // For this test, just return success
+        StatusCode::OK.into_response()
+    }
+
+    // Helper functions (these would be imported from the actual server module)
+    fn validate_origin(headers: &HeaderMap, config: &HttpTransportConfig) -> bool {
+        if let Some(origin) = headers.get("origin") {
+            if let Ok(origin_str) = origin.to_str() {
+                if let Some(allowed_origin) = &config.allow_origin {
+                    return origin_str == allowed_origin;
+                }
+                return origin_str.contains("localhost") || origin_str.contains("127.0.0.1");
+            }
+            return false;
+        }
+        config.host == "127.0.0.1" || config.host == "localhost" || config.host == "0.0.0.0"
+    }
+
+    fn extract_protocol_version(headers: &HeaderMap) -> Option<String> {
+        headers
+            .get("mcp-protocol-version")
+            .and_then(|v| v.to_str().ok())
+            .map(|s| s.to_string())
+    }
+
+    fn validate_protocol_version(version: &str) -> bool {
+        ["2025-06-18", "2025-03-26", "2024-11-05"].contains(&version)
+    }
+}

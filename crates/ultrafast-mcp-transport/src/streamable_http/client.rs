@@ -176,6 +176,7 @@ impl StreamableHttpClient {
             .client
             .post(&url)
             .header("content-type", "application/json")
+            .header("accept", "application/json, text/event-stream") // Required Accept header
             .header("mcp-session-id", &session_id)
             .header("mcp-protocol-version", &self.config.protocol_version)
             .json(&initialize_request);
@@ -234,6 +235,7 @@ impl StreamableHttpClient {
             .client
             .post(&url)
             .header("content-type", "application/json")
+            .header("accept", "application/json, text/event-stream") // Required Accept header
             .header("mcp-session-id", session_id)
             .header("mcp-protocol-version", &self.config.protocol_version)
             .json(&message); // Send direct JSON-RPC message
@@ -270,57 +272,129 @@ impl StreamableHttpClient {
     }
 
     /// Get current connection health
-    pub async fn get_health(&self) -> crate::TransportHealth {
+    pub async fn get_health(&mut self) -> crate::TransportHealth {
         crate::TransportHealth {
             state: if self.session_id.is_some() {
                 crate::ConnectionState::Connected
             } else {
                 crate::ConnectionState::Disconnected
             },
-            last_activity: None, // TODO: Track last activity
-            messages_sent: 0,    // TODO: Track message counts
+            connection_duration: None,
+            messages_sent: 0,
             messages_received: 0,
-            connection_duration: None, // TODO: Track connection duration
-            error_count: 0,            // TODO: Track error count
-            last_error: None,          // TODO: Track last error
+            error_count: 0,
+            last_activity: None,
+            last_error: None,
         }
     }
 
-    /// Check if the client is healthy
+    /// Check if the connection is healthy
     pub async fn is_healthy(&self) -> bool {
-        self.session_id.is_some() && self.pending_response.is_none()
+        self.session_id.is_some()
     }
 
-    /// Attempt to reconnect the client
+    /// Reconnect to the server
     pub async fn reconnect(&mut self) -> Result<()> {
-        tracing::info!("Attempting to reconnect Streamable HTTP client");
-
-        // Clear current session
         self.session_id = None;
         self.pending_response = None;
-
-        // Attempt to connect again
         self.connect().await?;
-
-        tracing::info!("Successfully reconnected Streamable HTTP client");
         Ok(())
     }
 
     /// Reset the client state
     pub async fn reset(&mut self) -> Result<()> {
-        tracing::info!("Resetting Streamable HTTP client");
-
-        // Close current connection
-        self.close().await?;
-
-        // Clear all state
         self.session_id = None;
         self.pending_response = None;
         self.access_token = None;
         self.token_expiry = None;
-
-        tracing::info!("Streamable HTTP client reset completed");
         Ok(())
+    }
+
+    /// Start an SSE stream for server-to-client communication
+    pub async fn start_sse_stream(&mut self) -> Result<reqwest::Response> {
+        let session_id = self
+            .session_id
+            .clone()
+            .ok_or_else(|| TransportError::ConnectionError {
+                message: "Not connected".to_string(),
+            })?;
+
+        let url = format!("{}/mcp", self.config.base_url);
+
+        // Get authentication headers
+        let auth_headers = self.get_auth_headers().await?;
+
+        let mut request_builder = self
+            .client
+            .get(&url)
+            .header("accept", "text/event-stream") // SSE-specific Accept header
+            .header("mcp-session-id", session_id)
+            .header("mcp-protocol-version", &self.config.protocol_version);
+
+        // Add authentication headers
+        for (key, value) in auth_headers {
+            request_builder = request_builder.header(key, value);
+        }
+
+        let response = request_builder
+            .send()
+            .await
+            .map_err(|e| TransportError::NetworkError {
+                message: format!("Failed to start SSE stream: {}", e),
+            })?;
+
+        if !response.status().is_success() {
+            let error_text = response.text().await.unwrap_or_default();
+            return Err(TransportError::NetworkError {
+                message: format!("SSE stream failed: {}", error_text),
+            });
+        }
+
+        Ok(response)
+    }
+
+    /// Resume an SSE stream from a specific event ID
+    pub async fn resume_sse_stream(&mut self, last_event_id: &str) -> Result<reqwest::Response> {
+        let session_id = self
+            .session_id
+            .clone()
+            .ok_or_else(|| TransportError::ConnectionError {
+                message: "Not connected".to_string(),
+            })?;
+
+        let url = format!("{}/mcp", self.config.base_url);
+
+        // Get authentication headers
+        let auth_headers = self.get_auth_headers().await?;
+
+        let mut request_builder = self
+            .client
+            .get(&url)
+            .header("accept", "text/event-stream")
+            .header("mcp-session-id", session_id)
+            .header("mcp-protocol-version", &self.config.protocol_version)
+            .header("last-event-id", last_event_id); // Resume from specific event
+
+        // Add authentication headers
+        for (key, value) in auth_headers {
+            request_builder = request_builder.header(key, value);
+        }
+
+        let response = request_builder
+            .send()
+            .await
+            .map_err(|e| TransportError::NetworkError {
+                message: format!("Failed to resume SSE stream: {}", e),
+            })?;
+
+        if !response.status().is_success() {
+            let error_text = response.text().await.unwrap_or_default();
+            return Err(TransportError::NetworkError {
+                message: format!("SSE stream resume failed: {}", error_text),
+            });
+        }
+
+        Ok(response)
     }
 }
 

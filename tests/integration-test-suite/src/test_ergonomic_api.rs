@@ -14,6 +14,7 @@ mod tests {
         ListResourcesResponse, ReadResourceRequest, ReadResourceResponse, Resource,
         ResourceContent, ResourceTemplate,
     };
+    use ultrafast_mcp_core::types::roots::{Root, RootOperation};
     use ultrafast_mcp_core::types::tools::{ListToolsRequest, ListToolsResponse, ToolContent};
     use ultrafast_mcp_core::{
         error::{MCPError, MCPResult},
@@ -158,6 +159,16 @@ mod tests {
                 }],
                 next_cursor: None,
             })
+        }
+
+        async fn validate_resource_access(
+            &self,
+            _uri: &str,
+            _operation: RootOperation,
+            _roots: &[Root],
+        ) -> MCPResult<()> {
+            // For testing purposes, allow all access
+            Ok(())
         }
     }
 

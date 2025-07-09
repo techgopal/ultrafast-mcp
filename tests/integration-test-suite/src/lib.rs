@@ -2,6 +2,7 @@
 //!
 //! This crate contains comprehensive integration tests for the UltraFast MCP implementation.
 
+pub mod cancellation_tests;
 pub mod client_integration_tests;
 pub mod http_integration_tests;
 pub mod integration_tests;

@@ -16,8 +16,9 @@ use futures::stream::{self, Stream};
 use std::sync::Arc;
 use tokio::sync::broadcast;
 use tower_http::cors::CorsLayer;
-use tracing::{error, info};
+use tracing::{error, info, warn};
 use ultrafast_mcp_core::protocol::{JsonRpcError, JsonRpcMessage, JsonRpcRequest, JsonRpcResponse};
+use ultrafast_mcp_core::protocol::version::{is_supported_version, PROTOCOL_VERSION};
 use ultrafast_mcp_monitoring::{MetricsCollector, MonitoringSystem, RequestTimer};
 
 /// HTTP transport configuration
@@ -29,6 +30,7 @@ pub struct HttpTransportConfig {
     pub protocol_version: String,
     pub allow_origin: Option<String>,
     pub monitoring_enabled: bool,
+    pub enable_sse_resumability: bool,
 }
 
 impl Default for HttpTransportConfig {
@@ -37,9 +39,10 @@ impl Default for HttpTransportConfig {
             host: "127.0.0.1".to_string(),
             port: 8080,
             cors_enabled: true,
-            protocol_version: "2025-06-18".to_string(),
+            protocol_version: PROTOCOL_VERSION.to_string(),
             allow_origin: Some("http://localhost:*".to_string()),
             monitoring_enabled: true,
+            enable_sse_resumability: true,
         }
     }
 }
@@ -52,6 +55,25 @@ pub struct HttpTransportState {
     pub config: HttpTransportConfig,
     pub metrics: Option<Arc<MetricsCollector>>,
     pub monitoring: Option<Arc<MonitoringSystem>>,
+    pub session_store: Arc<tokio::sync::RwLock<std::collections::HashMap<String, SessionInfo>>>,
+}
+
+/// Session information for tracking and resumability
+#[derive(Debug, Clone)]
+pub struct SessionInfo {
+    pub created_at: std::time::SystemTime,
+    pub last_event_id: Option<String>,
+    pub active_streams: std::collections::HashSet<String>,
+}
+
+impl SessionInfo {
+    pub fn new() -> Self {
+        Self {
+            created_at: std::time::SystemTime::now(),
+            last_event_id: None,
+            active_streams: std::collections::HashSet::new(),
+        }
+    }
 }
 
 /// HTTP transport server implementation
@@ -65,23 +87,13 @@ impl HttpTransportServer {
         let (message_sender, message_receiver) = broadcast::channel(1000);
         let (response_sender, _) = broadcast::channel(1000);
 
-        // Initialize monitoring if enabled
-        let (metrics, monitoring) = if config.monitoring_enabled {
-            let monitoring = Arc::new(MonitoringSystem::new(
-                ultrafast_mcp_monitoring::MonitoringConfig::default(),
-            ));
-            let metrics = monitoring.metrics();
-            (Some(metrics), Some(monitoring))
-        } else {
-            (None, None)
-        };
-
         let state = HttpTransportState {
             message_sender,
             response_sender,
             config,
-            metrics,
-            monitoring,
+            metrics: None,
+            monitoring: None,
+            session_store: Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new())),
         };
 
         Self {
@@ -90,37 +102,40 @@ impl HttpTransportServer {
         }
     }
 
-    /// Get a message receiver to subscribe to incoming messages
+    pub fn with_metrics(mut self, metrics: Arc<MetricsCollector>) -> Self {
+        self.state.metrics = Some(metrics);
+        self
+    }
+
+    pub fn with_monitoring(mut self, monitoring: Arc<MonitoringSystem>) -> Self {
+        self.state.monitoring = Some(monitoring);
+        self
+    }
+
     pub fn get_message_receiver(&self) -> broadcast::Receiver<(String, JsonRpcMessage)> {
         self.state.message_sender.subscribe()
     }
 
-    /// Get the message sender for response delivery
     pub fn get_message_sender(&self) -> broadcast::Sender<(String, JsonRpcMessage)> {
         self.state.message_sender.clone()
     }
 
-    /// Get the response sender for sending responses back to clients
     pub fn get_response_sender(&self) -> broadcast::Sender<(String, JsonRpcMessage)> {
         self.state.response_sender.clone()
     }
 
-    /// Get the transport state
     pub fn get_state(&self) -> HttpTransportState {
         self.state.clone()
     }
 
-    /// Get metrics collector if monitoring is enabled
     pub fn get_metrics(&self) -> Option<Arc<MetricsCollector>> {
         self.state.metrics.clone()
     }
 
-    /// Get monitoring system if enabled
     pub fn get_monitoring(&self) -> Option<Arc<MonitoringSystem>> {
         self.state.monitoring.clone()
     }
 
-    /// Start the HTTP server
     pub async fn run(self) -> Result<()> {
         info!(
             "Starting HTTP transport server on {}:{}",
@@ -205,6 +220,35 @@ fn extract_session_id(headers: &HeaderMap) -> Option<String> {
         .map(|s| s.to_string())
 }
 
+/// Extract protocol version from headers
+fn extract_protocol_version(headers: &HeaderMap) -> Option<String> {
+    headers
+        .get("mcp-protocol-version")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.to_string())
+}
+
+/// Extract Last-Event-ID from headers for SSE resumability
+fn extract_last_event_id(headers: &HeaderMap) -> Option<String> {
+    headers
+        .get("last-event-id")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.to_string())
+}
+
+/// Validate protocol version header
+fn validate_protocol_version(version: &str) -> bool {
+    is_supported_version(version)
+}
+
+/// Validate session ID format (visible ASCII characters only)
+fn validate_session_id(session_id: &str) -> bool {
+    session_id.chars().all(|c| {
+        let code = c as u8;
+        code >= 0x21 && code <= 0x7E
+    })
+}
+
 /// Validate Origin header for security
 fn validate_origin(headers: &HeaderMap, config: &HttpTransportConfig) -> bool {
     if let Some(origin) = headers.get("origin") {
@@ -230,6 +274,11 @@ fn validate_origin(headers: &HeaderMap, config: &HttpTransportConfig) -> bool {
 
 /// Generate a new session ID
 fn generate_session_id() -> String {
+    uuid::Uuid::new_v4().to_string()
+}
+
+/// Generate a new event ID for SSE
+fn generate_event_id() -> String {
     uuid::Uuid::new_v4().to_string()
 }
 
@@ -260,6 +309,7 @@ async fn handle_mcp_post_internal(
     headers: HeaderMap,
     body: Bytes,
 ) -> Response {
+    // Validate Origin header
     if !validate_origin(&headers, &state.config) {
         return (
             StatusCode::FORBIDDEN,
@@ -269,6 +319,20 @@ async fn handle_mcp_post_internal(
             )),
         )
             .into_response();
+    }
+
+    // Validate protocol version header if present
+    if let Some(protocol_version) = extract_protocol_version(&headers) {
+        if !validate_protocol_version(&protocol_version) {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(JsonRpcResponse::error(
+                    JsonRpcError::new(-32000, format!("Unsupported protocol version: {}", protocol_version)),
+                    None,
+                )),
+            )
+                .into_response();
+        }
     }
 
     // Check if this is an initial connection (initialize request or empty body)
@@ -284,7 +348,16 @@ async fn handle_mcp_post_internal(
         extract_session_id(&headers).unwrap_or_else(generate_session_id)
     } else {
         match extract_session_id(&headers) {
-            Some(id) => id,
+            Some(id) => {
+                if !validate_session_id(&id) {
+                    return Json(JsonRpcResponse::error(
+                        JsonRpcError::new(-32000, "Invalid session ID format".to_string()),
+                        None,
+                    ))
+                    .into_response();
+                }
+                id
+            }
             None => {
                 return Json(JsonRpcResponse::error(
                     JsonRpcError::new(-32000, "Missing session ID".to_string()),
@@ -294,6 +367,12 @@ async fn handle_mcp_post_internal(
             }
         }
     };
+
+    // Store session info
+    {
+        let mut sessions = state.session_store.write().await;
+        sessions.entry(session_id.clone()).or_insert_with(SessionInfo::new);
+    }
 
     // Try to parse the body as a JSON-RPC message
     let message: std::result::Result<JsonRpcMessage, serde_json::Error> =
@@ -337,12 +416,40 @@ async fn handle_mcp_get(
         )
             .into_response();
     }
+
+    // Validate protocol version header if present
+    if let Some(protocol_version) = extract_protocol_version(&headers) {
+        if !validate_protocol_version(&protocol_version) {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(JsonRpcResponse::error(
+                    JsonRpcError::new(-32000, format!("Unsupported protocol version: {}", protocol_version)),
+                    None,
+                )),
+            )
+                .into_response();
+        }
+    }
+
     let session_id = extract_session_id(&headers).unwrap_or_else(generate_session_id);
+    let last_event_id = extract_last_event_id(&headers);
+    
     info!(
-        "Processing GET request for session {} (SSE stream)",
-        session_id
+        "Processing GET request for session {} (SSE stream){}",
+        session_id,
+        last_event_id.as_ref().map(|id| format!(", resuming from event {}", id)).unwrap_or_default()
     );
-    let stream = create_sse_stream(state, session_id);
+
+    // Store session info
+    {
+        let mut sessions = state.session_store.write().await;
+        let session_info = sessions.entry(session_id.clone()).or_insert_with(SessionInfo::new);
+        if let Some(event_id) = &last_event_id {
+            session_info.last_event_id = Some(event_id.clone());
+        }
+    }
+
+    let stream = create_sse_stream(state, session_id, last_event_id);
     Sse::new(stream).into_response()
 }
 
@@ -360,7 +467,29 @@ async fn handle_mcp_delete(
         )
             .into_response();
     }
+
+    // Validate protocol version header if present
+    if let Some(protocol_version) = extract_protocol_version(&headers) {
+        if !validate_protocol_version(&protocol_version) {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(JsonRpcResponse::error(
+                    JsonRpcError::new(-32000, format!("Unsupported protocol version: {}", protocol_version)),
+                    None,
+                )),
+            )
+                .into_response();
+        }
+    }
+
     let session_id = extract_session_id(&headers).unwrap_or_else(generate_session_id);
+    
+    // Remove session from store
+    {
+        let mut sessions = state.session_store.write().await;
+        sessions.remove(&session_id);
+    }
+    
     info!("Terminating session: {}", session_id);
     StatusCode::OK.into_response()
 }
@@ -478,25 +607,35 @@ async fn handle_notification_or_response(
 fn create_sse_stream(
     state: Arc<HttpTransportState>,
     session_id: String,
+    last_event_id: Option<String>,
 ) -> impl Stream<Item = std::result::Result<Event, axum::Error>> {
     let response_receiver = state.response_sender.subscribe();
+    let enable_resumability = state.config.enable_sse_resumability;
 
     stream::unfold(
-        (response_receiver, session_id),
-        |(mut receiver, session_id)| async move {
+        (response_receiver, session_id, last_event_id, enable_resumability),
+        |(mut receiver, session_id, last_event_id, enable_resumability)| async move {
             match receiver.recv().await {
                 Ok((msg_session_id, message)) => {
                     if msg_session_id == session_id || msg_session_id == "*" {
                         let event_data = serde_json::to_string(&message).unwrap_or_default();
-                        Some((
-                            Ok(Event::default().data(event_data).comment("keep-alive")), // Use comment for keep-alive
-                            (receiver, session_id),
-                        ))
+                        let mut event = Event::default().data(event_data);
+                        
+                        // Add event ID for resumability if enabled
+                        if enable_resumability {
+                            let event_id = generate_event_id();
+                            event = event.id(event_id);
+                        }
+                        
+                        // Add keep-alive comment
+                        event = event.comment("keep-alive");
+                        
+                        Some((Ok(event), (receiver, session_id, last_event_id, enable_resumability)))
                     } else {
                         // Skip messages for other sessions, send keep-alive comment
                         Some((
                             Ok(Event::default().comment("keep-alive")),
-                            (receiver, session_id),
+                            (receiver, session_id, last_event_id, enable_resumability),
                         ))
                     }
                 }
