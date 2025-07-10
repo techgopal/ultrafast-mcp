@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 pub struct ElicitationRequest {
     /// Clear, human-readable explanation of what information is needed and why
     pub message: String,
-    
+
     /// JSON Schema that defines the expected structure of the response
     /// Limited to flat objects with primitive types to simplify client implementation
     #[serde(rename = "requestedSchema")]
@@ -35,7 +35,7 @@ impl Default for ElicitationRequest {
 pub struct ElicitationResponse {
     /// The action taken by the user
     pub action: ElicitationAction,
-    
+
     /// The content provided by the user (only present if action is "accept")
     #[serde(skip_serializing_if = "Option::is_none")]
     pub content: Option<serde_json::Value>,
@@ -82,7 +82,7 @@ mod tests {
                 "required": ["username"]
             }),
         };
-        
+
         assert_eq!(request.message, "Please provide your GitHub username");
         assert!(request.requested_schema.is_object());
     }
@@ -95,7 +95,7 @@ mod tests {
                 "username": "octocat"
             })),
         };
-        
+
         assert!(matches!(response.action, ElicitationAction::Accept));
         assert!(response.content.is_some());
     }
@@ -106,7 +106,7 @@ mod tests {
             action: ElicitationAction::Decline,
             content: None,
         };
-        
+
         assert!(matches!(response.action, ElicitationAction::Decline));
         assert!(response.content.is_none());
     }
@@ -117,7 +117,7 @@ mod tests {
             action: ElicitationAction::Cancel,
             content: None,
         };
-        
+
         assert!(matches!(response.action, ElicitationAction::Cancel));
         assert!(response.content.is_none());
     }

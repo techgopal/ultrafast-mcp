@@ -26,10 +26,10 @@ pub use crate::{
     ServerInfo,
     // Tool essentials
     Tool,
+    ToolAnnotations,
     ToolCall,
     ToolHandler,
     ToolResult,
-    ToolAnnotations,
     UltraFastClient,
     UltraFastServer,
 };

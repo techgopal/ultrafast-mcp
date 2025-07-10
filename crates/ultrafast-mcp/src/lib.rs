@@ -434,7 +434,10 @@ pub use ultrafast_mcp_core::types::{
     // Server types
     server::{ServerCapabilities, ServerInfo},
     // Tool types
-    tools::{ListToolsRequest, ListToolsResponse, Tool, ToolAnnotations, ToolCall, ToolContent, ToolResult},
+    tools::{
+        ListToolsRequest, ListToolsResponse, Tool, ToolAnnotations, ToolCall, ToolContent,
+        ToolResult,
+    },
 };
 
 // Re-export capability types from protocol
@@ -457,10 +460,7 @@ pub use ultrafast_mcp_server::{
 // =========================
 // Client API
 // =========================
-pub use ultrafast_mcp_client::{
-    UltraFastClient,
-    ClientElicitationHandler,
-};
+pub use ultrafast_mcp_client::{ClientElicitationHandler, UltraFastClient};
 
 // =========================
 // Transport Layer
@@ -527,8 +527,8 @@ pub use ultrafast_mcp_monitoring::{
     health::{HealthCheck, HealthCheckResult, HealthChecker, HealthStatus},
     MetricsCollector,
     MonitoringSystem,
+    metrics::RequestTimer,
     RequestMetrics,
-    RequestTimer,
     SystemMetrics,
     TransportMetrics,
     // Also export everything else

@@ -403,10 +403,6 @@ impl Default for RootsListChangedNotification {
     }
 }
 
-
-
-
-
 impl Default for ConnectionStatusNotification {
     fn default() -> Self {
         Self {

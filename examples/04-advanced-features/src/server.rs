@@ -13,6 +13,8 @@
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tracing::{error, info, warn};
+use ultrafast_mcp::types::roots::{RootOperation, RootSecurityValidator};
+use ultrafast_mcp::McpCoreError::ResourceError;
 use ultrafast_mcp::{
     // Import health types
     health::{HealthCheck, HealthCheckResult},
@@ -56,16 +58,14 @@ use ultrafast_mcp::{
     ServerCapabilities,
     ServerInfo,
     Tool,
+    ToolAnnotations,
     ToolCall,
     ToolContent,
     ToolHandler,
     ToolResult,
     ToolsCapability,
     UltraFastServer,
-    ToolAnnotations,
 };
-use ultrafast_mcp::types::roots::{RootOperation, RootSecurityValidator};
-use ultrafast_mcp::McpCoreError::ResourceError;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct CalculatorRequest {
@@ -238,10 +238,12 @@ impl ToolHandler for AdvancedToolHandler {
                         "required": ["operation", "a", "b"]
                     }),
                     output_schema: None,
-                    annotations: Some(ToolAnnotations::read_only()
-                        .with_title("Calculator".to_string())
-                        .with_read_only_hint(true)
-                        .with_open_world_hint(false)),
+                    annotations: Some(
+                        ToolAnnotations::read_only()
+                            .with_title("Calculator".to_string())
+                            .with_read_only_hint(true)
+                            .with_open_world_hint(false),
+                    ),
                 },
                 Tool {
                     name: "weather".to_string(),
@@ -261,10 +263,12 @@ impl ToolHandler for AdvancedToolHandler {
                         "required": ["city"]
                     }),
                     output_schema: None,
-                    annotations: Some(ToolAnnotations::open_world()
-                        .with_title("Weather Lookup".to_string())
-                        .with_read_only_hint(true)
-                        .with_open_world_hint(true)),
+                    annotations: Some(
+                        ToolAnnotations::open_world()
+                            .with_title("Weather Lookup".to_string())
+                            .with_read_only_hint(true)
+                            .with_open_world_hint(true),
+                    ),
                 },
                 Tool {
                     name: "delete_file".to_string(),
@@ -280,12 +284,14 @@ impl ToolHandler for AdvancedToolHandler {
                         "required": ["path"]
                     }),
                     output_schema: None,
-                    annotations: Some(ToolAnnotations::destructive()
-                        .with_title("Delete File".to_string())
-                        .with_read_only_hint(false)
-                        .with_destructive_hint(true)
-                        .with_idempotent_hint(true)
-                        .with_open_world_hint(false)),
+                    annotations: Some(
+                        ToolAnnotations::destructive()
+                            .with_title("Delete File".to_string())
+                            .with_read_only_hint(false)
+                            .with_destructive_hint(true)
+                            .with_idempotent_hint(true)
+                            .with_open_world_hint(false),
+                    ),
                 },
             ],
             next_cursor: None,
@@ -372,7 +378,12 @@ impl ResourceHandler for FileResourceHandler {
                     let validator = RootSecurityValidator::default();
                     return validator
                         .validate_access(root, uri, operation)
-                        .map_err(|e| MCPError::Resource(ResourceError::AccessDenied(format!("Root validation failed: {}", e))));
+                        .map_err(|e| {
+                            MCPError::Resource(ResourceError::AccessDenied(format!(
+                                "Root validation failed: {}",
+                                e
+                            )))
+                        });
                 } else {
                     return Ok(());
                 }

@@ -9,12 +9,12 @@ mod tests {
     use std::collections::HashMap;
     use std::sync::Arc;
     use ultrafast_mcp::{
-        UltraFastClient, UltraFastServer, ClientInfo, ClientCapabilities, ServerInfo, ServerCapabilities,
-        CompletionHandler, MCPResult, CompletionCapability,
+        ClientCapabilities, ClientInfo, CompletionCapability, CompletionHandler, MCPResult,
+        ServerCapabilities, ServerInfo, UltraFastClient, UltraFastServer,
     };
     use ultrafast_mcp_core::types::completion::{
-        CompleteRequest, CompleteResponse, Completion, CompletionValue, CompletionReference, 
-        CompletionArgument, CompletionContext
+        CompleteRequest, CompleteResponse, Completion, CompletionArgument, CompletionContext,
+        CompletionReference, CompletionValue,
     };
 
     // Mock completion handler for testing
@@ -32,45 +32,55 @@ mod tests {
                     let prompt_name = &request.reference.name;
                     let values = match (prompt_name.as_str(), argument_name.as_str()) {
                         ("code_review", "language") => {
-                            let mut suggestions = vec!["python", "pytorch", "pyside", "rust", "javascript", "typescript"];
+                            let mut suggestions = vec![
+                                "python",
+                                "pytorch",
+                                "pyside",
+                                "rust",
+                                "javascript",
+                                "typescript",
+                            ];
                             // Filter by current value
                             suggestions.retain(|s| s.starts_with(argument_value));
                             suggestions
-                        },
+                        }
                         ("code_review", "framework") => {
                             // Check context for language to provide framework-specific suggestions
-                            let context_language = request.context
+                            let context_language = request
+                                .context
                                 .as_ref()
                                 .and_then(|c| c.arguments.as_ref())
                                 .and_then(|args| args.get("language"))
                                 .cloned();
-                            
+
                             let mut suggestions = match context_language.as_deref() {
-                                Some("python") => vec!["flask", "django", "fastapi", "pytorch", "tensorflow"],
-                                Some("javascript") => vec!["react", "vue", "angular", "express", "next"],
+                                Some("python") => {
+                                    vec!["flask", "django", "fastapi", "pytorch", "tensorflow"]
+                                }
+                                Some("javascript") => {
+                                    vec!["react", "vue", "angular", "express", "next"]
+                                }
                                 Some("rust") => vec!["actix", "rocket", "axum", "tokio", "serde"],
                                 _ => vec!["flask", "django", "react", "vue", "actix"],
                             };
                             suggestions.retain(|s| s.starts_with(argument_value));
                             suggestions
-                        },
+                        }
                         ("greeting", "style") => {
                             let mut suggestions = vec!["casual", "formal", "technical", "friendly"];
                             suggestions.retain(|s| s.starts_with(argument_value));
                             suggestions
-                        },
+                        }
                         ("greeting", "temperature") => {
                             let mut suggestions = vec!["0", "0.5", "0.7", "1.0"];
                             suggestions.retain(|s| s.starts_with(argument_value));
                             suggestions
-                        },
+                        }
                         _ => vec![],
                     };
 
-                    let completion_values: Vec<CompletionValue> = values
-                        .into_iter()
-                        .map(CompletionValue::new)
-                        .collect();
+                    let completion_values: Vec<CompletionValue> =
+                        values.into_iter().map(CompletionValue::new).collect();
 
                     Ok(CompleteResponse {
                         completion: Completion::new(completion_values),
@@ -82,10 +92,8 @@ mod tests {
                     let mut suggestions = vec!["1", "2", "3", "4", "5"];
                     suggestions.retain(|s| s.starts_with(argument_value));
 
-                    let completion_values: Vec<CompletionValue> = suggestions
-                        .into_iter()
-                        .map(CompletionValue::new)
-                        .collect();
+                    let completion_values: Vec<CompletionValue> =
+                        suggestions.into_iter().map(CompletionValue::new).collect();
 
                     Ok(CompleteResponse {
                         completion: Completion::new(completion_values),
@@ -194,9 +202,12 @@ mod tests {
 
         let response = handler.complete(request).await.unwrap();
         assert!(!response.completion.values.is_empty());
-        
+
         // Should return python and pytorch
-        let values: Vec<&str> = response.completion.values.iter()
+        let values: Vec<&str> = response
+            .completion
+            .values
+            .iter()
             .map(|v| v.value.as_str())
             .collect();
         assert!(values.contains(&"python"));
@@ -235,9 +246,12 @@ mod tests {
 
         let response = handler.complete(request).await.unwrap();
         assert!(!response.completion.values.is_empty());
-        
+
         // Should return flask (Python framework)
-        let values: Vec<&str> = response.completion.values.iter()
+        let values: Vec<&str> = response
+            .completion
+            .values
+            .iter()
             .map(|v| v.value.as_str())
             .collect();
         assert!(values.contains(&"flask"));
@@ -264,9 +278,12 @@ mod tests {
 
         let response = handler.complete(request).await.unwrap();
         assert!(!response.completion.values.is_empty());
-        
+
         // Should return python and pytorch (both start with "pyt")
-        let values: Vec<&str> = response.completion.values.iter()
+        let values: Vec<&str> = response
+            .completion
+            .values
+            .iter()
             .map(|v| v.value.as_str())
             .collect();
         assert_eq!(values.len(), 2);
@@ -295,9 +312,12 @@ mod tests {
 
         let response = handler.complete(request).await.unwrap();
         assert!(!response.completion.values.is_empty());
-        
+
         // Should return "1" (starts with "1")
-        let values: Vec<&str> = response.completion.values.iter()
+        let values: Vec<&str> = response
+            .completion
+            .values
+            .iter()
             .map(|v| v.value.as_str())
             .collect();
         assert_eq!(values.len(), 1);
@@ -358,12 +378,18 @@ mod tests {
 
         let with_description = CompletionValue::with_description("test", "Test Description");
         assert_eq!(with_description.value, "test");
-        assert_eq!(with_description.description, Some("Test Description".to_string()));
+        assert_eq!(
+            with_description.description,
+            Some("Test Description".to_string())
+        );
 
         let function = CompletionValue::function("myFunction", "A test function");
         assert_eq!(function.value, "myFunction");
         assert_eq!(function.description, Some("A test function".to_string()));
-        assert!(matches!(function.kind, Some(ultrafast_mcp_core::types::completion::CompletionKind::Function)));
+        assert!(matches!(
+            function.kind,
+            Some(ultrafast_mcp_core::types::completion::CompletionKind::Function)
+        ));
 
         println!("✅ Completion value creation test passed!");
     }
@@ -385,11 +411,14 @@ mod tests {
 
         // Serialize
         let serialized = serde_json::to_string(&original_request).unwrap();
-        
+
         // Deserialize
         let deserialized: CompleteRequest = serde_json::from_str(&serialized).unwrap();
-        
-        assert_eq!(original_request.reference.ref_type, deserialized.reference.ref_type);
+
+        assert_eq!(
+            original_request.reference.ref_type,
+            deserialized.reference.ref_type
+        );
         assert_eq!(original_request.reference.name, deserialized.reference.name);
         assert_eq!(original_request.argument.name, deserialized.argument.name);
         assert_eq!(original_request.argument.value, deserialized.argument.value);
@@ -401,7 +430,7 @@ mod tests {
     async fn test_completion_server_integration() {
         // Test that the server can be created with completion handler
         let server = create_test_server();
-        
+
         assert_eq!(server.info().name, "completion-test-server");
         // Check that the server has completion capability by checking the server info
         assert_eq!(server.info().name, "completion-test-server");
@@ -413,7 +442,7 @@ mod tests {
     async fn test_completion_client_integration() {
         // Test that the client can be created
         let client = create_test_client();
-        
+
         assert_eq!(client.info().name, "completion-test-client");
 
         println!("✅ Completion client integration test passed!");
@@ -422,7 +451,7 @@ mod tests {
     #[tokio::test]
     async fn test_completion_protocol_compliance() {
         // Test that the completion implementation follows MCP 2025-06-18 spec
-        
+
         // 1. Test reference structure
         let reference = CompletionReference {
             ref_type: "ref/prompt".to_string(),
@@ -467,4 +496,4 @@ mod tests {
 
         println!("✅ Completion protocol compliance test passed!");
     }
-} 
+}

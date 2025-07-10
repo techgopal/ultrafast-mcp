@@ -4,4 +4,4 @@
 //! for easier access and to maintain backward compatibility.
 
 // Re-export config traits from the config module
-pub use crate::config::base::{BaseConfig, ConfigDefaults, ConfigBuilder}; 
+pub use crate::config::base::{BaseConfig, ConfigBuilder, ConfigDefaults};

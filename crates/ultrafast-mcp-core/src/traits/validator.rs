@@ -9,10 +9,10 @@ use crate::MCPResult;
 pub trait BaseValidator<T> {
     /// Validate an item and return result
     fn validate(&self, item: &T) -> MCPResult<()>;
-    
+
     /// Get validator name for debugging/logging
     fn name(&self) -> &'static str;
-    
+
     /// Check if validator is enabled
     fn is_enabled(&self) -> bool {
         true
@@ -45,7 +45,7 @@ impl<T> CompositeValidator<T> {
             name,
         }
     }
-    
+
     pub fn add_validator(mut self, validator: Box<dyn BaseValidator<T>>) -> Self {
         self.validators.push(validator);
         self
@@ -61,7 +61,7 @@ impl<T> BaseValidator<T> for CompositeValidator<T> {
         }
         Ok(())
     }
-    
+
     fn name(&self) -> &'static str {
         // This is a limitation - we can't return the dynamic name
         // In practice, you'd want to use a different approach for dynamic names
@@ -77,7 +77,7 @@ macro_rules! impl_base_validator {
             fn validate(&self, item: &$target_type) -> $crate::MCPResult<()> {
                 self.validate_impl(item)
             }
-            
+
             fn name(&self) -> &'static str {
                 $name
             }
@@ -93,7 +93,7 @@ mod tests {
     struct TestValidator;
 
     impl TestValidator {
-        fn validate_impl(&self, item: &String) -> MCPResult<()> {
+        fn validate_impl(&self, item: &str) -> MCPResult<()> {
             if item.is_empty() {
                 Err(MCPError::Validation(ValidationError::RequiredField {
                     field: "test_string".to_string(),
@@ -111,10 +111,10 @@ mod tests {
         let validator = TestValidator;
         assert_eq!(validator.name(), "test_validator");
         assert!(validator.is_enabled());
-        
+
         // Valid case
         assert!(validator.validate(&"hello".to_string()).is_ok());
-        
+
         // Invalid case
         assert!(validator.validate(&"".to_string()).is_err());
     }
@@ -127,8 +127,8 @@ mod tests {
         fn new(min_length: usize) -> Self {
             Self { min_length }
         }
-        
-        fn validate_impl(&self, item: &String) -> MCPResult<()> {
+
+        fn validate_impl(&self, item: &str) -> MCPResult<()> {
             if item.len() < self.min_length {
                 Err(MCPError::Validation(ValidationError::ValueOutOfRange {
                     field: "string_length".to_string(),
@@ -149,16 +149,16 @@ mod tests {
         let composite = CompositeValidator::new("test_composite".to_string())
             .add_validator(Box::new(TestValidator))
             .add_validator(Box::new(LengthValidator::new(3)));
-        
+
         assert_eq!(composite.name(), "CompositeValidator");
-        
+
         // Valid case
         assert!(composite.validate(&"hello".to_string()).is_ok());
-        
+
         // Invalid case - empty string
         assert!(composite.validate(&"".to_string()).is_err());
-        
+
         // Invalid case - too short
         assert!(composite.validate(&"hi".to_string()).is_err());
     }
-} 
+}

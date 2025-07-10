@@ -1,9 +1,9 @@
 //! Mock implementations for testing
 
-use ultrafast_mcp_core::protocol::{JsonRpcMessage, jsonrpc::RequestId};
-use ultrafast_mcp_transport::{Transport, TransportError, ConnectionState, TransportHealth};
-use std::sync::{Arc, Mutex};
 use std::collections::VecDeque;
+use std::sync::{Arc, Mutex};
+use ultrafast_mcp_core::protocol::{jsonrpc::RequestId, JsonRpcMessage};
+use ultrafast_mcp_transport::{ConnectionState, Transport, TransportError, TransportHealth};
 
 /// Mock transport for testing without real network connections
 pub struct MockTransport {
@@ -224,4 +224,4 @@ mod tests {
         let transport = create_mock_transport_with_messages(messages);
         assert_eq!(transport.receive_queue.lock().unwrap().len(), 2);
     }
-} 
+}

@@ -12,19 +12,17 @@ mod tests {
     use tokio::sync::mpsc;
     use tokio::time::sleep;
     use ultrafast_mcp::{
-        UltraFastClient, UltraFastServer, ClientInfo, ClientCapabilities, ServerInfo, ServerCapabilities,
-        ToolHandler, ListToolsRequest, ListToolsResponse, Tool, ToolCall, ToolResult, ToolContent,
-        MCPResult, MCPError,
+        ClientCapabilities, ClientInfo, ListToolsRequest, ListToolsResponse, MCPError, MCPResult,
+        ServerCapabilities, ServerInfo, Tool, ToolCall, ToolContent, ToolHandler, ToolResult,
+        UltraFastClient, UltraFastServer,
     };
     use ultrafast_mcp_core::{
         protocol::{
-            capabilities::{ToolsCapability, ResourcesCapability, PromptsCapability},
-            jsonrpc::{JsonRpcRequest, JsonRpcMessage},
+            capabilities::{PromptsCapability, ResourcesCapability, ToolsCapability},
+            jsonrpc::{JsonRpcMessage, JsonRpcRequest},
             lifecycle::InitializeRequest,
         },
-        types::{
-            notifications::{CancelledNotification, PingRequest},
-        },
+        types::notifications::{CancelledNotification, PingRequest},
     };
 
     // Mock tool handler that supports cancellation
@@ -54,12 +52,16 @@ mod tests {
 
                     while start.elapsed().as_secs_f64() < duration {
                         sleep(check_interval).await;
-                        
+
                         // Check if we should continue (in real implementation, this would check context.is_cancelled())
                         if start.elapsed().as_secs_f64() > duration * 0.5 {
                             // Simulate cancellation check
-                            let _ = self.cancellation_tx.try_send("operation_cancelled".to_string());
-                            return Err(MCPError::invalid_request("Operation was cancelled".to_string()));
+                            let _ = self
+                                .cancellation_tx
+                                .try_send("operation_cancelled".to_string());
+                            return Err(MCPError::invalid_request(
+                                "Operation was cancelled".to_string(),
+                            ));
                         }
                     }
 
@@ -132,7 +134,7 @@ mod tests {
 
     fn create_cancellation_test_server() -> (UltraFastServer, mpsc::Receiver<String>) {
         let (cancellation_tx, cancellation_rx) = mpsc::channel(100);
-        
+
         let server_info = ServerInfo {
             name: "cancellation-test-server".to_string(),
             version: "1.0.0".to_string(),
@@ -203,7 +205,7 @@ mod tests {
     #[tokio::test]
     async fn test_initialize_cannot_be_cancelled() {
         let _client = create_cancellation_test_client();
-        
+
         // Create an initialize request
         let initialize_request = InitializeRequest {
             protocol_version: "2025-06-18".to_string(),
@@ -277,8 +279,14 @@ mod tests {
 
         // The specification states that receivers MAY ignore cancellation notifications
         // for unknown request IDs. This is a valid behavior.
-        assert_eq!(cancellation_notification.request_id, json!("unknown-request-123"));
-        assert_eq!(cancellation_notification.reason, Some("User requested cancellation".to_string()));
+        assert_eq!(
+            cancellation_notification.request_id,
+            json!("unknown-request-123")
+        );
+        assert_eq!(
+            cancellation_notification.reason,
+            Some("User requested cancellation".to_string())
+        );
 
         println!("✅ Unknown request ID cancellation handling test passed!");
     }
@@ -296,8 +304,14 @@ mod tests {
 
         // The specification states that receivers MAY ignore cancellation notifications
         // if processing has already completed
-        assert_eq!(cancellation_notification.request_id, json!("completed-request-123"));
-        assert_eq!(cancellation_notification.reason, Some("Late cancellation".to_string()));
+        assert_eq!(
+            cancellation_notification.request_id,
+            json!("completed-request-123")
+        );
+        assert_eq!(
+            cancellation_notification.reason,
+            Some("Late cancellation".to_string())
+        );
 
         println!("✅ Cancellation timing and race conditions test passed!");
     }
@@ -319,8 +333,9 @@ mod tests {
         );
 
         // In a real implementation, this would be logged
-        println!("Cancellation logged: Request {} cancelled with reason: {}", 
-            cancellation_notification.request_id, 
+        println!(
+            "Cancellation logged: Request {} cancelled with reason: {}",
+            cancellation_notification.request_id,
             cancellation_notification.reason.as_ref().unwrap()
         );
 
@@ -377,8 +392,14 @@ mod tests {
         };
 
         // Both should be valid
-        assert_eq!(client_to_server_cancellation.request_id, json!("client-request-123"));
-        assert_eq!(server_to_client_cancellation.request_id, json!("server-request-456"));
+        assert_eq!(
+            client_to_server_cancellation.request_id,
+            json!("client-request-123")
+        );
+        assert_eq!(
+            server_to_client_cancellation.request_id,
+            json!("server-request-456")
+        );
 
         println!("✅ Cancellation direction requirements test passed!");
     }
@@ -415,7 +436,7 @@ mod tests {
 
         // Serialize
         let serialized = serde_json::to_string(&original_notification).unwrap();
-        
+
         // Deserialize
         let deserialized: CancelledNotification = serde_json::from_str(&serialized).unwrap();
 
@@ -449,8 +470,14 @@ mod tests {
 
         // The specification states that receivers MAY ignore cancellation notifications
         // if the request is already cancelled
-        assert_eq!(first_cancellation.reason, Some("First cancellation".to_string()));
-        assert_eq!(second_cancellation.reason, Some("Second cancellation".to_string()));
+        assert_eq!(
+            first_cancellation.reason,
+            Some("First cancellation".to_string())
+        );
+        assert_eq!(
+            second_cancellation.reason,
+            Some("Second cancellation".to_string())
+        );
 
         println!("✅ Multiple cancellation notifications test passed!");
     }
@@ -469,9 +496,15 @@ mod tests {
         };
 
         // Both should be valid
-        assert_eq!(cancellation_with_empty_reason.request_id, json!("empty-reason-test-123"));
+        assert_eq!(
+            cancellation_with_empty_reason.request_id,
+            json!("empty-reason-test-123")
+        );
         assert_eq!(cancellation_with_empty_reason.reason, Some("".to_string()));
-        assert_eq!(cancellation_with_no_reason.request_id, json!("no-reason-test-456"));
+        assert_eq!(
+            cancellation_with_no_reason.request_id,
+            json!("no-reason-test-456")
+        );
         assert_eq!(cancellation_with_no_reason.reason, None);
 
         println!("✅ Cancellation empty reason test passed!");
@@ -492,13 +525,13 @@ mod tests {
         });
 
         let serialized = serde_json::to_string(&notification).unwrap();
-        
+
         // Verify JSON-RPC 2.0 compliance
         assert!(serialized.contains("\"jsonrpc\":\"2.0\""));
         assert!(serialized.contains("\"method\":\"notifications/cancelled\""));
         assert!(serialized.contains("jsonrpc-test-123"));
         assert!(serialized.contains("JSON-RPC compliance test"));
-        
+
         // Verify no ID field (notifications don't have IDs)
         assert!(!serialized.contains("\"id\":"));
 
@@ -510,7 +543,7 @@ mod tests {
     async fn test_cancellation_error_handling() {
         // Test that invalid JSON is handled gracefully
         let invalid_json = r#"{"jsonrpc": "2.0", "method": "notifications/cancelled", "params": {"requestId": "test"}"#;
-        
+
         // This should fail to parse due to missing closing brace
         let parse_result: Result<JsonRpcMessage, _> = serde_json::from_str(invalid_json);
         assert!(parse_result.is_err());
@@ -525,7 +558,8 @@ mod tests {
         });
 
         // This should fail to deserialize as CancelledNotification
-        let parse_result: Result<CancelledNotification, _> = serde_json::from_value(missing_request_id);
+        let parse_result: Result<CancelledNotification, _> =
+            serde_json::from_value(missing_request_id);
         assert!(parse_result.is_err());
 
         println!("✅ Cancellation error handling test passed!");
@@ -535,30 +569,33 @@ mod tests {
     #[tokio::test]
     async fn test_cancellation_performance() {
         let start = std::time::Instant::now();
-        
+
         // Create many cancellation notifications
         for i in 0..1000 {
             let notification = CancelledNotification {
                 request_id: json!(format!("perf-test-{}", i)),
                 reason: Some(format!("Performance test {}", i)),
             };
-            
+
             let _serialized = serde_json::to_string(&notification).unwrap();
         }
-        
+
         let elapsed = start.elapsed();
-        
+
         // Should complete quickly (less than 100ms)
         assert!(elapsed.as_millis() < 100);
-        
-        println!("✅ Cancellation performance test passed! ({:?} for 1000 notifications)", elapsed);
+
+        println!(
+            "✅ Cancellation performance test passed! ({:?} for 1000 notifications)",
+            elapsed
+        );
     }
 
     /// Test cancellation notification integration with MCP protocol
     #[tokio::test]
     async fn test_cancellation_mcp_integration() {
         // Test that cancellation notifications work with the full MCP protocol stack
-        
+
         let (server, _cancellation_rx) = create_cancellation_test_server();
         let client = create_cancellation_test_client();
 
@@ -570,10 +607,16 @@ mod tests {
         // Note: The server needs to be in a proper state to list tools
         // For this test, we'll verify the tool handler provides the expected tools
         let tool_handler = CancellableToolHandler::new(mpsc::channel(100).0);
-        let tools_response = tool_handler.list_tools(ListToolsRequest::default()).await.unwrap();
-        
+        let tools_response = tool_handler
+            .list_tools(ListToolsRequest::default())
+            .await
+            .unwrap();
+
         assert_eq!(tools_response.tools.len(), 2);
-        assert!(tools_response.tools.iter().any(|t| t.name == "longRunningOperation"));
+        assert!(tools_response
+            .tools
+            .iter()
+            .any(|t| t.name == "longRunningOperation"));
         assert!(tools_response.tools.iter().any(|t| t.name == "echo"));
 
         println!("✅ Cancellation MCP integration test passed!");
@@ -602,7 +645,7 @@ mod tests {
             .cancellation_manager()
             .handle_cancellation(cancellation_notification)
             .await;
-        
+
         // The server should handle the cancellation (return true if it was a valid request)
         // In this test, we're just verifying the method exists and can be called
         assert!(server_handled.is_ok());
@@ -614,7 +657,7 @@ mod tests {
     #[tokio::test]
     async fn test_cancellation_transport_types() {
         // Test that cancellation works with different transport types
-        
+
         // STDIO transport cancellation
         let stdio_cancellation = CancelledNotification {
             request_id: json!("stdio-test-123"),
@@ -644,7 +687,9 @@ mod tests {
             request_id: json!("valid-test-123"),
             reason: Some("Valid cancellation".to_string()),
         };
-        assert!(valid_notification.request_id.is_string() || valid_notification.request_id.is_number());
+        assert!(
+            valid_notification.request_id.is_string() || valid_notification.request_id.is_number()
+        );
 
         // Notification with null request ID (invalid)
         let null_request_id = json!(null);
@@ -674,12 +719,16 @@ mod tests {
         // Test edge cases for cancellation notifications
 
         // Notification with special characters in reason
-        let special_chars_reason = "Cancellation with special chars: !@#$%^&*()_+-=[]{}|;':\",./<>?";
+        let special_chars_reason =
+            "Cancellation with special chars: !@#$%^&*()_+-=[]{}|;':\",./<>?";
         let special_chars_notification = CancelledNotification {
             request_id: json!("special-chars-test"),
             reason: Some(special_chars_reason.to_string()),
         };
-        assert_eq!(special_chars_notification.reason, Some(special_chars_reason.to_string()));
+        assert_eq!(
+            special_chars_notification.reason,
+            Some(special_chars_reason.to_string())
+        );
 
         // Notification with unicode characters
         let unicode_reason = "Cancellation with unicode: 🚀 测试 テスト";
@@ -687,7 +736,10 @@ mod tests {
             request_id: json!("unicode-test"),
             reason: Some(unicode_reason.to_string()),
         };
-        assert_eq!(unicode_notification.reason, Some(unicode_reason.to_string()));
+        assert_eq!(
+            unicode_notification.reason,
+            Some(unicode_reason.to_string())
+        );
 
         // Notification with numeric request ID
         let numeric_id_notification = CancelledNotification {
@@ -710,9 +762,9 @@ mod tests {
     #[tokio::test]
     async fn test_cancellation_concurrency() {
         // Test that cancellation notifications work correctly under concurrent conditions
-        
+
         let mut handles = vec![];
-        
+
         // Spawn multiple tasks that create cancellation notifications
         for i in 0..10 {
             let handle = tokio::spawn(async move {
@@ -720,24 +772,30 @@ mod tests {
                     request_id: json!(format!("concurrent-test-{}", i)),
                     reason: Some(format!("Concurrent cancellation {}", i)),
                 };
-                
+
                 let serialized = serde_json::to_string(&notification).unwrap();
                 assert!(serialized.contains(&format!("concurrent-test-{}", i)));
                 assert!(serialized.contains(&format!("Concurrent cancellation {}", i)));
-                
+
                 notification
             });
             handles.push(handle);
         }
-        
+
         // Wait for all tasks to complete
         let results = futures::future::join_all(handles).await;
-        
+
         // Verify all notifications were created correctly
         for (i, result) in results.into_iter().enumerate() {
             let notification = result.unwrap();
-            assert_eq!(notification.request_id, json!(format!("concurrent-test-{}", i)));
-            assert_eq!(notification.reason, Some(format!("Concurrent cancellation {}", i)));
+            assert_eq!(
+                notification.request_id,
+                json!(format!("concurrent-test-{}", i))
+            );
+            assert_eq!(
+                notification.reason,
+                Some(format!("Concurrent cancellation {}", i))
+            );
         }
 
         println!("✅ Cancellation concurrency test passed!");
@@ -747,50 +805,53 @@ mod tests {
     #[tokio::test]
     async fn test_cancellation_memory_usage() {
         // Test that cancellation notifications don't cause memory leaks
-        
+
         // Note: We can't easily measure memory usage in Rust tests
         // This is a simplified test that just verifies the code compiles and runs
         let start_count = 0;
-        
+
         // Create many cancellation notifications
         for i in 0..1000 {
             let notification = CancelledNotification {
                 request_id: json!(format!("memory-test-{}", i)),
                 reason: Some(format!("Memory test {}", i)),
             };
-            
+
             let _serialized = serde_json::to_string(&notification).unwrap();
-            
+
             // Drop the notification to free memory
             drop(notification);
         }
-        
+
         let end_count = 1000;
-        
+
         // Verify we processed all notifications
         let count_diff = end_count - start_count;
         assert_eq!(count_diff, 1000);
 
-        println!("✅ Cancellation memory usage test passed! (Processed {} notifications)", count_diff);
+        println!(
+            "✅ Cancellation memory usage test passed! (Processed {} notifications)",
+            count_diff
+        );
     }
 
     /// Test cancellation notification protocol compliance
     #[tokio::test]
     async fn test_cancellation_protocol_compliance() {
         // Test that cancellation notifications fully comply with MCP 2025-06-18 specification
-        
+
         // Test required fields
         let notification = CancelledNotification {
             request_id: json!("protocol-test-123"),
             reason: Some("Protocol compliance test".to_string()),
         };
-        
+
         // Verify required field: requestId
         assert!(notification.request_id.is_string() || notification.request_id.is_number());
-        
+
         // Verify optional field: reason
         assert!(notification.reason.is_some());
-        
+
         // Test JSON-RPC 2.0 compliance
         let jsonrpc_notification = JsonRpcMessage::Notification(JsonRpcRequest {
             jsonrpc: "2.0".to_string(),
@@ -799,14 +860,14 @@ mod tests {
             params: Some(serde_json::to_value(notification).unwrap()),
             meta: std::collections::HashMap::new(),
         });
-        
+
         let serialized = serde_json::to_string(&jsonrpc_notification).unwrap();
-        
+
         // Verify JSON-RPC 2.0 requirements
         assert!(serialized.contains("\"jsonrpc\":\"2.0\""));
         assert!(serialized.contains("\"method\":\"notifications/cancelled\""));
         assert!(!serialized.contains("\"id\":")); // No ID for notifications
-        
+
         // Verify MCP-specific requirements
         assert!(serialized.contains("protocol-test-123"));
         assert!(serialized.contains("Protocol compliance test"));
@@ -826,11 +887,15 @@ mod tests {
 
         // Test that ping returns empty response as per MCP 2025-06-18
         let ping_request = PingRequest::new();
-        let response = server.ping_manager().handle_ping(ping_request).await.unwrap();
-        
+        let response = server
+            .ping_manager()
+            .handle_ping(ping_request)
+            .await
+            .unwrap();
+
         // PingResponse should be empty as per specification
         assert_eq!(response.data, None);
-        
+
         println!("✅ Basic ping test passed!");
     }
 
@@ -838,18 +903,22 @@ mod tests {
     #[tokio::test]
     async fn test_ping_with_data() {
         let server = create_ping_test_server();
-        
+
         let ping_data = json!({
             "timestamp": 1234567890,
             "test": "data"
         });
-        
+
         let ping_request = PingRequest::new().with_data(ping_data.clone());
-        let response = server.ping_manager().handle_ping(ping_request).await.unwrap();
-        
+        let response = server
+            .ping_manager()
+            .handle_ping(ping_request)
+            .await
+            .unwrap();
+
         // Server should echo back the data
         assert_eq!(response.data, Some(ping_data));
-        
+
         println!("✅ Ping with data test passed!");
     }
 
@@ -857,21 +926,25 @@ mod tests {
     #[tokio::test]
     async fn test_ping_timeout() {
         let server = create_ping_test_server();
-        
+
         // Test with a ping that would timeout
         let ping_request = PingRequest::new().with_data(json!({
             "timeout_test": true
         }));
-        
+
         // The ping should complete within the timeout
         let start = std::time::Instant::now();
-        let response = server.ping_manager().handle_ping(ping_request).await.unwrap();
+        let response = server
+            .ping_manager()
+            .handle_ping(ping_request)
+            .await
+            .unwrap();
         let duration = start.elapsed();
-        
+
         // Should complete quickly (less than 1 second)
         assert!(duration < Duration::from_secs(1));
         assert_eq!(response.data, Some(json!({"timeout_test": true})));
-        
+
         println!("✅ Ping timeout test passed! (Duration: {:?})", duration);
     }
 
@@ -879,17 +952,17 @@ mod tests {
     #[tokio::test]
     async fn test_client_ping_monitoring() {
         let _client = create_ping_test_client();
-        
+
         // Start ping monitoring with a short interval
         let ping_interval = Duration::from_millis(100);
         _client.start_ping_monitoring(ping_interval).await.unwrap();
-        
+
         // Wait a bit for pings to be sent
         sleep(Duration::from_millis(300)).await;
-        
+
         // Stop ping monitoring
         _client.stop_ping_monitoring().await.unwrap();
-        
+
         println!("✅ Client ping monitoring test passed!");
     }
 
@@ -897,17 +970,17 @@ mod tests {
     #[tokio::test]
     async fn test_server_ping_monitoring() {
         let server = create_ping_test_server();
-        
+
         // Start ping monitoring with a short interval
         let ping_interval = Duration::from_millis(100);
         server.start_ping_monitoring(ping_interval).await.unwrap();
-        
+
         // Wait a bit for monitoring to be set up
         sleep(Duration::from_millis(200)).await;
-        
+
         // Stop ping monitoring
         server.stop_ping_monitoring().await.unwrap();
-        
+
         println!("✅ Server ping monitoring test passed!");
     }
 
@@ -915,17 +988,17 @@ mod tests {
     #[tokio::test]
     async fn test_ping_protocol_compliance() {
         let server = create_ping_test_server();
-        
+
         // Test empty ping (should return empty response)
         let empty_ping = PingRequest::new();
         let empty_response = server.ping_manager().handle_ping(empty_ping).await.unwrap();
         assert_eq!(empty_response.data, None);
-        
+
         // Test ping with data (should echo back)
         let data_ping = PingRequest::new().with_data(json!({"echo": "test"}));
         let data_response = server.ping_manager().handle_ping(data_ping).await.unwrap();
         assert_eq!(data_response.data, Some(json!({"echo": "test"})));
-        
+
         // Test ping with complex data
         let complex_data = json!({
             "nested": {
@@ -937,9 +1010,13 @@ mod tests {
             }
         });
         let complex_ping = PingRequest::new().with_data(complex_data.clone());
-        let complex_response = server.ping_manager().handle_ping(complex_ping).await.unwrap();
+        let complex_response = server
+            .ping_manager()
+            .handle_ping(complex_ping)
+            .await
+            .unwrap();
         assert_eq!(complex_response.data, Some(complex_data));
-        
+
         println!("✅ Ping protocol compliance test passed!");
     }
 
@@ -947,14 +1024,14 @@ mod tests {
     #[tokio::test]
     async fn test_ping_error_handling() {
         let server = create_ping_test_server();
-        
+
         // Test that ping manager handles requests gracefully
         let ping_request = PingRequest::new();
-        
+
         // Should not panic or return error for valid ping
         let result = server.ping_manager().handle_ping(ping_request).await;
         assert!(result.is_ok());
-        
+
         println!("✅ Ping error handling test passed!");
     }
 
@@ -962,9 +1039,9 @@ mod tests {
     #[tokio::test]
     async fn test_ping_performance() {
         let server = create_ping_test_server();
-        
+
         let start = std::time::Instant::now();
-        
+
         // Send multiple pings quickly
         for i in 0..100 {
             let ping_data = json!({
@@ -974,26 +1051,33 @@ mod tests {
                     .unwrap_or_default()
                     .as_secs()
             });
-            
+
             let ping_request = PingRequest::new().with_data(ping_data.clone());
-            let response = server.ping_manager().handle_ping(ping_request).await.unwrap();
-            
+            let response = server
+                .ping_manager()
+                .handle_ping(ping_request)
+                .await
+                .unwrap();
+
             assert_eq!(response.data, Some(ping_data));
         }
-        
+
         let duration = start.elapsed();
-        
+
         // Should complete 100 pings quickly (less than 1 second)
         assert!(duration < Duration::from_secs(1));
-        
-        println!("✅ Ping performance test passed! (100 pings in {:?})", duration);
+
+        println!(
+            "✅ Ping performance test passed! (100 pings in {:?})",
+            duration
+        );
     }
 
     /// Test ping with large data
     #[tokio::test]
     async fn test_ping_with_large_data() {
         let server = create_ping_test_server();
-        
+
         // Create large data payload
         let large_data = json!({
             "large_array": (0..1000).collect::<Vec<i32>>(),
@@ -1006,12 +1090,16 @@ mod tests {
                 }
             }
         });
-        
+
         let ping_request = PingRequest::new().with_data(large_data.clone());
-        let response = server.ping_manager().handle_ping(ping_request).await.unwrap();
-        
+        let response = server
+            .ping_manager()
+            .handle_ping(ping_request)
+            .await
+            .unwrap();
+
         assert_eq!(response.data, Some(large_data));
-        
+
         println!("✅ Ping with large data test passed!");
     }
 
@@ -1020,20 +1108,20 @@ mod tests {
     async fn test_ping_monitoring_integration() {
         let server = create_ping_test_server();
         let _client = create_ping_test_client();
-        
+
         // Start monitoring on both sides
         let ping_interval = Duration::from_millis(50);
-        
+
         server.start_ping_monitoring(ping_interval).await.unwrap();
         _client.start_ping_monitoring(ping_interval).await.unwrap();
-        
+
         // Let them run for a bit
         sleep(Duration::from_millis(200)).await;
-        
+
         // Stop monitoring
         server.stop_ping_monitoring().await.unwrap();
         _client.stop_ping_monitoring().await.unwrap();
-        
+
         println!("✅ Ping monitoring integration test passed!");
     }
 
@@ -1053,12 +1141,16 @@ mod tests {
         };
 
         let capabilities = ServerCapabilities {
-            tools: Some(ToolsCapability { list_changed: Some(true) }),
-            resources: Some(ResourcesCapability { 
-                subscribe: Some(true),
-                list_changed: Some(true) 
+            tools: Some(ToolsCapability {
+                list_changed: Some(true),
             }),
-            prompts: Some(PromptsCapability { list_changed: Some(true) }),
+            resources: Some(ResourcesCapability {
+                subscribe: Some(true),
+                list_changed: Some(true),
+            }),
+            prompts: Some(PromptsCapability {
+                list_changed: Some(true),
+            }),
             ..Default::default()
         };
 
@@ -1080,4 +1172,4 @@ mod tests {
 
         UltraFastClient::new(client_info, capabilities)
     }
-} 
+}

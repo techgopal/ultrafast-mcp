@@ -4,8 +4,9 @@
 use std::sync::Arc;
 use tracing::info;
 use ultrafast_mcp::{
-    ClientCapabilities, ClientInfo, ListToolsRequest, ToolCall, ToolContent, ToolResult,
-    UltraFastClient, ClientElicitationHandler, types::elicitation::{ElicitationRequest, ElicitationResponse, ElicitationAction},
+    types::elicitation::{ElicitationAction, ElicitationRequest, ElicitationResponse},
+    ClientCapabilities, ClientElicitationHandler, ClientInfo, ListToolsRequest, ToolCall,
+    ToolContent, ToolResult, UltraFastClient,
 };
 
 /// Example client-side elicitation handler
@@ -22,7 +23,7 @@ impl ClientElicitationHandler for ExampleElicitationHandler {
 
         // In a real implementation, this would present the request to the user
         // For demonstration, we'll simulate different responses based on the message content
-        
+
         if request.message.contains("username") {
             // Simulate user providing a username
             Ok(ElicitationResponse {
@@ -88,7 +89,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     let result: ToolResult = client.call_tool(tool_call).await?;
-    
+
     info!("Tool result: {:?}", result);
 
     // Extract the text content

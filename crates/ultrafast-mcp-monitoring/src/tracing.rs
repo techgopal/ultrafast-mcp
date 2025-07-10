@@ -118,18 +118,14 @@ impl TracingSystem {
     }
 
     /// Create a span with attributes
-    pub fn span_with_attrs(
-        &self,
-        name: &str,
-        attrs: &[(&str, &str)],
-    ) -> tracing::Span {
+    pub fn span_with_attrs(&self, name: &str, attrs: &[(&str, &str)]) -> tracing::Span {
         let span = tracing::info_span!("operation", name = name);
-        
+
         for (_key, _value) in attrs.iter().take(self.config.max_attributes) {
             // TODO: tracing::Span::record only supports static keys, so dynamic keys are not supported here.
             // span.record(key, value);
         }
-        
+
         span
     }
 
@@ -145,12 +141,7 @@ impl TracingSystem {
     }
 
     /// Record an event with attributes
-    pub fn event_with_attrs(
-        &self,
-        level: Level,
-        message: &str,
-        attrs: &[(&str, &str)],
-    ) {
+    pub fn event_with_attrs(&self, level: Level, message: &str, attrs: &[(&str, &str)]) {
         match level {
             Level::ERROR => error!(?attrs, message),
             Level::WARN => warn!(?attrs, message),
@@ -218,8 +209,7 @@ impl TracingUtils {
     pub fn record_request_start(method: &str, request_id: &str) {
         info!(
             "Request started method={} request_id={} service=ultrafast-mcp",
-            method,
-            request_id
+            method, request_id
         );
     }
 
@@ -283,8 +273,10 @@ impl TracingUtils {
         error: Option<&str>,
     ) {
         let error_str = error.unwrap_or("none");
-        let bytes_str = bytes.map(|b| b.to_string()).unwrap_or_else(|| "none".to_string());
-        
+        let bytes_str = bytes
+            .map(|b| b.to_string())
+            .unwrap_or_else(|| "none".to_string());
+
         if error.is_some() {
             error!(
                 "Transport event event_type={} transport_type={} bytes={} error={} service=ultrafast-mcp",
@@ -346,12 +338,13 @@ mod tests {
 
     #[test]
     fn test_tracing_config_custom() {
-        let mut config = TracingConfig::default();
-        config.service_name = "test-service".to_string();
-        config.service_version = "2.0.0".to_string();
-        config.log_level = Level::DEBUG;
-        config.enable_json = true;
-
+        let config = TracingConfig {
+            service_name: "test-service".to_string(),
+            service_version: "2.0.0".to_string(),
+            log_level: Level::DEBUG,
+            enable_json: true,
+            ..Default::default()
+        };
         assert_eq!(config.service_name, "test-service");
         assert_eq!(config.service_version, "2.0.0");
         assert_eq!(config.log_level, Level::DEBUG);
@@ -362,7 +355,7 @@ mod tests {
     fn test_tracing_system_creation() {
         let config = TracingConfig::default();
         let system = TracingSystem::new(config);
-        
+
         assert!(system.is_enabled());
         assert_eq!(system.config().service_name, "ultrafast-mcp");
     }
@@ -370,16 +363,28 @@ mod tests {
     #[test]
     fn test_tracing_utils_spans() {
         let span = TracingUtils::mcp_request_span("test_method", "test_id");
-        assert_eq!(span.metadata().expect("span should have metadata").name(), "mcp_request");
+        assert_eq!(
+            span.metadata().expect("span should have metadata").name(),
+            "mcp_request"
+        );
 
         let span = TracingUtils::tool_execution_span("test_tool", "test_id");
-        assert_eq!(span.metadata().expect("span should have metadata").name(), "tool_execution");
+        assert_eq!(
+            span.metadata().expect("span should have metadata").name(),
+            "tool_execution"
+        );
 
         let span = TracingUtils::resource_operation_span("read", "test://uri");
-        assert_eq!(span.metadata().expect("span should have metadata").name(), "resource_operation");
+        assert_eq!(
+            span.metadata().expect("span should have metadata").name(),
+            "resource_operation"
+        );
 
         let span = TracingUtils::transport_operation_span("send", "http");
-        assert_eq!(span.metadata().expect("span should have metadata").name(), "transport_operation");
+        assert_eq!(
+            span.metadata().expect("span should have metadata").name(),
+            "transport_operation"
+        );
     }
 
     #[test]

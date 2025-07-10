@@ -3,8 +3,8 @@
 //! This module defines common handler traits that are used across
 //! different MCP implementations to ensure consistency.
 
-use async_trait::async_trait;
 use crate::MCPResult;
+use async_trait::async_trait;
 use std::any::Any;
 
 /// Base trait for all handlers in the MCP ecosystem
@@ -12,31 +12,31 @@ use std::any::Any;
 pub trait BaseHandler: Send + Sync {
     /// Get the handler name for debugging/logging
     fn name(&self) -> &'static str;
-    
+
     /// Check if this handler can handle a specific request type
     fn can_handle(&self, request_type: &str) -> bool;
-    
+
     /// Get handler metadata as Any for downcasting
     fn as_any(&self) -> &dyn Any;
 }
 
 /// Common pattern for request/response handlers
 #[async_trait]
-pub trait RequestHandler<Request, Response>: BaseHandler 
-where 
+pub trait RequestHandler<Request, Response>: BaseHandler
+where
     Request: Send + Sync + 'static,
     Response: Send + Sync + 'static,
 {
     /// Handle a request and return a response
     async fn handle(&self, request: Request) -> MCPResult<Response>;
-    
+
     /// Validate a request before handling
     async fn validate_request(&self, request: &Request) -> MCPResult<()> {
         // Default implementation - can be overridden
         let _ = request;
         Ok(())
     }
-    
+
     /// Post-process a response after handling
     async fn post_process_response(&self, response: Response) -> MCPResult<Response> {
         // Default implementation - can be overridden
@@ -46,13 +46,13 @@ where
 
 /// Common pattern for notification handlers (no response)
 #[async_trait]
-pub trait NotificationHandler<Notification>: BaseHandler 
-where 
+pub trait NotificationHandler<Notification>: BaseHandler
+where
     Notification: Send + Sync + 'static,
 {
     /// Handle a notification
     async fn handle_notification(&self, notification: Notification) -> MCPResult<()>;
-    
+
     /// Validate a notification before handling
     async fn validate_notification(&self, notification: &Notification) -> MCPResult<()> {
         // Default implementation - can be overridden
@@ -68,12 +68,12 @@ pub trait LifecycleHandler: BaseHandler {
     async fn initialize(&self) -> MCPResult<()> {
         Ok(())
     }
-    
+
     /// Shutdown the handler gracefully
     async fn shutdown(&self) -> MCPResult<()> {
         Ok(())
     }
-    
+
     /// Get handler health status
     async fn health_check(&self) -> MCPResult<bool> {
         Ok(true)
@@ -88,27 +88,27 @@ macro_rules! impl_base_handler {
             fn name(&self) -> &'static str {
                 $name
             }
-            
+
             fn can_handle(&self, _request_type: &str) -> bool {
                 true // Default implementation
             }
-            
+
             fn as_any(&self) -> &dyn std::any::Any {
                 self
             }
         }
     };
-    
+
     ($handler_type:ty, $name:expr, $can_handle:expr) => {
         impl $crate::traits::BaseHandler for $handler_type {
             fn name(&self) -> &'static str {
                 $name
             }
-            
+
             fn can_handle(&self, request_type: &str) -> bool {
                 $can_handle(request_type)
             }
-            
+
             fn as_any(&self) -> &dyn std::any::Any {
                 self
             }
@@ -170,6 +170,9 @@ mod tests {
     #[tokio::test]
     async fn test_notification_handler() {
         let handler = TestNotificationHandler;
-        assert!(handler.handle_notification("test notification".to_string()).await.is_ok());
+        assert!(handler
+            .handle_notification("test notification".to_string())
+            .await
+            .is_ok());
     }
-} 
+}

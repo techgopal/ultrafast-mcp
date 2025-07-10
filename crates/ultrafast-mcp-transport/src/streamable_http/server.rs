@@ -22,10 +22,11 @@ use ultrafast_mcp_core::{
         jsonrpc::{JsonRpcError, JsonRpcMessage, JsonRpcRequest, JsonRpcResponse},
         version::PROTOCOL_VERSION,
     },
-    utils::{generate_session_id, generate_event_id},
-    validation::{validate_protocol_version, validate_session_id, validate_origin},
+    utils::{generate_event_id, generate_session_id},
+    validation::{validate_origin, validate_protocol_version, validate_session_id},
 };
-use ultrafast_mcp_monitoring::{MetricsCollector, MonitoringSystem, RequestTimer};
+use ultrafast_mcp_monitoring::{MetricsCollector, MonitoringSystem};
+use ultrafast_mcp_monitoring::metrics::RequestTimer;
 
 use crate::{Result, Transport, TransportError};
 use async_trait::async_trait;
@@ -82,6 +83,12 @@ impl SessionInfo {
             last_event_id: None,
             active_streams: std::collections::HashSet::new(),
         }
+    }
+}
+
+impl Default for SessionInfo {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -249,10 +256,8 @@ fn extract_last_event_id(headers: &HeaderMap) -> Option<String> {
 
 /// Validate Origin header for security using core validation
 fn validate_origin_header(headers: &HeaderMap, config: &HttpTransportConfig) -> bool {
-    let origin = headers
-        .get("origin")
-        .and_then(|v| v.to_str().ok());
-    
+    let origin = headers.get("origin").and_then(|v| v.to_str().ok());
+
     validate_origin(origin, config.allow_origin.as_deref(), &config.host)
 }
 
@@ -313,7 +318,10 @@ async fn handle_mcp_post_internal(
             return (
                 StatusCode::BAD_REQUEST,
                 Json(JsonRpcResponse::error(
-                    JsonRpcError::new(-32000, format!("Unsupported protocol version: {}", protocol_version)),
+                    JsonRpcError::new(
+                        -32000,
+                        format!("Unsupported protocol version: {}", protocol_version),
+                    ),
                     None,
                 )),
             )
@@ -357,7 +365,9 @@ async fn handle_mcp_post_internal(
     // Store session info
     {
         let mut sessions = state.session_store.write().await;
-        sessions.entry(session_id.clone()).or_insert_with(SessionInfo::new);
+        sessions
+            .entry(session_id.clone())
+            .or_insert_with(SessionInfo::new);
     }
 
     // Try to parse the body as a JSON-RPC message
@@ -409,7 +419,10 @@ async fn handle_mcp_get(
             return (
                 StatusCode::BAD_REQUEST,
                 Json(JsonRpcResponse::error(
-                    JsonRpcError::new(-32000, format!("Unsupported protocol version: {}", protocol_version)),
+                    JsonRpcError::new(
+                        -32000,
+                        format!("Unsupported protocol version: {}", protocol_version),
+                    ),
                     None,
                 )),
             )
@@ -419,17 +432,22 @@ async fn handle_mcp_get(
 
     let session_id = extract_session_id(&headers).unwrap_or_else(generate_session_id);
     let last_event_id = extract_last_event_id(&headers);
-    
+
     info!(
         "Processing GET request for session {} (SSE stream){}",
         session_id,
-        last_event_id.as_ref().map(|id| format!(", resuming from event {}", id)).unwrap_or_default()
+        last_event_id
+            .as_ref()
+            .map(|id| format!(", resuming from event {}", id))
+            .unwrap_or_default()
     );
 
     // Store session info
     {
         let mut sessions = state.session_store.write().await;
-        let session_info = sessions.entry(session_id.clone()).or_insert_with(SessionInfo::new);
+        let session_info = sessions
+            .entry(session_id.clone())
+            .or_insert_with(SessionInfo::new);
         if let Some(event_id) = &last_event_id {
             session_info.last_event_id = Some(event_id.clone());
         }
@@ -460,7 +478,10 @@ async fn handle_mcp_delete(
             return (
                 StatusCode::BAD_REQUEST,
                 Json(JsonRpcResponse::error(
-                    JsonRpcError::new(-32000, format!("Unsupported protocol version: {}", protocol_version)),
+                    JsonRpcError::new(
+                        -32000,
+                        format!("Unsupported protocol version: {}", protocol_version),
+                    ),
                     None,
                 )),
             )
@@ -469,13 +490,13 @@ async fn handle_mcp_delete(
     }
 
     let session_id = extract_session_id(&headers).unwrap_or_else(generate_session_id);
-    
+
     // Remove session from store
     {
         let mut sessions = state.session_store.write().await;
         sessions.remove(&session_id);
     }
-    
+
     info!("Terminating session: {}", session_id);
     StatusCode::OK.into_response()
 }
@@ -599,24 +620,32 @@ fn create_sse_stream(
     let enable_resumability = state.config.enable_sse_resumability;
 
     stream::unfold(
-        (response_receiver, session_id, last_event_id, enable_resumability),
+        (
+            response_receiver,
+            session_id,
+            last_event_id,
+            enable_resumability,
+        ),
         |(mut receiver, session_id, last_event_id, enable_resumability)| async move {
             match receiver.recv().await {
                 Ok((msg_session_id, message)) => {
                     if msg_session_id == session_id || msg_session_id == "*" {
                         let event_data = serde_json::to_string(&message).unwrap_or_default();
                         let mut event = Event::default().data(event_data);
-                        
+
                         // Add event ID for resumability if enabled
                         if enable_resumability {
                             let event_id = generate_event_id();
                             event = event.id(event_id);
                         }
-                        
+
                         // Add keep-alive comment
                         event = event.comment("keep-alive");
-                        
-                        Some((Ok(event), (receiver, session_id, last_event_id, enable_resumability)))
+
+                        Some((
+                            Ok(event),
+                            (receiver, session_id, last_event_id, enable_resumability),
+                        ))
                     } else {
                         // Skip messages for other sessions, send keep-alive comment
                         Some((

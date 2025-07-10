@@ -1,18 +1,17 @@
 use crate::error::AuthError;
 use crate::types::PkceParams;
-use ultrafast_mcp_core::utils::generate_secure_random;
-use sha2::Digest;
 use base64::Engine;
+use sha2::Digest;
+use ultrafast_mcp_core::utils::generate_secure_random;
 
 /// Generate PKCE (Proof Key for Code Exchange) parameters
 pub fn generate_pkce_params() -> Result<PkceParams, AuthError> {
     // Generate code verifier (43-128 characters)
     let code_verifier = generate_secure_random(128);
-    
+
     // Generate code challenge using SHA256
     let digest = sha2::Sha256::digest(code_verifier.as_bytes());
-    let code_challenge = base64::engine::general_purpose::URL_SAFE_NO_PAD
-        .encode(digest);
+    let code_challenge = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(digest);
 
     Ok(PkceParams {
         code_verifier,

@@ -66,17 +66,24 @@ impl HttpMonitoringMiddleware {
     }
 
     /// Process a completed HTTP request
-    pub async fn process_response(&self, context: &RequestContext, status_code: u16, success: bool) {
+    pub async fn process_response(
+        &self,
+        context: &RequestContext,
+        status_code: u16,
+        success: bool,
+    ) {
         if !self.enabled {
             return;
         }
 
         if let Some(start_time) = context.start_time {
             let duration = start_time.elapsed();
-            
+
             // Record metrics
             if let Some(metrics) = &context.metrics_collector {
-                metrics.record_request(&context.method, duration, success).await;
+                metrics
+                    .record_request(&context.method, duration, success)
+                    .await;
             }
 
             if success {
@@ -181,8 +188,13 @@ impl TransportMonitoringMiddleware {
                 self.metrics_collector.update_connection_count(0).await;
             }
             ConnectionEvent::Error(error_msg) => {
-                error!("Transport connection error: {} - {}", connection_id, error_msg);
-                self.metrics_collector.record_transport_error(&error_msg).await;
+                error!(
+                    "Transport connection error: {} - {}",
+                    connection_id, error_msg
+                );
+                self.metrics_collector
+                    .record_transport_error(&error_msg)
+                    .await;
             }
         }
     }
@@ -195,16 +207,24 @@ impl TransportMonitoringMiddleware {
 
         match event_type {
             MessageEvent::Sent(bytes) => {
-                debug!("Transport message sent: {} bytes on {}", bytes, connection_id);
+                debug!(
+                    "Transport message sent: {} bytes on {}",
+                    bytes, connection_id
+                );
                 self.metrics_collector.record_transport_send(bytes).await;
             }
             MessageEvent::Received(bytes) => {
-                debug!("Transport message received: {} bytes on {}", bytes, connection_id);
+                debug!(
+                    "Transport message received: {} bytes on {}",
+                    bytes, connection_id
+                );
                 self.metrics_collector.record_transport_receive(bytes).await;
             }
             MessageEvent::Error(error_msg) => {
                 error!("Transport message error: {} - {}", connection_id, error_msg);
-                self.metrics_collector.record_transport_error(&error_msg).await;
+                self.metrics_collector
+                    .record_transport_error(&error_msg)
+                    .await;
             }
         }
     }
@@ -304,9 +324,16 @@ impl MiddlewareManager {
     }
 
     /// Process an HTTP response
-    pub async fn process_http_response(&self, context: &RequestContext, status_code: u16, success: bool) {
+    pub async fn process_http_response(
+        &self,
+        context: &RequestContext,
+        status_code: u16,
+        success: bool,
+    ) {
         if let Some(middleware) = &self.http_middleware {
-            middleware.process_response(context, status_code, success).await;
+            middleware
+                .process_response(context, status_code, success)
+                .await;
         }
     }
 
@@ -357,7 +384,6 @@ impl Default for MiddlewareConfig {
 mod tests {
     use super::*;
 
-
     #[tokio::test]
     async fn test_http_middleware() {
         let metrics_collector = Arc::new(MetricsCollector::new());
@@ -375,13 +401,13 @@ mod tests {
         middleware.process_response(&context, 200, true).await;
 
         // Test disabled middleware
-        let disabled_middleware = HttpMonitoringMiddleware::with_config(
-            Arc::new(MetricsCollector::new()),
-            false,
-        );
+        let disabled_middleware =
+            HttpMonitoringMiddleware::with_config(Arc::new(MetricsCollector::new()), false);
         assert!(!disabled_middleware.is_enabled());
 
-        let context = disabled_middleware.process_request("POST", "/disabled").await;
+        let context = disabled_middleware
+            .process_request("POST", "/disabled")
+            .await;
         assert!(!context.is_monitored());
     }
 
@@ -393,14 +419,26 @@ mod tests {
         assert!(middleware.is_enabled());
 
         // Test connection events
-        middleware.process_connection("conn1", ConnectionEvent::Connected).await;
-        middleware.process_connection("conn1", ConnectionEvent::Disconnected).await;
-        middleware.process_connection("conn1", ConnectionEvent::Error("test error".to_string())).await;
+        middleware
+            .process_connection("conn1", ConnectionEvent::Connected)
+            .await;
+        middleware
+            .process_connection("conn1", ConnectionEvent::Disconnected)
+            .await;
+        middleware
+            .process_connection("conn1", ConnectionEvent::Error("test error".to_string()))
+            .await;
 
         // Test message events
-        middleware.process_message("conn1", MessageEvent::Sent(1024)).await;
-        middleware.process_message("conn1", MessageEvent::Received(2048)).await;
-        middleware.process_message("conn1", MessageEvent::Error("message error".to_string())).await;
+        middleware
+            .process_message("conn1", MessageEvent::Sent(1024))
+            .await;
+        middleware
+            .process_message("conn1", MessageEvent::Received(2048))
+            .await;
+        middleware
+            .process_message("conn1", MessageEvent::Error("message error".to_string()))
+            .await;
     }
 
     #[tokio::test]
@@ -417,14 +455,18 @@ mod tests {
         manager.process_http_response(&context, 200, true).await;
 
         // Test transport processing
-        manager.process_transport_connection("conn1", ConnectionEvent::Connected).await;
-        manager.process_transport_message("conn1", MessageEvent::Sent(1024)).await;
+        manager
+            .process_transport_connection("conn1", ConnectionEvent::Connected)
+            .await;
+        manager
+            .process_transport_message("conn1", MessageEvent::Sent(1024))
+            .await;
     }
 
     #[tokio::test]
     async fn test_request_context() {
         let context = RequestContext::new("POST", "/api/test");
-        
+
         assert_eq!(context.method, "POST");
         assert_eq!(context.path, "/api/test");
         assert!(!context.is_monitored());
@@ -443,7 +485,7 @@ mod tests {
     #[tokio::test]
     async fn test_middleware_config() {
         let config = MiddlewareConfig::default();
-        
+
         assert!(config.enabled);
         assert!(config.http_enabled);
         assert!(config.transport_enabled);
@@ -461,7 +503,10 @@ mod tests {
         assert!(!custom_config.enabled);
         assert!(!custom_config.http_enabled);
         assert!(custom_config.transport_enabled);
-        assert_eq!(custom_config.request_timeout, std::time::Duration::from_secs(60));
+        assert_eq!(
+            custom_config.request_timeout,
+            std::time::Duration::from_secs(60)
+        );
         assert_eq!(custom_config.max_connections, 500);
     }
 }

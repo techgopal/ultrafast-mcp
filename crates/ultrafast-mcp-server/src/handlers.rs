@@ -15,9 +15,9 @@ use ultrafast_mcp_core::{
             ListResourcesResponse, ReadResourceRequest, ReadResourceResponse,
         },
         sampling::{
-            CreateMessageRequest, CreateMessageResponse, SamplingContext, SamplingRequest,
-            SamplingResponse, ServerContextInfo, ToolContextInfo, ResourceContextInfo,
-            ApprovalStatus, HumanFeedback, CostInfo, IncludeContext, SamplingRole, SamplingContent, StopReason,
+            ApprovalStatus, CostInfo, CreateMessageRequest, CreateMessageResponse, HumanFeedback,
+            IncludeContext, ResourceContextInfo, SamplingContent, SamplingContext, SamplingRequest,
+            SamplingResponse, SamplingRole, ServerContextInfo, StopReason, ToolContextInfo,
         },
         tools::{ListToolsRequest, ListToolsResponse, ToolCall, ToolResult},
         ServerInfo,
@@ -98,7 +98,9 @@ pub trait RootsHandler: Send + Sync {
     /// Set/update the list of roots
     async fn set_roots(&self, roots: Vec<ultrafast_mcp_core::types::roots::Root>) -> MCPResult<()> {
         let _ = roots;
-        Err(MCPError::method_not_found("Dynamic roots update not implemented".to_string()))
+        Err(MCPError::method_not_found(
+            "Dynamic roots update not implemented".to_string(),
+        ))
     }
 }
 
@@ -197,7 +199,11 @@ impl AdvancedSamplingHandler for DefaultAdvancedSamplingHandler {
                     name: self.server_info.name.clone(),
                     version: self.server_info.version.clone(),
                     description: self.server_info.description.clone(),
-                    capabilities: vec!["tools".to_string(), "resources".to_string(), "prompts".to_string()],
+                    capabilities: vec![
+                        "tools".to_string(),
+                        "resources".to_string(),
+                        "prompts".to_string(),
+                    ],
                 };
 
                 Ok(Some(SamplingContext {
@@ -214,7 +220,11 @@ impl AdvancedSamplingHandler for DefaultAdvancedSamplingHandler {
                     name: self.server_info.name.clone(),
                     version: self.server_info.version.clone(),
                     description: self.server_info.description.clone(),
-                    capabilities: vec!["tools".to_string(), "resources".to_string(), "prompts".to_string()],
+                    capabilities: vec![
+                        "tools".to_string(),
+                        "resources".to_string(),
+                        "prompts".to_string(),
+                    ],
                 };
 
                 Ok(Some(SamplingContext {
@@ -258,8 +268,10 @@ impl AdvancedSamplingHandler for DefaultAdvancedSamplingHandler {
         Ok(SamplingResponse {
             role: SamplingRole::Assistant,
             content: SamplingContent::Text {
-                text: format!("Response modified based on feedback: {}", 
-                    feedback.reason.as_deref().unwrap_or("No reason provided")),
+                text: format!(
+                    "Response modified based on feedback: {}",
+                    feedback.reason.as_deref().unwrap_or("No reason provided")
+                ),
             },
             model: Some("human-modified".to_string()),
             stop_reason: Some(StopReason::EndTurn),
@@ -274,8 +286,9 @@ impl AdvancedSamplingHandler for DefaultAdvancedSamplingHandler {
     }
 
     async fn estimate_cost(&self, request: &SamplingRequest) -> MCPResult<CostInfo> {
-        let input_tokens = request.estimate_input_tokens()
-            .map_err(|e| MCPError::invalid_request(e))?;
+        let input_tokens = request
+            .estimate_input_tokens()
+            .map_err(MCPError::invalid_request)?;
         let output_tokens = request.max_tokens.unwrap_or(1000);
 
         // Simple cost estimation: $0.002 per 1K input tokens, $0.012 per 1K output tokens
@@ -303,7 +316,9 @@ impl AdvancedSamplingHandler for DefaultAdvancedSamplingHandler {
 
         if let Some(temp) = request.temperature {
             if temp > 1.0 {
-                warnings.push("Temperature is very high, may produce unpredictable results".to_string());
+                warnings.push(
+                    "Temperature is very high, may produce unpredictable results".to_string(),
+                );
             }
         }
 
@@ -378,39 +393,46 @@ mod tests {
             })
         }
 
-            async fn list_resource_templates(
-        &self,
-        _request: ListResourceTemplatesRequest,
-    ) -> MCPResult<ListResourceTemplatesResponse> {
-        Ok(ListResourceTemplatesResponse {
-            resource_templates: vec![],
-            next_cursor: None,
-        })
-    }
-
-    async fn validate_resource_access(
-        &self,
-        uri: &str,
-        operation: ultrafast_mcp_core::types::roots::RootOperation,
-        roots: &[ultrafast_mcp_core::types::roots::Root],
-    ) -> MCPResult<()> {
-        if roots.is_empty() {
-            return Ok(());
+        async fn list_resource_templates(
+            &self,
+            _request: ListResourceTemplatesRequest,
+        ) -> MCPResult<ListResourceTemplatesResponse> {
+            Ok(ListResourceTemplatesResponse {
+                resource_templates: vec![],
+                next_cursor: None,
+            })
         }
-        for root in roots {
-            if uri.starts_with(&root.uri) {
-                if root.uri.starts_with("file://") && uri.starts_with("file://") {
-                    let validator = ultrafast_mcp_core::types::roots::RootSecurityValidator::default();
-                    return validator
-                        .validate_access(root, uri, operation)
-                        .map_err(|e| MCPError::Resource(ultrafast_mcp_core::error::ResourceError::AccessDenied(format!("Root validation failed: {}", e))));
-                } else {
-                    return Ok(());
+
+        async fn validate_resource_access(
+            &self,
+            uri: &str,
+            operation: ultrafast_mcp_core::types::roots::RootOperation,
+            roots: &[ultrafast_mcp_core::types::roots::Root],
+        ) -> MCPResult<()> {
+            if roots.is_empty() {
+                return Ok(());
+            }
+            for root in roots {
+                if uri.starts_with(&root.uri) {
+                    if root.uri.starts_with("file://") && uri.starts_with("file://") {
+                        let validator =
+                            ultrafast_mcp_core::types::roots::RootSecurityValidator::default();
+                        return validator
+                            .validate_access(root, uri, operation)
+                            .map_err(|e| {
+                                MCPError::Resource(
+                                    ultrafast_mcp_core::error::ResourceError::AccessDenied(
+                                        format!("Root validation failed: {}", e),
+                                    ),
+                                )
+                            });
+                    } else {
+                        return Ok(());
+                    }
                 }
             }
+            Ok(())
         }
-        Ok(())
-    }
     }
 
     #[tokio::test]
@@ -439,7 +461,7 @@ mod tests {
     #[tokio::test]
     async fn test_root_validation_informational() {
         let handler = MockResourceHandler;
-        
+
         // Test with no roots configured - should allow access
         let result = handler
             .validate_resource_access(
@@ -448,17 +470,18 @@ mod tests {
                 &[],
             )
             .await;
-        assert!(result.is_ok(), "Should allow access when no roots are configured");
+        assert!(
+            result.is_ok(),
+            "Should allow access when no roots are configured"
+        );
 
         // Test with roots configured but no matching root - should allow access (informational)
-        let roots = vec![
-            ultrafast_mcp_core::types::roots::Root {
-                uri: "file:///tmp".to_string(),
-                name: Some("Test Root".to_string()),
-                security: None,
-            }
-        ];
-        
+        let roots = vec![ultrafast_mcp_core::types::roots::Root {
+            uri: "file:///tmp".to_string(),
+            name: Some("Test Root".to_string()),
+            security: None,
+        }];
+
         let result = handler
             .validate_resource_access(
                 "test://static/resource/1",
@@ -466,20 +489,21 @@ mod tests {
                 &roots,
             )
             .await;
-        assert!(result.is_ok(), "Should allow access when no matching root is found (informational nature)");
+        assert!(
+            result.is_ok(),
+            "Should allow access when no matching root is found (informational nature)"
+        );
 
         // Test with matching root - use file URI so validator logic is exercised
-        let roots = vec![
-            ultrafast_mcp_core::types::roots::Root {
-                uri: "file:///tmp/static/".to_string(),
-                name: Some("Test Root".to_string()),
-                security: Some(ultrafast_mcp_core::types::roots::RootSecurityConfig {
-                    allow_read: true,
-                    ..Default::default()
-                }),
-            }
-        ];
-        
+        let roots = vec![ultrafast_mcp_core::types::roots::Root {
+            uri: "file:///tmp/static/".to_string(),
+            name: Some("Test Root".to_string()),
+            security: Some(ultrafast_mcp_core::types::roots::RootSecurityConfig {
+                allow_read: true,
+                ..Default::default()
+            }),
+        }];
+
         let result = handler
             .validate_resource_access(
                 "file:///tmp/static/resource/1",
@@ -487,6 +511,9 @@ mod tests {
                 &roots,
             )
             .await;
-        assert!(result.is_ok(), "Should allow access when matching root allows it");
+        assert!(
+            result.is_ok(),
+            "Should allow access when matching root allows it"
+        );
     }
 }

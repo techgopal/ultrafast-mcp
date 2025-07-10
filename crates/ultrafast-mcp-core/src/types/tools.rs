@@ -458,10 +458,7 @@ mod tests {
             }),
         )
         .with_read_only_annotation()
-        .with_annotations(
-            ToolAnnotations::read_only()
-                .with_title("Read Only Tool".to_string())
-        );
+        .with_annotations(ToolAnnotations::read_only().with_title("Read Only Tool".to_string()));
 
         assert!(tool.annotations.is_some());
         let annotations = tool.annotations.unwrap();
@@ -486,7 +483,7 @@ mod tests {
         .with_annotations(
             ToolAnnotations::destructive()
                 .with_title("Delete File".to_string())
-                .with_idempotent_hint(true)
+                .with_idempotent_hint(true),
         );
 
         assert!(tool.annotations.is_some());
@@ -514,7 +511,7 @@ mod tests {
         .with_annotations(
             ToolAnnotations::open_world()
                 .with_title("Web Search".to_string())
-                .with_read_only_hint(true)
+                .with_read_only_hint(true),
         );
 
         assert!(tool.annotations.is_some());

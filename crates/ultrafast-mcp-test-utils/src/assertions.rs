@@ -1,12 +1,15 @@
 //! Common test assertion helpers
 
-use ultrafast_mcp_core::{MCPError, MCPResult};
 use std::fmt::Debug;
+use ultrafast_mcp_core::{MCPError, MCPResult};
 
 /// Assert that a result is an MCP error of a specific type
 pub fn assert_mcp_error<T: Debug>(result: MCPResult<T>, expected_error_contains: &str) {
     match result {
-        Ok(value) => panic!("Expected error containing '{}', but got Ok({:?})", expected_error_contains, value),
+        Ok(value) => panic!(
+            "Expected error containing '{}', but got Ok({:?})",
+            expected_error_contains, value
+        ),
         Err(error) => {
             let error_string = error.to_string();
             assert!(
@@ -94,7 +97,11 @@ pub fn assert_duration_approx_eq(
     right: std::time::Duration,
     tolerance: std::time::Duration,
 ) {
-    let diff = if left > right { left - right } else { right - left };
+    let diff = if left > right {
+        left - right
+    } else {
+        right - left
+    };
     assert!(
         diff <= tolerance,
         "Durations {:?} and {:?} differ by {:?}, which exceeds tolerance {:?}",
@@ -140,7 +147,9 @@ mod tests {
 
     #[test]
     fn test_assert_mcp_error() {
-        let result: MCPResult<()> = Err(MCPError::Protocol(ProtocolError::InvalidRequest("test".to_string())));
+        let result: MCPResult<()> = Err(MCPError::Protocol(ProtocolError::InvalidRequest(
+            "test".to_string(),
+        )));
         assert_mcp_error(result, "Invalid request");
     }
 
@@ -161,7 +170,9 @@ mod tests {
     #[test]
     #[should_panic(expected = "Expected success")]
     fn test_assert_mcp_success_panic_on_error() {
-        let result: MCPResult<()> = Err(MCPError::Protocol(ProtocolError::InvalidRequest("test".to_string())));
+        let result: MCPResult<()> = Err(MCPError::Protocol(ProtocolError::InvalidRequest(
+            "test".to_string(),
+        )));
         assert_mcp_success(result);
     }
 
@@ -214,4 +225,4 @@ mod tests {
         let vec = vec![1];
         assert_not_empty(&vec);
     }
-} 
+}

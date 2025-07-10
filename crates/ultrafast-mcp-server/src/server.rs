@@ -18,9 +18,9 @@ use ultrafast_mcp_core::{
         notifications::{LogLevel, LogLevelSetRequest, LogLevelSetResponse},
         prompts::Prompt,
         resources::{Resource, ResourceTemplate, SubscribeResponse},
+        roots::{RootsListChangedNotification, SetRootsRequest, SetRootsResponse},
         server::ServerInfo,
         tools::Tool,
-        roots::{SetRootsRequest, SetRootsResponse, RootsListChangedNotification},
     },
     utils::{CancellationManager, PingManager},
 };
@@ -133,11 +133,11 @@ pub struct UltraFastServer {
 
     // Advanced handlers
     advanced_sampling_handler: Option<Arc<dyn AdvancedSamplingHandler>>,
-    
+
     // Monitoring
     #[allow(dead_code)]
     monitoring_enabled: bool,
-    
+
     // Timeout configuration (MCP 2025-06-18 compliance)
     timeout_config: Arc<TimeoutConfig>,
 }
@@ -180,10 +180,10 @@ impl UltraFastServer {
 
             // Advanced handlers
             advanced_sampling_handler: None,
-            
+
             // Monitoring
             monitoring_enabled: false,
-            
+
             // Timeout configuration (MCP 2025-06-18 compliance)
             timeout_config: Arc::new(TimeoutConfig::default()),
         }
@@ -232,7 +232,7 @@ impl UltraFastServer {
     /// Validate timeout configuration
     pub fn validate_timeout_config(&self) -> Result<(), String> {
         let config = &self.timeout_config;
-        
+
         // Validate all timeouts are within bounds
         if !config.validate_timeout(config.connect_timeout) {
             return Err("Connect timeout is out of bounds".to_string());
@@ -264,7 +264,7 @@ impl UltraFastServer {
         if !config.validate_timeout(config.heartbeat_interval) {
             return Err("Heartbeat interval is out of bounds".to_string());
         }
-        
+
         Ok(())
     }
 
@@ -862,17 +862,20 @@ impl UltraFastServer {
     /// Start periodic ping monitoring (optional, for connection health)
     /// This method should be called after the server is running with a transport
     pub async fn start_ping_monitoring(&self, ping_interval: std::time::Duration) -> MCPResult<()> {
-        info!("Starting periodic ping monitoring with interval: {:?}", ping_interval);
-        
+        info!(
+            "Starting periodic ping monitoring with interval: {:?}",
+            ping_interval
+        );
+
         // Note: This is a placeholder for future implementation
         // The actual ping monitoring would need to be integrated with the transport layer
         // For now, we log that ping monitoring is enabled
         info!("Ping monitoring enabled (interval: {:?})", ping_interval);
-        
+
         // The PingManager is already configured with default intervals
         // Future implementation would integrate with the transport layer
         // to send periodic pings to clients
-        
+
         Ok(())
     }
 
@@ -1157,15 +1160,19 @@ impl UltraFastServer {
                     // This is a request, handle it with timeout
                     let operation_timeout = self.get_operation_timeout(&request.method);
                     let request_id = request.id.clone(); // Clone before moving request
-                    let response = tokio::time::timeout(operation_timeout, self.handle_request(request)).await;
-                    
+                    let response =
+                        tokio::time::timeout(operation_timeout, self.handle_request(request)).await;
+
                     match response {
                         Ok(response) => {
                             transport
                                 .send_message(JsonRpcMessage::Response(response))
                                 .await
                                 .map_err(|e| {
-                                    MCPError::internal_error(format!("Failed to send message: {}", e))
+                                    MCPError::internal_error(format!(
+                                        "Failed to send message: {}",
+                                        e
+                                    ))
                                 })?;
                         }
                         Err(_) => {
@@ -1178,16 +1185,20 @@ impl UltraFastServer {
                                 .send_message(JsonRpcMessage::Response(timeout_error))
                                 .await
                                 .map_err(|e| {
-                                    MCPError::internal_error(format!("Failed to send timeout error: {}", e))
+                                    MCPError::internal_error(format!(
+                                        "Failed to send timeout error: {}",
+                                        e
+                                    ))
                                 })?;
-                            
+
                             // Send cancellation notification
                             if let Some(request_id) = &request_id {
                                 self.notify_cancelled(
                                     serde_json::Value::String(request_id.to_string()),
                                     Some("Request timed out".to_string()),
                                     transport,
-                                ).await?;
+                                )
+                                .await?;
                             }
                         }
                     }
@@ -1484,14 +1495,20 @@ impl UltraFastServer {
                                     .await
                                 {
                                     return JsonRpcResponse::error(
-                                        JsonRpcError::new(-32603, format!("Root validation failed: {}", e)),
+                                        JsonRpcError::new(
+                                            -32603,
+                                            format!("Root validation failed: {}", e),
+                                        ),
                                         request.id,
                                     );
                                 }
                             }
                             Err(e) => {
                                 return JsonRpcResponse::error(
-                                    JsonRpcError::new(-32603, format!("Failed to get roots: {}", e)),
+                                    JsonRpcError::new(
+                                        -32603,
+                                        format!("Failed to get roots: {}", e),
+                                    ),
                                     request.id,
                                 );
                             }
@@ -1574,14 +1591,20 @@ impl UltraFastServer {
                                     .await
                                 {
                                     return JsonRpcResponse::error(
-                                        JsonRpcError::new(-32603, format!("Root validation failed: {}", e)),
+                                        JsonRpcError::new(
+                                            -32603,
+                                            format!("Root validation failed: {}", e),
+                                        ),
                                         request.id,
                                     );
                                 }
                             }
                             Err(e) => {
                                 return JsonRpcResponse::error(
-                                    JsonRpcError::new(-32603, format!("Failed to get roots: {}", e)),
+                                    JsonRpcError::new(
+                                        -32603,
+                                        format!("Failed to get roots: {}", e),
+                                    ),
                                     request.id,
                                 );
                             }
@@ -1834,21 +1857,29 @@ impl UltraFastServer {
                     );
                 }
 
-                let elicitation_response = match serde_json::from_value::<ultrafast_mcp_core::types::elicitation::ElicitationResponse>(
+                let elicitation_response = match serde_json::from_value::<
+                    ultrafast_mcp_core::types::elicitation::ElicitationResponse,
+                >(
                     request.params.unwrap_or_default()
                 ) {
                     Ok(response) => response,
                     Err(e) => {
                         return JsonRpcResponse::error(
-                            JsonRpcError::new(-32602, format!("Invalid elicitation response: {}", e)),
+                            JsonRpcError::new(
+                                -32602,
+                                format!("Invalid elicitation response: {}", e),
+                            ),
                             request.id,
                         );
                     }
                 };
 
                 // Log the elicitation response
-                info!("Received elicitation response: {:?}", elicitation_response.action);
-                
+                info!(
+                    "Received elicitation response: {:?}",
+                    elicitation_response.action
+                );
+
                 // In a real implementation, this would be handled by the server's elicitation flow
                 // For now, we'll just return success
                 JsonRpcResponse::success(serde_json::json!({}), request.id)
@@ -1923,8 +1954,18 @@ impl UltraFastServer {
 
                 match serde_json::from_value::<SetRootsRequest>(params.clone()) {
                     Ok(set_request) => {
-                        let response = self.handle_set_roots(set_request.roots, &mut Box::new(create_transport(TransportConfig::Stdio).await.unwrap())).await;
-                        JsonRpcResponse::success(serde_json::to_value(response).unwrap(), request.id)
+                        let response = self
+                            .handle_set_roots(
+                                set_request.roots,
+                                &mut Box::new(
+                                    create_transport(TransportConfig::Stdio).await.unwrap(),
+                                ),
+                            )
+                            .await;
+                        JsonRpcResponse::success(
+                            serde_json::to_value(response).unwrap(),
+                            request.id,
+                        )
                     }
                     Err(e) => JsonRpcResponse::error(
                         JsonRpcError::new(-32602, format!("Invalid roots set request: {}", e)),
@@ -1957,11 +1998,14 @@ impl UltraFastServer {
             "notifications/cancelled" => {
                 // Handle cancellation notification
                 if let Some(params) = notification.params {
-                    let cancellation_notification: ultrafast_mcp_core::types::notifications::CancelledNotification = 
+                    let cancellation_notification: ultrafast_mcp_core::types::notifications::CancelledNotification =
                         serde_json::from_value(params)?;
-                    
+
                     // Use the cancellation manager to handle the cancellation
-                    let _cancelled = self.cancellation_manager.handle_cancellation(cancellation_notification).await?;
+                    let _cancelled = self
+                        .cancellation_manager
+                        .handle_cancellation(cancellation_notification)
+                        .await?;
                     info!("Cancellation notification processed");
                 }
                 Ok(())
@@ -2154,24 +2198,37 @@ impl UltraFastServer {
     }
 
     /// Handle a roots/set request
-    pub async fn handle_set_roots(&self, roots: Vec<ultrafast_mcp_core::types::roots::Root>, transport: &mut Box<dyn Transport>) -> SetRootsResponse {
+    pub async fn handle_set_roots(
+        &self,
+        roots: Vec<ultrafast_mcp_core::types::roots::Root>,
+        transport: &mut Box<dyn Transport>,
+    ) -> SetRootsResponse {
         if let Some(handler) = &self.roots_handler {
             match handler.set_roots(roots.clone()).await {
                 Ok(_) => {
                     // Send notification to all clients (for demo, just send to this transport)
                     let notification = RootsListChangedNotification { roots };
                     let params = serde_json::to_value(notification).ok();
-                    let _ = self.send_notification("roots/listChanged", params, transport).await;
-                    SetRootsResponse { success: true, error: None }
+                    let _ = self
+                        .send_notification("roots/listChanged", params, transport)
+                        .await;
+                    SetRootsResponse {
+                        success: true,
+                        error: None,
+                    }
                 }
-                Err(e) => SetRootsResponse { success: false, error: Some(e.to_string()) },
+                Err(e) => SetRootsResponse {
+                    success: false,
+                    error: Some(e.to_string()),
+                },
             }
         } else {
-            SetRootsResponse { success: false, error: Some("Roots handler not available".to_string()) }
+            SetRootsResponse {
+                success: false,
+                error: Some("Roots handler not available".to_string()),
+            }
         }
     }
-
-
 }
 
 #[cfg(test)]

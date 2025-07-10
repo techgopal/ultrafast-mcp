@@ -1,33 +1,35 @@
 //! Timeout validation utilities
 
-use std::time::Duration;
 use crate::error::{MCPResult, ValidationError};
+use std::time::Duration;
 
 /// Validate timeout duration
-/// 
+///
 /// Consolidates implementation from core/config.rs and server validation
 pub fn validate_timeout(timeout: Duration) -> MCPResult<()> {
     const MIN_TIMEOUT: Duration = Duration::from_millis(100);
     const MAX_TIMEOUT: Duration = Duration::from_secs(3600); // 1 hour
-    
+
     if timeout < MIN_TIMEOUT {
         return Err(ValidationError::ValueOutOfRange {
             field: "timeout".to_string(),
             min: format!("{}ms", MIN_TIMEOUT.as_millis()),
             max: format!("{}s", MAX_TIMEOUT.as_secs()),
             actual: format!("{}ms", timeout.as_millis()),
-        }.into());
+        }
+        .into());
     }
-    
+
     if timeout > MAX_TIMEOUT {
         return Err(ValidationError::ValueOutOfRange {
             field: "timeout".to_string(),
             min: format!("{}ms", MIN_TIMEOUT.as_millis()),
             max: format!("{}s", MAX_TIMEOUT.as_secs()),
             actual: format!("{}s", timeout.as_secs()),
-        }.into());
+        }
+        .into());
     }
-    
+
     Ok(())
 }
 
@@ -39,16 +41,17 @@ pub fn is_valid_timeout(timeout: Duration) -> bool {
 /// Validate retry count
 pub fn validate_retry_count(retries: u32) -> MCPResult<()> {
     const MAX_RETRIES: u32 = 10;
-    
+
     if retries > MAX_RETRIES {
         return Err(ValidationError::ValueOutOfRange {
             field: "retry_count".to_string(),
             min: "0".to_string(),
             max: MAX_RETRIES.to_string(),
             actual: retries.to_string(),
-        }.into());
+        }
+        .into());
     }
-    
+
     Ok(())
 }
 
@@ -56,23 +59,25 @@ pub fn validate_retry_count(retries: u32) -> MCPResult<()> {
 pub fn validate_backoff_multiplier(multiplier: f64) -> MCPResult<()> {
     const MIN_MULTIPLIER: f64 = 1.0;
     const MAX_MULTIPLIER: f64 = 10.0;
-    
-    if multiplier < MIN_MULTIPLIER || multiplier > MAX_MULTIPLIER {
+
+    if !(MIN_MULTIPLIER..=MAX_MULTIPLIER).contains(&multiplier) {
         return Err(ValidationError::ValueOutOfRange {
             field: "backoff_multiplier".to_string(),
             min: MIN_MULTIPLIER.to_string(),
             max: MAX_MULTIPLIER.to_string(),
             actual: multiplier.to_string(),
-        }.into());
+        }
+        .into());
     }
-    
+
     if !multiplier.is_finite() {
         return Err(ValidationError::InvalidFormat {
             field: "backoff_multiplier".to_string(),
             expected: "finite number".to_string(),
-        }.into());
+        }
+        .into());
     }
-    
+
     Ok(())
 }
 
@@ -104,7 +109,7 @@ mod tests {
         assert!(validate_timeout(Duration::from_secs(1)).is_ok());
         assert!(validate_timeout(Duration::from_secs(30)).is_ok());
         assert!(validate_timeout(Duration::from_secs(300)).is_ok());
-        
+
         // Invalid timeouts
         assert!(validate_timeout(Duration::from_millis(50)).is_err()); // Too short
         assert!(validate_timeout(Duration::from_secs(3601)).is_err()); // Too long
@@ -123,7 +128,7 @@ mod tests {
         assert!(validate_retry_count(0).is_ok());
         assert!(validate_retry_count(3).is_ok());
         assert!(validate_retry_count(10).is_ok());
-        
+
         // Invalid retry counts
         assert!(validate_retry_count(11).is_err());
         assert!(validate_retry_count(100).is_err());
@@ -136,7 +141,7 @@ mod tests {
         assert!(validate_backoff_multiplier(2.0).is_ok());
         assert!(validate_backoff_multiplier(5.5).is_ok());
         assert!(validate_backoff_multiplier(10.0).is_ok());
-        
+
         // Invalid multipliers
         assert!(validate_backoff_multiplier(0.5).is_err()); // Too small
         assert!(validate_backoff_multiplier(11.0).is_err()); // Too large
@@ -147,8 +152,14 @@ mod tests {
     #[test]
     fn test_get_recommended_timeout() {
         assert_eq!(get_recommended_timeout("ping"), Duration::from_secs(5));
-        assert_eq!(get_recommended_timeout("initialize"), Duration::from_secs(30));
-        assert_eq!(get_recommended_timeout("tools/call"), Duration::from_secs(300));
+        assert_eq!(
+            get_recommended_timeout("initialize"),
+            Duration::from_secs(30)
+        );
+        assert_eq!(
+            get_recommended_timeout("tools/call"),
+            Duration::from_secs(300)
+        );
         assert_eq!(get_recommended_timeout("unknown"), Duration::from_secs(30));
     }
-} 
+}

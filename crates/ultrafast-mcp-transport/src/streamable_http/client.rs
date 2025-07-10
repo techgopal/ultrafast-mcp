@@ -6,8 +6,11 @@
 use crate::{Result, Transport, TransportError};
 use async_trait::async_trait;
 
+use ultrafast_mcp_core::protocol::{
+    jsonrpc::{JsonRpcRequest, RequestId},
+    JsonRpcMessage,
+};
 use ultrafast_mcp_core::utils::generate_state;
-use ultrafast_mcp_core::protocol::{JsonRpcMessage, jsonrpc::{JsonRpcRequest, RequestId}};
 
 /// Streamable HTTP client configuration
 #[derive(Debug, Clone)]
@@ -146,21 +149,20 @@ impl StreamableHttpClient {
         }
 
         // For Streamable HTTP, we establish a session by sending an initialize request
-        let initialize_request =
-            JsonRpcMessage::Request(JsonRpcRequest {
-                jsonrpc: "2.0".to_string(),
-                method: "initialize".to_string(),
-                params: Some(serde_json::json!({
-                    "protocolVersion": self.config.protocol_version,
-                    "capabilities": {},
-                    "clientInfo": {
-                        "name": "ultrafast-mcp-client",
-                        "version": "1.0.0"
-                    }
-                })),
-                id: Some(RequestId::String("1".to_string())),
-                meta: std::collections::HashMap::new(),
-            });
+        let initialize_request = JsonRpcMessage::Request(JsonRpcRequest {
+            jsonrpc: "2.0".to_string(),
+            method: "initialize".to_string(),
+            params: Some(serde_json::json!({
+                "protocolVersion": self.config.protocol_version,
+                "capabilities": {},
+                "clientInfo": {
+                    "name": "ultrafast-mcp-client",
+                    "version": "1.0.0"
+                }
+            })),
+            id: Some(RequestId::String("1".to_string())),
+            meta: std::collections::HashMap::new(),
+        });
 
         let session_id = self
             .config
@@ -313,12 +315,12 @@ impl StreamableHttpClient {
 
     /// Start an SSE stream for server-to-client communication
     pub async fn start_sse_stream(&mut self) -> Result<reqwest::Response> {
-        let session_id = self
-            .session_id
-            .clone()
-            .ok_or_else(|| TransportError::ConnectionError {
-                message: "Not connected".to_string(),
-            })?;
+        let session_id =
+            self.session_id
+                .clone()
+                .ok_or_else(|| TransportError::ConnectionError {
+                    message: "Not connected".to_string(),
+                })?;
 
         let url = format!("{}/mcp", self.config.base_url);
 
@@ -356,12 +358,12 @@ impl StreamableHttpClient {
 
     /// Resume an SSE stream from a specific event ID
     pub async fn resume_sse_stream(&mut self, last_event_id: &str) -> Result<reqwest::Response> {
-        let session_id = self
-            .session_id
-            .clone()
-            .ok_or_else(|| TransportError::ConnectionError {
-                message: "Not connected".to_string(),
-            })?;
+        let session_id =
+            self.session_id
+                .clone()
+                .ok_or_else(|| TransportError::ConnectionError {
+                    message: "Not connected".to_string(),
+                })?;
 
         let url = format!("{}/mcp", self.config.base_url);
 

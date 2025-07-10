@@ -62,15 +62,15 @@ pub struct HealthCheckResult {
 pub trait HealthCheck: Send + Sync {
     /// Perform the health check
     async fn check(&self) -> HealthCheckResult;
-    
+
     /// Get the name of this health check
     fn name(&self) -> &str;
-    
+
     /// Get the timeout for this health check
     fn timeout(&self) -> Duration {
         Duration::from_secs(30)
     }
-    
+
     /// Get the interval between health checks
     fn interval(&self) -> Duration {
         Duration::from_secs(60)
@@ -111,7 +111,7 @@ impl SystemHealthCheck {
 impl HealthCheck for SystemHealthCheck {
     async fn check(&self) -> HealthCheckResult {
         let start = std::time::Instant::now();
-        
+
         // Basic system health check
         let status = match self.perform_system_check().await {
             Ok(_) => HealthStatus::Healthy,
@@ -147,9 +147,12 @@ impl SystemHealthCheck {
         let memory_usage = memory_info.used_memory();
         let total_memory = memory_info.total_memory();
         let memory_percentage = (memory_usage as f64 / total_memory as f64) * 100.0;
-        
+
         if memory_percentage > 90.0 {
-            return Err(anyhow::anyhow!("Memory usage too high: {:.1}%", memory_percentage));
+            return Err(anyhow::anyhow!(
+                "Memory usage too high: {:.1}%",
+                memory_percentage
+            ));
         }
 
         // Check disk space (basic check) - simplified for now
@@ -170,7 +173,7 @@ pub struct ApplicationHealthCheck {
 
 impl ApplicationHealthCheck {
     /// Create a new application health check with a custom check function
-    pub fn new<F>(name: impl Into<String>, check_fn: F) -> Self 
+    pub fn new<F>(name: impl Into<String>, check_fn: F) -> Self
     where
         F: Fn() -> anyhow::Result<()> + Send + Sync + 'static,
     {
@@ -199,7 +202,7 @@ impl ApplicationHealthCheck {
 impl HealthCheck for ApplicationHealthCheck {
     async fn check(&self) -> HealthCheckResult {
         let start = std::time::Instant::now();
-        
+
         let status = match (self.check_fn)() {
             Ok(_) => HealthStatus::Healthy,
             Err(e) => HealthStatus::Unhealthy(vec![e.to_string()]),
@@ -260,7 +263,7 @@ impl HealthChecker {
         let name = check.name().to_string();
         let mut checks = self.checks.write().await;
         checks.insert(name.clone(), check);
-        
+
         info!("Added health check: {}", name);
     }
 
@@ -268,10 +271,10 @@ impl HealthChecker {
     pub async fn remove_check(&self, name: &str) {
         let mut checks = self.checks.write().await;
         checks.remove(name);
-        
+
         let mut results = self.results.write().await;
         results.remove(name);
-        
+
         info!("Removed health check: {}", name);
     }
 
@@ -286,10 +289,10 @@ impl HealthChecker {
         let checks = self.checks.read().await;
         if let Some(check) = checks.get(name) {
             let result = check.check().await;
-            
+
             let mut results = self.results.write().await;
             results.insert(name.to_string(), result.clone());
-            
+
             debug!("Health check '{}' completed: {:?}", name, result.status);
             Some(result)
         } else {
@@ -302,24 +305,24 @@ impl HealthChecker {
     pub async fn run_all_checks(&self) -> HashMap<String, HealthCheckResult> {
         let checks = self.checks.read().await;
         let mut results = HashMap::new();
-        
+
         for (name, check) in checks.iter() {
             let result = check.check().await;
             results.insert(name.clone(), result);
         }
-        
+
         // Store results
         {
             let mut stored_results = self.results.write().await;
             *stored_results = results.clone();
         }
-        
+
         // Update last check time
         {
             let mut last_check = self.last_check.write().await;
             *last_check = Some(SystemTime::now());
         }
-        
+
         debug!("Completed {} health checks", results.len());
         results
     }
@@ -327,14 +330,14 @@ impl HealthChecker {
     /// Get the overall health status
     pub async fn get_overall_health(&self) -> HealthStatus {
         let results = self.results.read().await;
-        
+
         if results.is_empty() {
             return HealthStatus::Healthy; // No checks means healthy by default
         }
-        
+
         let mut errors = Vec::new();
         let mut warnings = Vec::new();
-        
+
         for (name, result) in results.iter() {
             match &result.status {
                 HealthStatus::Unhealthy(messages) => {
@@ -346,7 +349,7 @@ impl HealthChecker {
                 HealthStatus::Healthy => {}
             }
         }
-        
+
         if !errors.is_empty() {
             HealthStatus::Unhealthy(errors)
         } else if !warnings.is_empty() {
@@ -392,13 +395,13 @@ impl HealthChecker {
     /// Start the health checker background task
     pub async fn start_background_task(&self) -> tokio::task::JoinHandle<()> {
         let checker = self.clone();
-        
+
         tokio::spawn(async move {
             loop {
                 if checker.should_run_checks().await {
                     checker.run_all_checks().await;
                 }
-                
+
                 tokio::time::sleep(Duration::from_secs(10)).await;
             }
         })
@@ -457,12 +460,18 @@ mod tests {
         assert!(!HealthStatus::Degraded(vec!["warning".to_string()]).is_healthy());
         assert!(HealthStatus::Degraded(vec!["warning".to_string()]).is_degraded());
         assert!(!HealthStatus::Degraded(vec!["warning".to_string()]).is_unhealthy());
-        assert_eq!(HealthStatus::Degraded(vec!["warning".to_string()]).severity(), 1);
+        assert_eq!(
+            HealthStatus::Degraded(vec!["warning".to_string()]).severity(),
+            1
+        );
 
         assert!(!HealthStatus::Unhealthy(vec!["error".to_string()]).is_healthy());
         assert!(!HealthStatus::Unhealthy(vec!["error".to_string()]).is_degraded());
         assert!(HealthStatus::Unhealthy(vec!["error".to_string()]).is_unhealthy());
-        assert_eq!(HealthStatus::Unhealthy(vec!["error".to_string()]).severity(), 2);
+        assert_eq!(
+            HealthStatus::Unhealthy(vec!["error".to_string()]).severity(),
+            2
+        );
     }
 
     #[tokio::test]
@@ -511,9 +520,8 @@ mod tests {
         let checker = HealthChecker::new();
 
         // Add a failing health check
-        let check = ApplicationHealthCheck::new("failing_check", || {
-            Err(anyhow::anyhow!("Always fails"))
-        });
+        let check =
+            ApplicationHealthCheck::new("failing_check", || Err(anyhow::anyhow!("Always fails")));
         checker.add_check(Box::new(check)).await;
 
         // Run the check

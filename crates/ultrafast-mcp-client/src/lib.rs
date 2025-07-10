@@ -19,7 +19,9 @@ use ultrafast_mcp_core::{
         completion::{CompleteRequest, CompleteResponse},
         elicitation::{ElicitationRequest, ElicitationResponse},
         prompts::{GetPromptRequest, GetPromptResponse, ListPromptsRequest, ListPromptsResponse},
-        resources::{ListResourcesRequest, ListResourcesResponse, ReadResourceRequest, ReadResourceResponse},
+        resources::{
+            ListResourcesRequest, ListResourcesResponse, ReadResourceRequest, ReadResourceResponse,
+        },
         sampling::{CreateMessageRequest, CreateMessageResponse},
         server::{ServerCapabilities, ServerInfo},
         tools::{ListToolsRequest, ListToolsResponse, ToolCall, ToolResult},
@@ -279,34 +281,50 @@ impl UltraFastClient {
                                 // This is a request without ID, handle as elicitation
                                 if request.method == "elicitation/create" {
                                     info!("Processing elicitation request from server");
-                                    
+
                                     // Get the elicitation handler from state manager
                                     let elicitation_handler = {
                                         let state = state_manager.read().await;
                                         state.elicitation_handler.clone()
                                     };
-                                    
+
                                     if let Some(handler) = elicitation_handler {
                                         // Parse the elicitation request
-                                        if let Ok(elicitation_request) = serde_json::from_value::<ElicitationRequest>(
-                                            request.params.clone().unwrap_or_default()
-                                        ) {
+                                        if let Ok(elicitation_request) =
+                                            serde_json::from_value::<ElicitationRequest>(
+                                                request.params.clone().unwrap_or_default(),
+                                            )
+                                        {
                                             // Handle the elicitation request
-                                            match handler.handle_elicitation_request(elicitation_request).await {
+                                            match handler
+                                                .handle_elicitation_request(elicitation_request)
+                                                .await
+                                            {
                                                 Ok(response) => {
                                                     // Send the response back to the server
-                                                    let response_message = JsonRpcMessage::Request(JsonRpcRequest::new(
-                                                        "elicitation/respond".to_string(),
-                                                        Some(serde_json::to_value(response).unwrap()),
-                                                        None, // No ID for elicitation response
-                                                    ));
-                                                    
-                                                    if let Err(e) = transport.send_message(response_message).await {
+                                                    let response_message = JsonRpcMessage::Request(
+                                                        JsonRpcRequest::new(
+                                                            "elicitation/respond".to_string(),
+                                                            Some(
+                                                                serde_json::to_value(response)
+                                                                    .unwrap(),
+                                                            ),
+                                                            None, // No ID for elicitation response
+                                                        ),
+                                                    );
+
+                                                    if let Err(e) = transport
+                                                        .send_message(response_message)
+                                                        .await
+                                                    {
                                                         error!("Failed to send elicitation response: {}", e);
                                                     }
                                                 }
                                                 Err(e) => {
-                                                    error!("Failed to handle elicitation request: {}", e);
+                                                    error!(
+                                                        "Failed to handle elicitation request: {}",
+                                                        e
+                                                    );
                                                 }
                                             }
                                         } else {
@@ -316,7 +334,10 @@ impl UltraFastClient {
                                         warn!("No elicitation handler configured, ignoring elicitation request");
                                     }
                                 } else {
-                                    warn!("Received unexpected request without ID: {}", request.method);
+                                    warn!(
+                                        "Received unexpected request without ID: {}",
+                                        request.method
+                                    );
                                 }
                             }
                             JsonRpcMessage::Notification(notification) => {
@@ -397,10 +418,12 @@ impl UltraFastClient {
             .await?;
 
         // Validate protocol version
-        if init_response.protocol_version != ultrafast_mcp_core::protocol::version::PROTOCOL_VERSION {
+        if init_response.protocol_version != ultrafast_mcp_core::protocol::version::PROTOCOL_VERSION
+        {
             return Err(MCPError::Protocol(ProtocolError::InvalidVersion(format!(
                 "Expected protocol version {}, got {}",
-                ultrafast_mcp_core::protocol::version::PROTOCOL_VERSION, init_response.protocol_version
+                ultrafast_mcp_core::protocol::version::PROTOCOL_VERSION,
+                init_response.protocol_version
             ))));
         }
 
@@ -614,10 +637,7 @@ impl UltraFastClient {
     }
 
     /// Respond to elicitation request (called by client-side elicitation handler)
-    pub async fn respond_to_elicitation(
-        &self,
-        response: ElicitationResponse,
-    ) -> MCPResult<()> {
+    pub async fn respond_to_elicitation(&self, response: ElicitationResponse) -> MCPResult<()> {
         self.send_request("elicitation/respond", Some(serde_json::to_value(response)?))
             .await
     }
@@ -648,18 +668,21 @@ impl UltraFastClient {
 
     /// Start periodic ping monitoring (optional, for connection health)
     pub async fn start_ping_monitoring(&self, ping_interval: std::time::Duration) -> MCPResult<()> {
-        info!("Starting periodic ping monitoring with interval: {:?}", ping_interval);
-        
+        info!(
+            "Starting periodic ping monitoring with interval: {:?}",
+            ping_interval
+        );
+
         // Note: This is a placeholder for future implementation
         // The actual ping monitoring would need to be integrated with the transport layer
         // For now, we log that ping monitoring is enabled
         info!("Ping monitoring enabled (interval: {:?})", ping_interval);
-        
+
         // Future implementation would spawn a background task that:
         // 1. Clones the client's transport
         // 2. Sends periodic ping requests
         // 3. Handles timeouts and reconnection logic
-        
+
         Ok(())
     }
 

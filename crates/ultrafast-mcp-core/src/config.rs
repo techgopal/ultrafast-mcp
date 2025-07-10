@@ -7,53 +7,51 @@
 #[path = "config/base.rs"]
 pub mod base;
 
-use std::time::Duration;
 use serde::{Deserialize, Serialize};
+use std::time::Duration;
 
 // Re-export common config types
 pub use base::{
-    BaseConfig, ConfigDefaults, ConfigBuilder,
+    BaseConfig, ConfigBuilder, ConfigDefaults, NetworkConfig as BaseNetworkConfig,
+    RetryConfig as BaseRetryConfig, SecurityConfig as BaseSecurityConfig,
     TimeoutConfig as BaseTimeoutConfig,
-    RetryConfig as BaseRetryConfig,
-    NetworkConfig as BaseNetworkConfig,
-    SecurityConfig as BaseSecurityConfig,
 };
 
 /// Timeout configuration for MCP operations
-/// 
+///
 /// This is the original timeout config, now with base config support
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TimeoutConfig {
     /// Default timeout for all operations
     pub default_timeout: Duration,
-    
+
     /// Timeout for connection establishment
     pub connect_timeout: Duration,
-    
+
     /// Timeout for individual requests
     pub request_timeout: Duration,
-    
+
     /// Timeout for receiving responses
     pub response_timeout: Duration,
-    
+
     /// Timeout for tool execution
     pub tool_execution_timeout: Duration,
-    
+
     /// Timeout for resource reading
     pub resource_read_timeout: Duration,
-    
+
     /// Timeout for prompt generation
     pub prompt_generation_timeout: Duration,
-    
+
     /// Timeout for sampling operations
     pub sampling_timeout: Duration,
-    
+
     /// Timeout for completion operations
     pub completion_timeout: Duration,
-    
+
     /// Timeout for shutdown operations
     pub shutdown_timeout: Duration,
-    
+
     /// Heartbeat interval for connection health
     pub heartbeat_interval: Duration,
 }
@@ -81,7 +79,7 @@ impl base::ConfigDefaults for TimeoutConfig {}
 impl base::BaseConfig for TimeoutConfig {
     fn validate(&self) -> crate::MCPResult<()> {
         use crate::validation::timeout::validate_timeout;
-        
+
         validate_timeout(self.default_timeout)?;
         validate_timeout(self.connect_timeout)?;
         validate_timeout(self.request_timeout)?;
@@ -93,10 +91,10 @@ impl base::BaseConfig for TimeoutConfig {
         validate_timeout(self.completion_timeout)?;
         validate_timeout(self.shutdown_timeout)?;
         validate_timeout(self.heartbeat_interval)?;
-        
+
         Ok(())
     }
-    
+
     fn config_name(&self) -> &'static str {
         "MCPTimeoutConfig"
     }
@@ -128,7 +126,7 @@ impl TimeoutConfig {
             request_timeout: Duration::from_secs(300),
             response_timeout: Duration::from_secs(300),
             tool_execution_timeout: Duration::from_secs(1800), // 30 minutes
-            resource_read_timeout: Duration::from_secs(600), // 10 minutes
+            resource_read_timeout: Duration::from_secs(600),   // 10 minutes
             prompt_generation_timeout: Duration::from_secs(120),
             sampling_timeout: Duration::from_secs(600), // 10 minutes for complex LLM calls
             completion_timeout: Duration::from_secs(120),
@@ -191,9 +189,18 @@ mod tests {
     #[test]
     fn test_get_timeout_for_operation() {
         let config = TimeoutConfig::default();
-        assert_eq!(config.get_timeout_for_operation("connect"), config.connect_timeout);
-        assert_eq!(config.get_timeout_for_operation("tools/call"), config.tool_execution_timeout);
-        assert_eq!(config.get_timeout_for_operation("unknown"), config.default_timeout);
+        assert_eq!(
+            config.get_timeout_for_operation("connect"),
+            config.connect_timeout
+        );
+        assert_eq!(
+            config.get_timeout_for_operation("tools/call"),
+            config.tool_execution_timeout
+        );
+        assert_eq!(
+            config.get_timeout_for_operation("unknown"),
+            config.default_timeout
+        );
     }
 
     #[test]

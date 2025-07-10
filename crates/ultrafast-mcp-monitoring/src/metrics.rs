@@ -30,7 +30,7 @@ pub struct RequestMetrics {
 }
 
 /// Transport-related metrics
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]
 pub struct TransportMetrics {
     pub bytes_sent: u64,
     pub bytes_received: u64,
@@ -89,7 +89,7 @@ impl MetricsCollector {
     /// Record a request with timing and success status
     pub async fn record_request(&self, method: &str, response_time: Duration, success: bool) {
         let mut metrics = self.metrics.write().await;
-        
+
         // Update request counts
         metrics.request.total_requests += 1;
         if success {
@@ -99,15 +99,21 @@ impl MetricsCollector {
         }
 
         // Update method counts
-        *metrics.request.method_counts.entry(method.to_string()).or_insert(0) += 1;
+        *metrics
+            .request
+            .method_counts
+            .entry(method.to_string())
+            .or_insert(0) += 1;
 
         // Update response time histogram
-        let method_histogram = metrics.request.response_time_histogram
+        let method_histogram = metrics
+            .request
+            .response_time_histogram
             .entry(method.to_string())
             .or_insert_with(Vec::new);
-        
+
         method_histogram.push(response_time);
-        
+
         // Keep histogram size manageable
         if method_histogram.len() > self.max_histogram_size {
             method_histogram.remove(0);
@@ -115,7 +121,8 @@ impl MetricsCollector {
 
         // Update average response time
         let total_time: Duration = method_histogram.iter().sum();
-        metrics.request.average_response_time = total_time.as_millis() as f64 / method_histogram.len() as f64;
+        metrics.request.average_response_time =
+            total_time.as_millis() as f64 / method_histogram.len() as f64;
 
         // Update last request time
         metrics.request.last_request_time = Some(SystemTime::now());
@@ -131,7 +138,7 @@ impl MetricsCollector {
         let mut metrics = self.metrics.write().await;
         metrics.transport.bytes_sent += bytes;
         metrics.transport.last_activity = Some(SystemTime::now());
-        
+
         debug!("Recorded transport send: {} bytes", bytes);
     }
 
@@ -140,7 +147,7 @@ impl MetricsCollector {
         let mut metrics = self.metrics.write().await;
         metrics.transport.bytes_received += bytes;
         metrics.transport.last_activity = Some(SystemTime::now());
-        
+
         debug!("Recorded transport receive: {} bytes", bytes);
     }
 
@@ -148,8 +155,12 @@ impl MetricsCollector {
     pub async fn record_transport_error(&self, error_type: &str) {
         let mut metrics = self.metrics.write().await;
         metrics.transport.error_count += 1;
-        *metrics.transport.connection_errors.entry(error_type.to_string()).or_insert(0) += 1;
-        
+        *metrics
+            .transport
+            .connection_errors
+            .entry(error_type.to_string())
+            .or_insert(0) += 1;
+
         warn!("Recorded transport error: {}", error_type);
     }
 
@@ -158,7 +169,7 @@ impl MetricsCollector {
         let mut metrics = self.metrics.write().await;
         metrics.transport.connection_count = count;
         metrics.transport.active_connections = count;
-        
+
         debug!("Updated connection count: {}", count);
     }
 
@@ -174,7 +185,7 @@ impl MetricsCollector {
         metrics.system.memory_usage = memory_usage;
         metrics.system.cpu_usage = cpu_usage;
         metrics.system.last_update = SystemTime::now();
-        
+
         // Update uptime
         if let Ok(elapsed) = metrics.system.start_time.elapsed() {
             metrics.system.uptime = elapsed;
@@ -205,56 +216,98 @@ impl MetricsCollector {
         // Request metrics
         prometheus_output.push_str("# HELP mcp_requests_total Total number of requests\n");
         prometheus_output.push_str("# TYPE mcp_requests_total counter\n");
-        prometheus_output.push_str(&format!("mcp_requests_total {}\n", metrics.request.total_requests));
+        prometheus_output.push_str(&format!(
+            "mcp_requests_total {}\n",
+            metrics.request.total_requests
+        ));
 
-        prometheus_output.push_str("# HELP mcp_requests_successful Total number of successful requests\n");
+        prometheus_output
+            .push_str("# HELP mcp_requests_successful Total number of successful requests\n");
         prometheus_output.push_str("# TYPE mcp_requests_successful counter\n");
-        prometheus_output.push_str(&format!("mcp_requests_successful {}\n", metrics.request.successful_requests));
+        prometheus_output.push_str(&format!(
+            "mcp_requests_successful {}\n",
+            metrics.request.successful_requests
+        ));
 
         prometheus_output.push_str("# HELP mcp_requests_failed Total number of failed requests\n");
         prometheus_output.push_str("# TYPE mcp_requests_failed counter\n");
-        prometheus_output.push_str(&format!("mcp_requests_failed {}\n", metrics.request.failed_requests));
+        prometheus_output.push_str(&format!(
+            "mcp_requests_failed {}\n",
+            metrics.request.failed_requests
+        ));
 
-        prometheus_output.push_str("# HELP mcp_request_duration_average Average request duration in milliseconds\n");
+        prometheus_output.push_str(
+            "# HELP mcp_request_duration_average Average request duration in milliseconds\n",
+        );
         prometheus_output.push_str("# TYPE mcp_request_duration_average gauge\n");
-        prometheus_output.push_str(&format!("mcp_request_duration_average {}\n", metrics.request.average_response_time));
+        prometheus_output.push_str(&format!(
+            "mcp_request_duration_average {}\n",
+            metrics.request.average_response_time
+        ));
 
         // Method-specific metrics
         for (method, count) in &metrics.request.method_counts {
-            prometheus_output.push_str(&format!("# HELP mcp_requests_by_method_total Total requests by method\n"));
-            prometheus_output.push_str(&format!("# TYPE mcp_requests_by_method_total counter\n"));
-            prometheus_output.push_str(&format!("mcp_requests_by_method_total{{method=\"{}\"}} {}\n", method, count));
+            prometheus_output.push_str("# HELP mcp_requests_by_method_total Total requests by method\n".to_string().as_str());
+            prometheus_output.push_str("# TYPE mcp_requests_by_method_total counter\n".to_string().as_str());
+            prometheus_output.push_str(&format!(
+                "mcp_requests_by_method_total{{method=\"{}\"}} {}\n",
+                method, count
+            ));
         }
 
         // Transport metrics
         prometheus_output.push_str("# HELP mcp_transport_bytes_sent Total bytes sent\n");
         prometheus_output.push_str("# TYPE mcp_transport_bytes_sent counter\n");
-        prometheus_output.push_str(&format!("mcp_transport_bytes_sent {}\n", metrics.transport.bytes_sent));
+        prometheus_output.push_str(&format!(
+            "mcp_transport_bytes_sent {}\n",
+            metrics.transport.bytes_sent
+        ));
 
         prometheus_output.push_str("# HELP mcp_transport_bytes_received Total bytes received\n");
         prometheus_output.push_str("# TYPE mcp_transport_bytes_received counter\n");
-        prometheus_output.push_str(&format!("mcp_transport_bytes_received {}\n", metrics.transport.bytes_received));
+        prometheus_output.push_str(&format!(
+            "mcp_transport_bytes_received {}\n",
+            metrics.transport.bytes_received
+        ));
 
-        prometheus_output.push_str("# HELP mcp_transport_connections_active Current active connections\n");
+        prometheus_output
+            .push_str("# HELP mcp_transport_connections_active Current active connections\n");
         prometheus_output.push_str("# TYPE mcp_transport_connections_active gauge\n");
-        prometheus_output.push_str(&format!("mcp_transport_connections_active {}\n", metrics.transport.active_connections));
+        prometheus_output.push_str(&format!(
+            "mcp_transport_connections_active {}\n",
+            metrics.transport.active_connections
+        ));
 
         prometheus_output.push_str("# HELP mcp_transport_errors_total Total transport errors\n");
         prometheus_output.push_str("# TYPE mcp_transport_errors_total counter\n");
-        prometheus_output.push_str(&format!("mcp_transport_errors_total {}\n", metrics.transport.error_count));
+        prometheus_output.push_str(&format!(
+            "mcp_transport_errors_total {}\n",
+            metrics.transport.error_count
+        ));
 
         // System metrics
-        prometheus_output.push_str("# HELP mcp_system_memory_usage_bytes Current memory usage in bytes\n");
+        prometheus_output
+            .push_str("# HELP mcp_system_memory_usage_bytes Current memory usage in bytes\n");
         prometheus_output.push_str("# TYPE mcp_system_memory_usage_bytes gauge\n");
-        prometheus_output.push_str(&format!("mcp_system_memory_usage_bytes {}\n", metrics.system.memory_usage));
+        prometheus_output.push_str(&format!(
+            "mcp_system_memory_usage_bytes {}\n",
+            metrics.system.memory_usage
+        ));
 
-        prometheus_output.push_str("# HELP mcp_system_cpu_usage_percent Current CPU usage percentage\n");
+        prometheus_output
+            .push_str("# HELP mcp_system_cpu_usage_percent Current CPU usage percentage\n");
         prometheus_output.push_str("# TYPE mcp_system_cpu_usage_percent gauge\n");
-        prometheus_output.push_str(&format!("mcp_system_cpu_usage_percent {}\n", metrics.system.cpu_usage));
+        prometheus_output.push_str(&format!(
+            "mcp_system_cpu_usage_percent {}\n",
+            metrics.system.cpu_usage
+        ));
 
         prometheus_output.push_str("# HELP mcp_system_uptime_seconds System uptime in seconds\n");
         prometheus_output.push_str("# TYPE mcp_system_uptime_seconds gauge\n");
-        prometheus_output.push_str(&format!("mcp_system_uptime_seconds {}\n", metrics.system.uptime.as_secs()));
+        prometheus_output.push_str(&format!(
+            "mcp_system_uptime_seconds {}\n",
+            metrics.system.uptime.as_secs()
+        ));
 
         prometheus_output
     }
@@ -267,7 +320,7 @@ impl MetricsCollector {
             transport: TransportMetrics::default(),
             system: SystemMetrics::default(),
         };
-        
+
         info!("Metrics reset completed");
     }
 
@@ -302,19 +355,7 @@ impl Default for RequestMetrics {
     }
 }
 
-impl Default for TransportMetrics {
-    fn default() -> Self {
-        Self {
-            bytes_sent: 0,
-            bytes_received: 0,
-            connection_count: 0,
-            error_count: 0,
-            active_connections: 0,
-            connection_errors: HashMap::new(),
-            last_activity: None,
-        }
-    }
-}
+
 
 impl Default for SystemMetrics {
     fn default() -> Self {
@@ -349,8 +390,10 @@ impl RequestTimer {
     /// Finish the timer and record the metrics
     pub async fn finish(self, success: bool) {
         let duration = self.start.elapsed();
-        self.metrics.record_request(&self.method, duration, success).await;
-        
+        self.metrics
+            .record_request(&self.method, duration, success)
+            .await;
+
         debug!(
             "Request completed: method={}, duration={:?}, success={}",
             self.method, duration, success
@@ -367,7 +410,7 @@ mod tests {
     async fn test_metrics_collector_creation() {
         let collector = MetricsCollector::new();
         let metrics = collector.get_metrics().await;
-        
+
         assert_eq!(metrics.request.total_requests, 0);
         assert_eq!(metrics.transport.bytes_sent, 0);
         assert_eq!(metrics.system.memory_usage, 0);
@@ -376,10 +419,12 @@ mod tests {
     #[tokio::test]
     async fn test_request_recording() {
         let collector = Arc::new(MetricsCollector::new());
-        
+
         // Record a successful request
-        collector.record_request("test_method", Duration::from_millis(100), true).await;
-        
+        collector
+            .record_request("test_method", Duration::from_millis(100), true)
+            .await;
+
         let metrics = collector.get_metrics().await;
         assert_eq!(metrics.request.total_requests, 1);
         assert_eq!(metrics.request.successful_requests, 1);
@@ -390,11 +435,11 @@ mod tests {
     #[tokio::test]
     async fn test_transport_metrics() {
         let collector = Arc::new(MetricsCollector::new());
-        
+
         collector.record_transport_send(1024).await;
         collector.record_transport_receive(2048).await;
         collector.record_transport_error("connection_failed").await;
-        
+
         let metrics = collector.get_metrics().await;
         assert_eq!(metrics.transport.bytes_sent, 1024);
         assert_eq!(metrics.transport.bytes_received, 2048);
@@ -405,11 +450,11 @@ mod tests {
     #[tokio::test]
     async fn test_request_timer() {
         let collector = Arc::new(MetricsCollector::new());
-        
+
         let timer = RequestTimer::start("timer_test", collector.clone());
         sleep(Duration::from_millis(10)).await;
         timer.finish(true).await;
-        
+
         let metrics = collector.get_metrics().await;
         assert_eq!(metrics.request.total_requests, 1);
         assert_eq!(metrics.request.successful_requests, 1);
@@ -419,12 +464,14 @@ mod tests {
     #[tokio::test]
     async fn test_prometheus_export() {
         let collector = Arc::new(MetricsCollector::new());
-        
-        collector.record_request("test", Duration::from_millis(50), true).await;
+
+        collector
+            .record_request("test", Duration::from_millis(50), true)
+            .await;
         collector.record_transport_send(100).await;
-        
+
         let prometheus_output = collector.export_prometheus().await;
-        
+
         assert!(prometheus_output.contains("mcp_requests_total 1"));
         assert!(prometheus_output.contains("mcp_transport_bytes_sent 100"));
         assert!(prometheus_output.contains("mcp_request_duration_average"));
@@ -433,18 +480,20 @@ mod tests {
     #[tokio::test]
     async fn test_metrics_reset() {
         let collector = Arc::new(MetricsCollector::new());
-        
-        collector.record_request("test", Duration::from_millis(50), true).await;
+
+        collector
+            .record_request("test", Duration::from_millis(50), true)
+            .await;
         collector.record_transport_send(100).await;
-        
+
         // Verify metrics were recorded
         let metrics = collector.get_metrics().await;
         assert_eq!(metrics.request.total_requests, 1);
         assert_eq!(metrics.transport.bytes_sent, 100);
-        
+
         // Reset metrics
         collector.reset().await;
-        
+
         // Verify metrics were reset
         let metrics = collector.get_metrics().await;
         assert_eq!(metrics.request.total_requests, 0);

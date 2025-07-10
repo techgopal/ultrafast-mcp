@@ -320,7 +320,10 @@ mod tests {
         let response = manager.handle_ping(request).await.unwrap();
 
         // PingResponse should echo back the data as per MCP 2025-06-18 specification
-        assert_eq!(format!("{:?}", response), "PingResponse { data: Some(Object {\"test\": String(\"data\")}) }");
+        assert_eq!(
+            format!("{:?}", response),
+            "PingResponse { data: Some(Object {\"test\": String(\"data\")}) }"
+        );
     }
 
     #[test]

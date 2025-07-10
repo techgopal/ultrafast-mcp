@@ -1,5 +1,6 @@
 #[cfg(test)]
 mod tests {
+    use anyhow::Result;
     use async_trait::async_trait;
     use serde::{Deserialize, Serialize};
     use serde_json::json;
@@ -11,14 +12,11 @@ mod tests {
         types::{
             client::ClientInfo,
             server::ServerInfo,
-            tools::{Tool, ToolCall, ToolContent, ToolResult, ListToolsRequest, ListToolsResponse},
+            tools::{ListToolsRequest, ListToolsResponse, Tool, ToolCall, ToolContent, ToolResult},
         },
     };
     use ultrafast_mcp_server::ToolHandler;
-    use ultrafast_mcp_test_utils::{
-        create_test_server_with_name,
-    };
-    use anyhow::Result;
+    use ultrafast_mcp_test_utils::create_test_server_with_name;
 
     // Mock tool handler for testing
     struct TestToolHandler;
@@ -127,7 +125,7 @@ mod tests {
     }
 
     // create_test_server function moved to ultrafast-mcp-test-utils
-    
+
     fn create_test_server_with_custom_handler() -> ultrafast_mcp::UltraFastServer {
         let server_info = ServerInfo {
             name: "integration-test-server".to_string(),
@@ -146,7 +144,8 @@ mod tests {
             ..Default::default()
         };
 
-        ultrafast_mcp::UltraFastServer::new(server_info, capabilities).with_tool_handler(Arc::new(TestToolHandler))
+        ultrafast_mcp::UltraFastServer::new(server_info, capabilities)
+            .with_tool_handler(Arc::new(TestToolHandler))
     }
 
     #[tokio::test]

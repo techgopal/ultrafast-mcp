@@ -636,9 +636,7 @@ mod transport_compliance_tests {
     };
     use serde_json::json;
     use std::sync::Arc;
-    use ultrafast_mcp_core::protocol::{
-        JsonRpcError, JsonRpcResponse,
-    };
+    use ultrafast_mcp_core::protocol::{JsonRpcError, JsonRpcResponse};
     use ultrafast_mcp_transport::streamable_http::server::{
         HttpTransportConfig, HttpTransportServer, HttpTransportState,
     };
@@ -657,8 +655,10 @@ mod transport_compliance_tests {
         headers.insert("mcp-protocol-version", "2025-06-18".parse().unwrap());
         headers.insert("origin", "http://localhost:3000".parse().unwrap());
 
-        let body = Bytes::from(r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"1.0.0"}}}"#);
-        
+        let body = Bytes::from(
+            r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"1.0.0"}}}"#,
+        );
+
         let response = handle_mcp_post_internal(Arc::new(state.clone()), headers, body).await;
         assert_eq!(response.status(), StatusCode::OK);
 
@@ -667,8 +667,10 @@ mod transport_compliance_tests {
         headers.insert("mcp-protocol-version", "2020-01-01".parse().unwrap());
         headers.insert("origin", "http://localhost:3000".parse().unwrap());
 
-        let body = Bytes::from(r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2020-01-01","capabilities":{},"clientInfo":{"name":"test","version":"1.0.0"}}}"#);
-        
+        let body = Bytes::from(
+            r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2020-01-01","capabilities":{},"clientInfo":{"name":"test","version":"1.0.0"}}}"#,
+        );
+
         let response = handle_mcp_post_internal(Arc::new(state.clone()), headers, body).await;
         assert_eq!(response.status(), StatusCode::BAD_REQUEST);
     }
@@ -684,11 +686,16 @@ mod transport_compliance_tests {
 
         // Test valid session ID (UUID)
         let mut headers = HeaderMap::new();
-        headers.insert("mcp-session-id", "550e8400-e29b-41d4-a716-446655440000".parse().unwrap());
+        headers.insert(
+            "mcp-session-id",
+            "550e8400-e29b-41d4-a716-446655440000".parse().unwrap(),
+        );
         headers.insert("origin", "http://localhost:3000".parse().unwrap());
 
-        let body = Bytes::from(r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"1.0.0"}}}"#);
-        
+        let body = Bytes::from(
+            r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"1.0.0"}}}"#,
+        );
+
         let response = handle_mcp_post_internal(Arc::new(state.clone()), headers, body).await;
         assert_eq!(response.status(), StatusCode::OK);
 
@@ -697,8 +704,10 @@ mod transport_compliance_tests {
         headers.insert("mcp-session-id", "invalid-session-🚀".parse().unwrap());
         headers.insert("origin", "http://localhost:3000".parse().unwrap());
 
-        let body = Bytes::from(r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"1.0.0"}}}"#);
-        
+        let body = Bytes::from(
+            r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"1.0.0"}}}"#,
+        );
+
         let response = handle_mcp_post_internal(Arc::new(state.clone()), headers, body).await;
         assert_eq!(response.status(), StatusCode::OK); // Should still work for initialize
     }
@@ -774,8 +783,10 @@ mod transport_compliance_tests {
         let mut headers = HeaderMap::new();
         headers.insert("origin", "http://localhost:3000".parse().unwrap());
 
-        let body = Bytes::from(r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"1.0.0"}}}"#);
-        
+        let body = Bytes::from(
+            r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"1.0.0"}}}"#,
+        );
+
         let response = handle_mcp_post_internal(Arc::new(state.clone()), headers, body).await;
         assert_eq!(response.status(), StatusCode::OK);
 
@@ -783,8 +794,10 @@ mod transport_compliance_tests {
         let mut headers = HeaderMap::new();
         headers.insert("origin", "http://malicious-site.com".parse().unwrap());
 
-        let body = Bytes::from(r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"1.0.0"}}}"#);
-        
+        let body = Bytes::from(
+            r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"1.0.0"}}}"#,
+        );
+
         let response = handle_mcp_post_internal(Arc::new(state.clone()), headers, body).await;
         assert_eq!(response.status(), StatusCode::FORBIDDEN);
     }
@@ -804,8 +817,10 @@ mod transport_compliance_tests {
         headers.insert("mcp-session-id", session_id.parse().unwrap());
         headers.insert("origin", "http://localhost:3000".parse().unwrap());
 
-        let body = Bytes::from(r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"1.0.0"}}}"#);
-        
+        let body = Bytes::from(
+            r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"1.0.0"}}}"#,
+        );
+
         let response = handle_mcp_post_internal(Arc::new(state.clone()), headers, body).await;
         assert_eq!(response.status(), StatusCode::OK);
 
@@ -834,7 +849,7 @@ mod transport_compliance_tests {
     ) -> Response {
         // This is a simplified version of the actual handler
         // In a real test, you'd want to use a proper HTTP client
-        
+
         // Validate Origin header
         if !validate_origin(&headers, &state.config) {
             return (
@@ -853,7 +868,10 @@ mod transport_compliance_tests {
                 return (
                     StatusCode::BAD_REQUEST,
                     Json(JsonRpcResponse::error(
-                        JsonRpcError::new(-32000, format!("Unsupported protocol version: {}", protocol_version)),
+                        JsonRpcError::new(
+                            -32000,
+                            format!("Unsupported protocol version: {}", protocol_version),
+                        ),
                         None,
                     )),
                 )
@@ -880,10 +898,7 @@ mod transport_compliance_tests {
     }
 
     // Helper function to simulate the server's GET handler
-    async fn handle_mcp_get(
-        state: Arc<HttpTransportState>,
-        headers: HeaderMap,
-    ) -> Response {
+    async fn handle_mcp_get(state: Arc<HttpTransportState>, headers: HeaderMap) -> Response {
         // Validate Origin header
         if !validate_origin(&headers, &state.config) {
             return (
@@ -901,10 +916,7 @@ mod transport_compliance_tests {
     }
 
     // Helper function to simulate the server's DELETE handler
-    async fn handle_mcp_delete(
-        state: Arc<HttpTransportState>,
-        headers: HeaderMap,
-    ) -> Response {
+    async fn handle_mcp_delete(state: Arc<HttpTransportState>, headers: HeaderMap) -> Response {
         // Validate Origin header
         if !validate_origin(&headers, &state.config) {
             return (

@@ -14,10 +14,10 @@ use crate::metrics::MetricsCollector;
 pub trait Exporter: Send + Sync {
     /// Export data to the configured destination
     async fn export(&self, data: &str) -> anyhow::Result<()>;
-    
+
     /// Get the name of this exporter
     fn name(&self) -> &str;
-    
+
     /// Check if the exporter is enabled
     fn is_enabled(&self) -> bool;
 }
@@ -104,11 +104,7 @@ impl PrometheusExporter {
     }
 
     /// Create a new Prometheus exporter with custom endpoint
-    pub fn with_endpoint(
-        name: impl Into<String>,
-        endpoint: impl Into<String>,
-        port: u16,
-    ) -> Self {
+    pub fn with_endpoint(name: impl Into<String>, endpoint: impl Into<String>, port: u16) -> Self {
         Self {
             name: name.into(),
             enabled: true,
@@ -139,7 +135,10 @@ impl Exporter for PrometheusExporter {
         // For now, just log the Prometheus metrics
         // In a full implementation, this would start an HTTP server
         // and serve the metrics at the configured endpoint
-        info!("Prometheus metrics available at {}:{}", self.endpoint, self.port);
+        info!(
+            "Prometheus metrics available at {}:{}",
+            self.endpoint, self.port
+        );
         debug!("Prometheus metrics data: {}", data);
 
         Ok(())
@@ -278,7 +277,7 @@ impl ExporterManager {
         let prometheus_data = self.metrics_collector.export_prometheus().await;
 
         let exporters = self.exporters.read().await;
-        
+
         for exporter in exporters.iter() {
             if !exporter.is_enabled() {
                 continue;
@@ -302,7 +301,7 @@ impl ExporterManager {
     /// Export custom data to all enabled exporters
     pub async fn export_data(&self, data: &str) -> anyhow::Result<()> {
         let exporters = self.exporters.read().await;
-        
+
         for exporter in exporters.iter() {
             if !exporter.is_enabled() {
                 continue;
@@ -318,15 +317,18 @@ impl ExporterManager {
     }
 
     /// Start periodic export task
-    pub async fn start_periodic_export(&self, interval: std::time::Duration) -> tokio::task::JoinHandle<()> {
+    pub async fn start_periodic_export(
+        &self,
+        interval: std::time::Duration,
+    ) -> tokio::task::JoinHandle<()> {
         let manager = self.clone();
-        
+
         tokio::spawn(async move {
             loop {
                 if let Err(e) = manager.export_metrics().await {
                     error!("Failed to export metrics: {}", e);
                 }
-                
+
                 tokio::time::sleep(interval).await;
             }
         })
@@ -372,7 +374,6 @@ impl Default for ExporterConfig {
 mod tests {
     use super::*;
 
-
     #[tokio::test]
     async fn test_json_exporter() {
         let exporter = JsonExporter::new("test");
@@ -413,7 +414,7 @@ mod tests {
         // Add exporters
         let console_exporter = Box::new(ConsoleExporter::new("console"));
         let json_exporter = Box::new(JsonExporter::new("json"));
-        
+
         manager.add_exporter(console_exporter).await;
         manager.add_exporter(json_exporter).await;
 

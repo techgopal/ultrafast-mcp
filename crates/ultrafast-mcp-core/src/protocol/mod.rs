@@ -183,11 +183,11 @@
 //! - Version negotiation ensures backward compatibility
 
 pub mod capabilities;
+pub mod constants;
 pub mod jsonrpc;
 pub mod lifecycle;
 pub mod messages;
 pub mod metadata;
-pub mod constants;
 pub mod version;
 
 pub use capabilities::*;

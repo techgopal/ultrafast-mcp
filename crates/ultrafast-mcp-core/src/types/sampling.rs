@@ -40,19 +40,19 @@ pub struct SamplingContext {
     /// Server information if context is included
     #[serde(skip_serializing_if = "Option::is_none")]
     pub server_info: Option<ServerContextInfo>,
-    
+
     /// Available tools if context is included
     #[serde(skip_serializing_if = "Option::is_none")]
     pub available_tools: Option<Vec<ToolContextInfo>>,
-    
+
     /// Available resources if context is included
     #[serde(skip_serializing_if = "Option::is_none")]
     pub available_resources: Option<Vec<ResourceContextInfo>>,
-    
+
     /// Conversation history if context is included
     #[serde(skip_serializing_if = "Option::is_none")]
     pub conversation_history: Option<Vec<SamplingMessage>>,
-    
+
     /// User preferences and settings
     #[serde(skip_serializing_if = "Option::is_none")]
     pub user_preferences: Option<UserPreferences>,
@@ -63,14 +63,14 @@ pub struct SamplingContext {
 pub struct ServerContextInfo {
     /// Server name
     pub name: String,
-    
+
     /// Server version
     pub version: String,
-    
+
     /// Server description
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
-    
+
     /// Server capabilities
     pub capabilities: Vec<String>,
 }
@@ -80,13 +80,13 @@ pub struct ServerContextInfo {
 pub struct ToolContextInfo {
     /// Tool name
     pub name: String,
-    
+
     /// Tool description
     pub description: String,
-    
+
     /// Tool input schema
     pub input_schema: Value,
-    
+
     /// Tool annotations
     #[serde(skip_serializing_if = "Option::is_none")]
     pub annotations: Option<Value>,
@@ -97,14 +97,14 @@ pub struct ToolContextInfo {
 pub struct ResourceContextInfo {
     /// Resource URI
     pub uri: String,
-    
+
     /// Resource name
     pub name: String,
-    
+
     /// Resource description
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
-    
+
     /// Resource MIME type
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mime_type: Option<String>,
@@ -116,23 +116,23 @@ pub struct UserPreferences {
     /// Preferred model family
     #[serde(skip_serializing_if = "Option::is_none")]
     pub preferred_model_family: Option<String>,
-    
+
     /// Cost sensitivity (0-1, higher = more cost sensitive)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cost_sensitivity: Option<f64>,
-    
+
     /// Speed preference (0-1, higher = prefer faster)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub speed_preference: Option<f64>,
-    
+
     /// Quality preference (0-1, higher = prefer higher quality)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub quality_preference: Option<f64>,
-    
+
     /// Whether to require human approval
     #[serde(skip_serializing_if = "Option::is_none")]
     pub require_approval: Option<bool>,
-    
+
     /// Maximum cost per request (in cents)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub max_cost_per_request: Option<f64>,
@@ -193,25 +193,40 @@ pub struct SamplingRequest {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HumanInTheLoopSettings {
     /// Whether to require prompt approval
-    #[serde(rename = "requirePromptApproval", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "requirePromptApproval",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub require_prompt_approval: Option<bool>,
-    
+
     /// Whether to require completion approval
-    #[serde(rename = "requireCompletionApproval", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "requireCompletionApproval",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub require_completion_approval: Option<bool>,
-    
+
     /// Whether to allow prompt modification
-    #[serde(rename = "allowPromptModification", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "allowPromptModification",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub allow_prompt_modification: Option<bool>,
-    
+
     /// Whether to allow completion modification
-    #[serde(rename = "allowCompletionModification", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "allowCompletionModification",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub allow_completion_modification: Option<bool>,
-    
+
     /// Approval timeout in seconds
-    #[serde(rename = "approvalTimeoutSeconds", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "approvalTimeoutSeconds",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub approval_timeout_seconds: Option<u32>,
-    
+
     /// Notification settings
     #[serde(skip_serializing_if = "Option::is_none")]
     pub notifications: Option<NotificationSettings>,
@@ -221,17 +236,20 @@ pub struct HumanInTheLoopSettings {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NotificationSettings {
     /// Whether to show desktop notifications
-    #[serde(rename = "desktopNotifications", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "desktopNotifications",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub desktop_notifications: Option<bool>,
-    
+
     /// Whether to show in-app notifications
     #[serde(rename = "inAppNotifications", skip_serializing_if = "Option::is_none")]
     pub in_app_notifications: Option<bool>,
-    
+
     /// Whether to send email notifications
     #[serde(rename = "emailNotifications", skip_serializing_if = "Option::is_none")]
     pub email_notifications: Option<bool>,
-    
+
     /// Custom notification message
     #[serde(rename = "customMessage", skip_serializing_if = "Option::is_none")]
     pub custom_message: Option<String>,
@@ -344,7 +362,7 @@ impl SamplingRequest {
         // Simple cost estimation: $0.002 per 1K input tokens, $0.012 per 1K output tokens
         let input_cost = (input_tokens as f64 / 1000.0) * 0.002;
         let output_cost = (output_tokens / 1000.0) * 0.012;
-        
+
         Ok(input_cost + output_cost)
     }
 
@@ -391,9 +409,9 @@ impl SamplingRequest {
 
     /// Check if this request requires image modality
     pub fn requires_image_modality(&self) -> bool {
-        self.messages.iter().any(|message| {
-            matches!(message.content, SamplingContent::Image { .. })
-        })
+        self.messages
+            .iter()
+            .any(|message| matches!(message.content, SamplingContent::Image { .. }))
     }
 }
 
@@ -449,23 +467,23 @@ pub struct CostInfo {
     /// Total cost in cents
     #[serde(rename = "totalCostCents")]
     pub total_cost_cents: f64,
-    
+
     /// Input token cost in cents
     #[serde(rename = "inputCostCents")]
     pub input_cost_cents: f64,
-    
+
     /// Output token cost in cents
     #[serde(rename = "outputCostCents")]
     pub output_cost_cents: f64,
-    
+
     /// Input tokens used
     #[serde(rename = "inputTokens")]
     pub input_tokens: u32,
-    
+
     /// Output tokens generated
     #[serde(rename = "outputTokens")]
     pub output_tokens: u32,
-    
+
     /// Model used for cost calculation
     pub model: String,
 }
@@ -476,19 +494,19 @@ pub struct HumanFeedback {
     /// Whether the prompt was modified
     #[serde(rename = "promptModified")]
     pub prompt_modified: bool,
-    
+
     /// Whether the completion was modified
     #[serde(rename = "completionModified")]
     pub completion_modified: bool,
-    
+
     /// Reason for approval/rejection
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reason: Option<String>,
-    
+
     /// User comments
     #[serde(skip_serializing_if = "Option::is_none")]
     pub comments: Option<String>,
-    
+
     /// Approval timestamp
     #[serde(rename = "approvalTimestamp", skip_serializing_if = "Option::is_none")]
     pub approval_timestamp: Option<chrono::DateTime<chrono::Utc>>,
@@ -804,8 +822,8 @@ impl ModelPreferences {
     pub fn cost_optimized() -> Self {
         Self {
             hints: None,
-            cost_priority: Some(0.1),         // Highest priority (lowest number)
-            speed_priority: Some(0.7),        // Much lower priority
+            cost_priority: Some(0.1),  // Highest priority (lowest number)
+            speed_priority: Some(0.7), // Much lower priority
             intelligence_priority: Some(0.9), // Lowest priority
         }
     }

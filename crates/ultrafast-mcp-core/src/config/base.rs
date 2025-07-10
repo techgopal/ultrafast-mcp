@@ -3,39 +3,43 @@
 //! This module provides common configuration patterns that can be reused
 //! across all crates to reduce duplication.
 
-use std::time::Duration;
-use serde::{Serialize, Deserialize};
-use crate::validation::timeout::{validate_timeout, validate_retry_count, validate_backoff_multiplier};
 use crate::error::{MCPResult, ValidationError};
+use crate::validation::timeout::{
+    validate_backoff_multiplier, validate_retry_count, validate_timeout,
+};
+use serde::{Deserialize, Serialize};
+use std::time::Duration;
 
 /// Common configuration defaults
 pub trait ConfigDefaults {
     fn default_timeout() -> Duration {
         Duration::from_secs(30)
     }
-    
+
     fn default_retries() -> u32 {
         3
     }
-    
+
     fn default_backoff_multiplier() -> f64 {
         2.0
     }
-    
+
     fn default_host() -> String {
         "127.0.0.1".to_string()
     }
-    
+
     fn default_port() -> u16 {
         8080
     }
 }
 
 /// Base configuration trait that all config structs should implement
-pub trait BaseConfig: Default + Serialize + for<'de> Deserialize<'de> + Clone + Send + Sync {
+pub trait BaseConfig:
+    Default + Serialize + for<'de> Deserialize<'de> + Clone + Send + Sync
+{
     /// Validate the configuration
     fn validate(&self) -> MCPResult<()>;
-    
+
     /// Get configuration name for logging/debugging
     fn config_name(&self) -> &'static str;
 }
@@ -67,7 +71,7 @@ impl BaseConfig for TimeoutConfig {
         validate_timeout(self.shutdown_timeout)?;
         Ok(())
     }
-    
+
     fn config_name(&self) -> &'static str {
         "TimeoutConfig"
     }
@@ -103,17 +107,18 @@ impl BaseConfig for RetryConfig {
         validate_timeout(self.initial_delay)?;
         validate_timeout(self.max_delay)?;
         validate_backoff_multiplier(self.backoff_multiplier)?;
-        
+
         if self.initial_delay > self.max_delay {
             return Err(ValidationError::InvalidFormat {
                 field: "initial_delay".to_string(),
                 expected: "less than or equal to max_delay".to_string(),
-            }.into());
+            }
+            .into());
         }
-        
+
         Ok(())
     }
-    
+
     fn config_name(&self) -> &'static str {
         "RetryConfig"
     }
@@ -148,23 +153,25 @@ impl BaseConfig for NetworkConfig {
         if self.host.is_empty() {
             return Err(ValidationError::RequiredField {
                 field: "host".to_string(),
-            }.into());
+            }
+            .into());
         }
-        
+
         if self.port == 0 {
             return Err(ValidationError::ValueOutOfRange {
                 field: "port".to_string(),
                 min: "1".to_string(),
                 max: "65535".to_string(),
                 actual: "0".to_string(),
-            }.into());
+            }
+            .into());
         }
-        
+
         validate_timeout(self.keepalive_timeout)?;
-        
+
         Ok(())
     }
-    
+
     fn config_name(&self) -> &'static str {
         "NetworkConfig"
     }
@@ -200,19 +207,21 @@ impl BaseConfig for SecurityConfig {
             if self.cert_path.is_none() {
                 return Err(ValidationError::RequiredField {
                     field: "cert_path".to_string(),
-                }.into());
+                }
+                .into());
             }
-            
+
             if self.key_path.is_none() {
                 return Err(ValidationError::RequiredField {
                     field: "key_path".to_string(),
-                }.into());
+                }
+                .into());
             }
         }
-        
+
         Ok(())
     }
-    
+
     fn config_name(&self) -> &'static str {
         "SecurityConfig"
     }
@@ -228,12 +237,12 @@ impl<T: BaseConfig> ConfigBuilder<T> {
     pub fn new(config: T) -> Self {
         Self { config }
     }
-    
+
     pub fn build(self) -> MCPResult<T> {
         self.config.validate()?;
         Ok(self.config)
     }
-    
+
     pub fn validate(&self) -> MCPResult<()> {
         self.config.validate()
     }
@@ -244,13 +253,13 @@ impl<T: BaseConfig> ConfigBuilder<T> {
 macro_rules! impl_config_defaults {
     ($config_type:ty, $name:expr) => {
         impl $crate::config::base::ConfigDefaults for $config_type {}
-        
+
         impl $crate::config::base::BaseConfig for $config_type {
             fn validate(&self) -> $crate::MCPResult<()> {
                 // Default implementation - override if needed
                 Ok(())
             }
-            
+
             fn config_name(&self) -> &'static str {
                 $name
             }
@@ -274,7 +283,7 @@ mod tests {
     fn test_timeout_config_validation() {
         let config = TimeoutConfig::default();
         assert!(config.validate().is_ok());
-        
+
         let invalid_config = TimeoutConfig {
             connect_timeout: Duration::from_millis(50), // Too short
             request_timeout: Duration::from_secs(30),
@@ -297,7 +306,7 @@ mod tests {
     fn test_retry_config_validation() {
         let config = RetryConfig::default();
         assert!(config.validate().is_ok());
-        
+
         let invalid_config = RetryConfig {
             max_retries: 15, // Too many
             ..Default::default()
@@ -328,4 +337,4 @@ mod tests {
         let built_config = builder.build().unwrap();
         assert_eq!(built_config.config_name(), "TimeoutConfig");
     }
-} 
+}

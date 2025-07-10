@@ -3,10 +3,10 @@
 //! This module contains common trait patterns that are reused across
 //! different crates to ensure consistency and reduce duplication.
 
-pub mod handler;
 pub mod config;
+pub mod handler;
 pub mod validator;
 
-pub use handler::*;
 pub use config::*;
-pub use validator::*; 
+pub use handler::*;
+pub use validator::*;

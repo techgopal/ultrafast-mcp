@@ -239,7 +239,7 @@ pub mod uri;
 pub mod identifiers;
 
 pub use cancellation::*;
+pub use identifiers::*;
 pub use pagination::*;
 pub use progress::*;
 pub use uri::*;
-pub use identifiers::*;
