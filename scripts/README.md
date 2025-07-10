@@ -103,7 +103,6 @@ The optimized publishing strategy:
 4. **Monitoring**: `ultrafast-mcp-monitoring` (6min delay)
 5. **Server**: `ultrafast-mcp-server` (8min delay)
 6. **Client**: `ultrafast-mcp-client` (10min delay)
-7. **Macros**: `ultrafast-mcp-macros` (12min delay)
 8. **CLI**: `ultrafast-mcp-cli` (14min delay)
 9. **Main crate**: `ultrafast-mcp` (16min delay)
 

@@ -6,7 +6,6 @@ members = [
     "crates/ultrafast-mcp-transport",
     "crates/ultrafast-mcp-server",
     "crates/ultrafast-mcp-client",
-    # "crates/ultrafast-mcp-macros", # REMOVED - stub implementation provided no value
     "crates/ultrafast-mcp-cli",
     "crates/ultrafast-mcp-auth",
     "crates/ultrafast-mcp-monitoring",

@@ -57,7 +57,6 @@ main() {
         "ultrafast-mcp-monitoring"
         "ultrafast-mcp-server"
         "ultrafast-mcp-client"
-        "ultrafast-mcp-macros"
         "ultrafast-mcp-cli"
         "ultrafast-mcp"
     )

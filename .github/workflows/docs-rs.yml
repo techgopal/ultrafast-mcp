@@ -38,7 +38,6 @@ jobs:
           cargo doc --no-deps --all-features --package ultrafast-mcp-client
           cargo doc --no-deps --all-features --package ultrafast-mcp-auth
           cargo doc --no-deps --all-features --package ultrafast-mcp-cli
-          # cargo doc --no-deps --all-features --package ultrafast-mcp-macros # REMOVED
           cargo doc --no-deps --all-features --package ultrafast-mcp-monitoring
 
       - name: Upload documentation artifacts
@@ -57,5 +56,4 @@ jobs:
           curl -X POST https://docs.rs/build/ultrafast-mcp-client
           curl -X POST https://docs.rs/build/ultrafast-mcp-auth
           curl -X POST https://docs.rs/build/ultrafast-mcp-cli
-          # curl -X POST https://docs.rs/build/ultrafast-mcp-macros # REMOVED
           curl -X POST https://docs.rs/build/ultrafast-mcp-monitoring 

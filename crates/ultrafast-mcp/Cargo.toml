@@ -25,7 +25,6 @@ ultrafast-mcp-server = { path = "../ultrafast-mcp-server", version = "=202506018
 ultrafast-mcp-client = { path = "../ultrafast-mcp-client", version = "=202506018.1.0-rc.2" }
 ultrafast-mcp-transport = { path = "../ultrafast-mcp-transport", version = "=202506018.1.0-rc.2" }
 ultrafast-mcp-auth = { path = "../ultrafast-mcp-auth", version = "=202506018.1.0-rc.2", optional = true }
-# ultrafast-mcp-macros dependency removed - macros were stub implementations
 
 # Runtime dependencies
 tokio = { workspace = true }

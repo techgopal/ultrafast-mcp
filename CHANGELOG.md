@@ -69,7 +69,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **ultrafast-mcp-auth**: OAuth 2.1 authentication
 - **ultrafast-mcp-cli**: Command-line interface
 - **ultrafast-mcp-monitoring**: Observability and metrics
-# - **ultrafast-mcp-macros**: Procedural macros (REMOVED - stub implementation)
 
 ### Examples
 - **Basic Echo**: Simple server-client communication
