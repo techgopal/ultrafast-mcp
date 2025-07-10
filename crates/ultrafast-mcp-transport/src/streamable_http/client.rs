@@ -5,7 +5,8 @@
 
 use crate::{Result, Transport, TransportError};
 use async_trait::async_trait;
-use ultrafast_mcp_auth::{OAuthClient, OAuthConfig};
+
+use ultrafast_mcp_core::utils::generate_state;
 use ultrafast_mcp_core::protocol::{JsonRpcMessage, jsonrpc::{JsonRpcRequest, RequestId}};
 
 /// Streamable HTTP client configuration
@@ -17,7 +18,7 @@ pub struct StreamableHttpClientConfig {
     pub timeout: std::time::Duration,
     pub max_retries: u32,
     pub auth_token: Option<String>,
-    pub oauth_config: Option<OAuthConfig>,
+    pub oauth_config: Option<ultrafast_mcp_auth::OAuthConfig>,
 }
 
 impl Default for StreamableHttpClientConfig {
@@ -40,7 +41,7 @@ pub struct StreamableHttpClient {
     config: StreamableHttpClientConfig,
     session_id: Option<String>,
     pending_response: Option<JsonRpcMessage>,
-    oauth_client: Option<OAuthClient>,
+    oauth_client: Option<ultrafast_mcp_auth::OAuthClient>,
     access_token: Option<String>,
     token_expiry: Option<std::time::SystemTime>,
 }
@@ -57,7 +58,7 @@ impl StreamableHttpClient {
         let oauth_client = config
             .oauth_config
             .as_ref()
-            .map(|config| OAuthClient::from_config(config.clone()));
+            .map(|config| ultrafast_mcp_auth::OAuthClient::from_config(config.clone()));
 
         let access_token = config.auth_token.clone();
 
@@ -83,7 +84,7 @@ impl StreamableHttpClient {
             })?;
 
             // Generate state for CSRF protection
-            let state = ultrafast_mcp_auth::generate_state();
+            let state = generate_state();
 
             // Get authorization URL
             let auth_url = oauth_client

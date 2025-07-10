@@ -19,7 +19,7 @@ use ultrafast_mcp_core::{
             SamplingResponse, ServerContextInfo, ToolContextInfo, ResourceContextInfo,
             ApprovalStatus, HumanFeedback, CostInfo, IncludeContext, SamplingRole, SamplingContent, StopReason,
         },
-        tools::{ListToolsRequest, ListToolsResponse, ToolCall, ToolResult, ToolContent},
+        tools::{ListToolsRequest, ListToolsResponse, ToolCall, ToolResult},
         ServerInfo,
     },
 };

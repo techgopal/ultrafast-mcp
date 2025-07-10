@@ -167,7 +167,7 @@ mod performance_tests {
 #[cfg(test)]
 mod validation_middleware_tests {
     use serde_json::{json, Value};
-    use std::collections::HashMap;
+
     use ultrafast_mcp_core::protocol::{JsonRpcMessage, JsonRpcRequest, RequestId};
     use ultrafast_mcp_transport::middleware::{TransportMiddleware, ValidationMiddleware};
 
@@ -627,7 +627,7 @@ mod validation_middleware_tests {
 #[cfg(test)]
 #[cfg(feature = "http")]
 mod transport_compliance_tests {
-    use super::*;
+
     use axum::{
         body::Bytes,
         http::{HeaderMap, StatusCode},
@@ -637,7 +637,7 @@ mod transport_compliance_tests {
     use serde_json::json;
     use std::sync::Arc;
     use ultrafast_mcp_core::protocol::{
-        JsonRpcError, JsonRpcMessage, JsonRpcRequest, JsonRpcResponse, RequestId,
+        JsonRpcError, JsonRpcResponse,
     };
     use ultrafast_mcp_transport::streamable_http::server::{
         HttpTransportConfig, HttpTransportServer, HttpTransportState,

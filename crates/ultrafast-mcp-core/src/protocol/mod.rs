@@ -48,6 +48,7 @@
 //! - **[`capabilities`]**: Feature negotiation and capability discovery
 //! - **[`messages`]**: Message type definitions and handling
 //! - **[`metadata`]**: Protocol metadata and implementation details
+//! - **[`constants`]**: Protocol constants and definitions
 //!
 //! ## Usage Examples
 //!
@@ -186,6 +187,7 @@ pub mod jsonrpc;
 pub mod lifecycle;
 pub mod messages;
 pub mod metadata;
+pub mod constants;
 pub mod version;
 
 pub use capabilities::*;

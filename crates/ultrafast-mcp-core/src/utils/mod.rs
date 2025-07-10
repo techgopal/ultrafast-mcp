@@ -235,7 +235,11 @@ pub mod pagination;
 pub mod progress;
 pub mod uri;
 
+// New identifiers module for consolidating ID generation functions
+pub mod identifiers;
+
 pub use cancellation::*;
 pub use pagination::*;
 pub use progress::*;
 pub use uri::*;
+pub use identifiers::*;

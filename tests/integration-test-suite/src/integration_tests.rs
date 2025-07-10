@@ -5,18 +5,20 @@ mod tests {
     use serde_json::json;
     use std::sync::Arc;
     use tokio::time::Duration;
-    use ultrafast_mcp::UltraFastServer;
-    use ultrafast_mcp_core::types::tools::{ListToolsRequest, ListToolsResponse};
     use ultrafast_mcp_core::{
         error::{MCPError, MCPResult},
         protocol::capabilities::{ClientCapabilities, ServerCapabilities, ToolsCapability},
         types::{
             client::ClientInfo,
             server::ServerInfo,
-            tools::{Tool, ToolCall, ToolContent, ToolResult},
+            tools::{Tool, ToolCall, ToolContent, ToolResult, ListToolsRequest, ListToolsResponse},
         },
     };
     use ultrafast_mcp_server::ToolHandler;
+    use ultrafast_mcp_test_utils::{
+        create_test_server_with_name,
+    };
+    use anyhow::Result;
 
     // Mock tool handler for testing
     struct TestToolHandler;
@@ -124,7 +126,9 @@ mod tests {
         }
     }
 
-    fn create_test_server() -> UltraFastServer {
+    // create_test_server function moved to ultrafast-mcp-test-utils
+    
+    fn create_test_server_with_custom_handler() -> ultrafast_mcp::UltraFastServer {
         let server_info = ServerInfo {
             name: "integration-test-server".to_string(),
             version: "1.0.0".to_string(),
@@ -142,13 +146,13 @@ mod tests {
             ..Default::default()
         };
 
-        UltraFastServer::new(server_info, capabilities).with_tool_handler(Arc::new(TestToolHandler))
+        ultrafast_mcp::UltraFastServer::new(server_info, capabilities).with_tool_handler(Arc::new(TestToolHandler))
     }
 
     #[tokio::test]
     async fn test_complete_mcp_server_client_flow() -> Result<(), Box<dyn std::error::Error>> {
         // Create a test server
-        let server = create_test_server();
+        let server = create_test_server_with_name("integration-test-server");
 
         // Test that server is created successfully
         assert_eq!(server.info().name, "integration-test-server");
@@ -203,7 +207,7 @@ mod tests {
 
         // Test server creation performance
         let start = Instant::now();
-        let _server = create_test_server();
+        let _server = create_test_server_with_name("performance-test-server");
         let creation_time = start.elapsed();
 
         // Should create server very quickly (< 10ms)
@@ -236,7 +240,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_concurrent_operations() -> Result<(), Box<dyn std::error::Error>> {
-        let server = create_test_server();
+        let server = create_test_server_with_name("concurrent-test-server");
 
         // Create multiple concurrent operations
         let mut handles = Vec::new();
@@ -245,7 +249,7 @@ mod tests {
             let server_clone = server.clone();
             let handle = tokio::spawn(async move {
                 // Test that server can handle concurrent access
-                assert_eq!(server_clone.info().name, "integration-test-server");
+                assert_eq!(server_clone.info().name, "concurrent-test-server");
                 i
             });
             handles.push(handle);
@@ -267,10 +271,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_error_handling() -> Result<(), Box<dyn std::error::Error>> {
-        let server = create_test_server();
+        let server = create_test_server_with_name("error-test-server");
 
         // Test that server is created successfully
-        assert_eq!(server.info().name, "integration-test-server");
+        assert_eq!(server.info().name, "error-test-server");
 
         println!("✅ Error handling test passed!");
         Ok(())

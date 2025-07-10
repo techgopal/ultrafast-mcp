@@ -1,6 +1,4 @@
-use crate::config::{
-    JSONRPC_VERSION, MAX_REQUEST_ID_LENGTH, MAX_REQUEST_ID_NUMBER, MIN_REQUEST_ID_NUMBER,
-};
+use crate::protocol::constants::{JSONRPC_VERSION, MAX_REQUEST_ID_LENGTH, MAX_REQUEST_ID_NUMBER, MIN_REQUEST_ID_NUMBER};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
@@ -120,7 +118,7 @@ impl From<u64> for RequestId {
 }
 
 /// JSON-RPC 2.0 Request
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct JsonRpcRequest {
     /// JSON-RPC version string (always "2.0")
     pub jsonrpc: String,
@@ -163,7 +161,7 @@ impl JsonRpcRequest {
 }
 
 /// JSON-RPC 2.0 Response
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct JsonRpcResponse {
     pub jsonrpc: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -203,7 +201,7 @@ impl JsonRpcResponse {
 }
 
 /// JSON-RPC 2.0 Error
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct JsonRpcError {
     pub code: i32,
     pub message: String,
@@ -315,7 +313,7 @@ impl JsonRpcError {
 }
 
 /// JSON-RPC 2.0 Message
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(untagged)]
 pub enum JsonRpcMessage {
     Request(JsonRpcRequest),

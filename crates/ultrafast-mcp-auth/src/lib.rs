@@ -334,7 +334,8 @@ pub mod validation;
 
 pub use error::AuthError;
 pub use oauth::OAuthClient;
-pub use pkce::{generate_pkce_params, generate_session_id, generate_state};
+pub use pkce::generate_pkce_params;
+// generate_session_id and generate_state are now available directly from ultrafast_mcp_core::utils
 pub use types::*;
 pub use validation::{extract_bearer_token, TokenValidator};
 

@@ -12,6 +12,7 @@ ultrafast-mcp-client = { path = "../../crates/ultrafast-mcp-client" }
 ultrafast-mcp-server = { path = "../../crates/ultrafast-mcp-server" }
 ultrafast-mcp-transport = { path = "../../crates/ultrafast-mcp-transport" }
 ultrafast-mcp-auth = { path = "../../crates/ultrafast-mcp-auth" }
+ultrafast-mcp-test-utils = { path = "../../crates/ultrafast-mcp-test-utils" }
 
 # Async runtime
 tokio = { version = "1.0", features = ["full", "test-util"] }
@@ -25,6 +26,9 @@ async-trait = "0.1"
 
 # Async utilities
 futures = "0.3"
+
+# Error handling
+anyhow = "1.0"
 
 # Time handling
 chrono = { version = "0.4", features = ["serde"] }

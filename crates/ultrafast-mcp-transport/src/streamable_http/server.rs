@@ -3,23 +3,32 @@
 //! This module provides a MCP-compliant Streamable HTTP server implementation
 //! that follows the MCP specification for stateless request/response communication.
 
-use crate::{Result, Transport, TransportError};
-use async_trait::async_trait;
 use axum::{
-    body::Bytes,
     extract::State,
-    http::{HeaderMap, StatusCode},
+    http::{header::HeaderMap, StatusCode},
     response::{sse::Event, IntoResponse, Response, Sse},
-    Json, Router,
+    routing::Router,
+    Json,
 };
+use bytes::Bytes;
 use futures::stream::{self, Stream};
 use std::sync::Arc;
 use tokio::sync::broadcast;
 use tower_http::cors::CorsLayer;
-use tracing::{error, info, warn};
-use ultrafast_mcp_core::protocol::{JsonRpcError, JsonRpcMessage, JsonRpcRequest, JsonRpcResponse};
-use ultrafast_mcp_core::protocol::version::{is_supported_version, PROTOCOL_VERSION};
+use tracing::{error, info};
+
+use ultrafast_mcp_core::{
+    protocol::{
+        jsonrpc::{JsonRpcError, JsonRpcMessage, JsonRpcRequest, JsonRpcResponse},
+        version::PROTOCOL_VERSION,
+    },
+    utils::{generate_session_id, generate_event_id},
+    validation::{validate_protocol_version, validate_session_id, validate_origin},
+};
 use ultrafast_mcp_monitoring::{MetricsCollector, MonitoringSystem, RequestTimer};
+
+use crate::{Result, Transport, TransportError};
+use async_trait::async_trait;
 
 /// HTTP transport configuration
 #[derive(Debug, Clone)]
@@ -236,51 +245,28 @@ fn extract_last_event_id(headers: &HeaderMap) -> Option<String> {
         .map(|s| s.to_string())
 }
 
-/// Validate protocol version header
-fn validate_protocol_version(version: &str) -> bool {
-    is_supported_version(version)
+// Validation functions moved to ultrafast_mcp_core::validation
+
+/// Validate Origin header for security using core validation
+fn validate_origin_header(headers: &HeaderMap, config: &HttpTransportConfig) -> bool {
+    let origin = headers
+        .get("origin")
+        .and_then(|v| v.to_str().ok());
+    
+    validate_origin(origin, config.allow_origin.as_deref(), &config.host)
 }
 
-/// Validate session ID format (visible ASCII characters only)
-fn validate_session_id(session_id: &str) -> bool {
-    session_id.chars().all(|c| {
-        let code = c as u8;
-        code >= 0x21 && code <= 0x7E
-    })
+/// Validate protocol version header using core validation
+fn validate_protocol_version_header(version: &str) -> bool {
+    validate_protocol_version(version).is_ok()
 }
 
-/// Validate Origin header for security
-fn validate_origin(headers: &HeaderMap, config: &HttpTransportConfig) -> bool {
-    if let Some(origin) = headers.get("origin") {
-        if let Ok(origin_str) = origin.to_str() {
-            // If allow_origin is set to "*", allow all origins
-            if let Some(allowed_origin) = &config.allow_origin {
-                if allowed_origin == "*" {
-                    return true;
-                }
-                return origin_str == allowed_origin;
-            }
-            // For localhost, allow any localhost origin
-            if config.host == "127.0.0.1" || config.host == "localhost" || config.host == "0.0.0.0"
-            {
-                return origin_str.contains("localhost") || origin_str.contains("127.0.0.1");
-            }
-        }
-        return false;
-    }
-    // Allow requests without Origin header for local development
-    config.host == "127.0.0.1" || config.host == "localhost" || config.host == "0.0.0.0"
+/// Validate session ID format using core validation  
+fn validate_session_id_header(session_id: &str) -> bool {
+    validate_session_id(session_id).is_ok()
 }
 
-/// Generate a new session ID
-fn generate_session_id() -> String {
-    uuid::Uuid::new_v4().to_string()
-}
-
-/// Generate a new event ID for SSE
-fn generate_event_id() -> String {
-    uuid::Uuid::new_v4().to_string()
-}
+// Session ID and event ID generation functions moved to ultrafast_mcp_core::utils
 
 async fn handle_mcp_post(
     State(state): State<Arc<HttpTransportState>>,
@@ -310,7 +296,7 @@ async fn handle_mcp_post_internal(
     body: Bytes,
 ) -> Response {
     // Validate Origin header
-    if !validate_origin(&headers, &state.config) {
+    if !validate_origin_header(&headers, &state.config) {
         return (
             StatusCode::FORBIDDEN,
             Json(JsonRpcResponse::error(
@@ -323,7 +309,7 @@ async fn handle_mcp_post_internal(
 
     // Validate protocol version header if present
     if let Some(protocol_version) = extract_protocol_version(&headers) {
-        if !validate_protocol_version(&protocol_version) {
+        if !validate_protocol_version_header(&protocol_version) {
             return (
                 StatusCode::BAD_REQUEST,
                 Json(JsonRpcResponse::error(
@@ -349,7 +335,7 @@ async fn handle_mcp_post_internal(
     } else {
         match extract_session_id(&headers) {
             Some(id) => {
-                if !validate_session_id(&id) {
+                if !validate_session_id_header(&id) {
                     return Json(JsonRpcResponse::error(
                         JsonRpcError::new(-32000, "Invalid session ID format".to_string()),
                         None,
@@ -406,7 +392,7 @@ async fn handle_mcp_get(
     State(state): State<Arc<HttpTransportState>>,
     headers: HeaderMap,
 ) -> impl IntoResponse {
-    if !validate_origin(&headers, &state.config) {
+    if !validate_origin_header(&headers, &state.config) {
         return (
             StatusCode::FORBIDDEN,
             Json(JsonRpcResponse::error(
@@ -419,7 +405,7 @@ async fn handle_mcp_get(
 
     // Validate protocol version header if present
     if let Some(protocol_version) = extract_protocol_version(&headers) {
-        if !validate_protocol_version(&protocol_version) {
+        if !validate_protocol_version_header(&protocol_version) {
             return (
                 StatusCode::BAD_REQUEST,
                 Json(JsonRpcResponse::error(
@@ -457,7 +443,7 @@ async fn handle_mcp_delete(
     State(state): State<Arc<HttpTransportState>>,
     headers: HeaderMap,
 ) -> impl IntoResponse {
-    if !validate_origin(&headers, &state.config) {
+    if !validate_origin_header(&headers, &state.config) {
         return (
             StatusCode::FORBIDDEN,
             Json(JsonRpcResponse::error(
@@ -470,7 +456,7 @@ async fn handle_mcp_delete(
 
     // Validate protocol version header if present
     if let Some(protocol_version) = extract_protocol_version(&headers) {
-        if !validate_protocol_version(&protocol_version) {
+        if !validate_protocol_version_header(&protocol_version) {
             return (
                 StatusCode::BAD_REQUEST,
                 Json(JsonRpcResponse::error(

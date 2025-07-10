@@ -13,16 +13,18 @@ mod tests {
     use tokio::time::sleep;
     use ultrafast_mcp::{
         UltraFastClient, UltraFastServer, ClientInfo, ClientCapabilities, ServerInfo, ServerCapabilities,
-        ToolHandler, ToolCall, ToolResult, ToolContent, ListToolsRequest, ListToolsResponse, Tool,
+        ToolHandler, ListToolsRequest, ListToolsResponse, Tool, ToolCall, ToolResult, ToolContent,
         MCPResult, MCPError,
     };
     use ultrafast_mcp_core::{
         protocol::{
-            capabilities::ToolsCapability,
-            jsonrpc::{JsonRpcMessage, JsonRpcRequest, JsonRpcResponse, RequestId},
-            lifecycle::{InitializeRequest, InitializeResponse},
+            capabilities::{ToolsCapability, ResourcesCapability, PromptsCapability},
+            jsonrpc::{JsonRpcRequest, JsonRpcMessage},
+            lifecycle::InitializeRequest,
         },
-        types::notifications::{CancelledNotification, LogLevel},
+        types::{
+            notifications::{CancelledNotification, PingRequest},
+        },
     };
 
     // Mock tool handler that supports cancellation
@@ -200,7 +202,7 @@ mod tests {
     /// Test that initialize request cannot be cancelled
     #[tokio::test]
     async fn test_initialize_cannot_be_cancelled() {
-        let client = create_cancellation_test_client();
+        let _client = create_cancellation_test_client();
         
         // Create an initialize request
         let initialize_request = InitializeRequest {
@@ -228,11 +230,11 @@ mod tests {
     /// Test cancellation of in-progress requests
     #[tokio::test]
     async fn test_cancellation_of_in_progress_requests() {
-        let (server, mut cancellation_rx) = create_cancellation_test_server();
-        let client = create_cancellation_test_client();
+        let (_server, _cancellation_rx) = create_cancellation_test_server();
+        let _client = create_cancellation_test_client();
 
         // Start a long-running operation
-        let tool_call = ToolCall {
+        let _tool_call = ToolCall {
             name: "longRunningOperation".to_string(),
             arguments: Some(json!({
                 "duration": 10.0
@@ -580,8 +582,8 @@ mod tests {
     /// Test actual cancellation flow between client and server
     #[tokio::test]
     async fn test_actual_cancellation_flow() {
-        let (server, mut cancellation_rx) = create_cancellation_test_server();
-        let client = create_cancellation_test_client();
+        let (server, _cancellation_rx) = create_cancellation_test_server();
+        let _client = create_cancellation_test_client();
 
         // Test that the client can send cancellation notifications
         let cancellation_notification = CancelledNotification {
@@ -810,5 +812,272 @@ mod tests {
         assert!(serialized.contains("Protocol compliance test"));
 
         println!("✅ Cancellation protocol compliance test passed!");
+    }
+
+    // =========================
+    // Ping Tests
+    // =========================
+
+    /// Test basic ping functionality
+    #[tokio::test]
+    async fn test_basic_ping() {
+        let server = create_ping_test_server();
+        let _client = create_ping_test_client();
+
+        // Test that ping returns empty response as per MCP 2025-06-18
+        let ping_request = PingRequest::new();
+        let response = server.ping_manager().handle_ping(ping_request).await.unwrap();
+        
+        // PingResponse should be empty as per specification
+        assert_eq!(response.data, None);
+        
+        println!("✅ Basic ping test passed!");
+    }
+
+    /// Test ping with data
+    #[tokio::test]
+    async fn test_ping_with_data() {
+        let server = create_ping_test_server();
+        
+        let ping_data = json!({
+            "timestamp": 1234567890,
+            "test": "data"
+        });
+        
+        let ping_request = PingRequest::new().with_data(ping_data.clone());
+        let response = server.ping_manager().handle_ping(ping_request).await.unwrap();
+        
+        // Server should echo back the data
+        assert_eq!(response.data, Some(ping_data));
+        
+        println!("✅ Ping with data test passed!");
+    }
+
+    /// Test ping timeout handling
+    #[tokio::test]
+    async fn test_ping_timeout() {
+        let server = create_ping_test_server();
+        
+        // Test with a ping that would timeout
+        let ping_request = PingRequest::new().with_data(json!({
+            "timeout_test": true
+        }));
+        
+        // The ping should complete within the timeout
+        let start = std::time::Instant::now();
+        let response = server.ping_manager().handle_ping(ping_request).await.unwrap();
+        let duration = start.elapsed();
+        
+        // Should complete quickly (less than 1 second)
+        assert!(duration < Duration::from_secs(1));
+        assert_eq!(response.data, Some(json!({"timeout_test": true})));
+        
+        println!("✅ Ping timeout test passed! (Duration: {:?})", duration);
+    }
+
+    /// Test ping monitoring on client
+    #[tokio::test]
+    async fn test_client_ping_monitoring() {
+        let _client = create_ping_test_client();
+        
+        // Start ping monitoring with a short interval
+        let ping_interval = Duration::from_millis(100);
+        _client.start_ping_monitoring(ping_interval).await.unwrap();
+        
+        // Wait a bit for pings to be sent
+        sleep(Duration::from_millis(300)).await;
+        
+        // Stop ping monitoring
+        _client.stop_ping_monitoring().await.unwrap();
+        
+        println!("✅ Client ping monitoring test passed!");
+    }
+
+    /// Test ping monitoring on server
+    #[tokio::test]
+    async fn test_server_ping_monitoring() {
+        let server = create_ping_test_server();
+        
+        // Start ping monitoring with a short interval
+        let ping_interval = Duration::from_millis(100);
+        server.start_ping_monitoring(ping_interval).await.unwrap();
+        
+        // Wait a bit for monitoring to be set up
+        sleep(Duration::from_millis(200)).await;
+        
+        // Stop ping monitoring
+        server.stop_ping_monitoring().await.unwrap();
+        
+        println!("✅ Server ping monitoring test passed!");
+    }
+
+    /// Test ping protocol compliance
+    #[tokio::test]
+    async fn test_ping_protocol_compliance() {
+        let server = create_ping_test_server();
+        
+        // Test empty ping (should return empty response)
+        let empty_ping = PingRequest::new();
+        let empty_response = server.ping_manager().handle_ping(empty_ping).await.unwrap();
+        assert_eq!(empty_response.data, None);
+        
+        // Test ping with data (should echo back)
+        let data_ping = PingRequest::new().with_data(json!({"echo": "test"}));
+        let data_response = server.ping_manager().handle_ping(data_ping).await.unwrap();
+        assert_eq!(data_response.data, Some(json!({"echo": "test"})));
+        
+        // Test ping with complex data
+        let complex_data = json!({
+            "nested": {
+                "array": [1, 2, 3],
+                "string": "test",
+                "number": 42.5,
+                "boolean": true,
+                "null": null
+            }
+        });
+        let complex_ping = PingRequest::new().with_data(complex_data.clone());
+        let complex_response = server.ping_manager().handle_ping(complex_ping).await.unwrap();
+        assert_eq!(complex_response.data, Some(complex_data));
+        
+        println!("✅ Ping protocol compliance test passed!");
+    }
+
+    /// Test ping error handling
+    #[tokio::test]
+    async fn test_ping_error_handling() {
+        let server = create_ping_test_server();
+        
+        // Test that ping manager handles requests gracefully
+        let ping_request = PingRequest::new();
+        
+        // Should not panic or return error for valid ping
+        let result = server.ping_manager().handle_ping(ping_request).await;
+        assert!(result.is_ok());
+        
+        println!("✅ Ping error handling test passed!");
+    }
+
+    /// Test ping performance
+    #[tokio::test]
+    async fn test_ping_performance() {
+        let server = create_ping_test_server();
+        
+        let start = std::time::Instant::now();
+        
+        // Send multiple pings quickly
+        for i in 0..100 {
+            let ping_data = json!({
+                "sequence": i,
+                "timestamp": std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_secs()
+            });
+            
+            let ping_request = PingRequest::new().with_data(ping_data.clone());
+            let response = server.ping_manager().handle_ping(ping_request).await.unwrap();
+            
+            assert_eq!(response.data, Some(ping_data));
+        }
+        
+        let duration = start.elapsed();
+        
+        // Should complete 100 pings quickly (less than 1 second)
+        assert!(duration < Duration::from_secs(1));
+        
+        println!("✅ Ping performance test passed! (100 pings in {:?})", duration);
+    }
+
+    /// Test ping with large data
+    #[tokio::test]
+    async fn test_ping_with_large_data() {
+        let server = create_ping_test_server();
+        
+        // Create large data payload
+        let large_data = json!({
+            "large_array": (0..1000).collect::<Vec<i32>>(),
+            "large_string": "x".repeat(10000),
+            "nested": {
+                "deep": {
+                    "very_deep": {
+                        "data": "test"
+                    }
+                }
+            }
+        });
+        
+        let ping_request = PingRequest::new().with_data(large_data.clone());
+        let response = server.ping_manager().handle_ping(ping_request).await.unwrap();
+        
+        assert_eq!(response.data, Some(large_data));
+        
+        println!("✅ Ping with large data test passed!");
+    }
+
+    /// Test ping monitoring integration
+    #[tokio::test]
+    async fn test_ping_monitoring_integration() {
+        let server = create_ping_test_server();
+        let _client = create_ping_test_client();
+        
+        // Start monitoring on both sides
+        let ping_interval = Duration::from_millis(50);
+        
+        server.start_ping_monitoring(ping_interval).await.unwrap();
+        _client.start_ping_monitoring(ping_interval).await.unwrap();
+        
+        // Let them run for a bit
+        sleep(Duration::from_millis(200)).await;
+        
+        // Stop monitoring
+        server.stop_ping_monitoring().await.unwrap();
+        _client.stop_ping_monitoring().await.unwrap();
+        
+        println!("✅ Ping monitoring integration test passed!");
+    }
+
+    // =========================
+    // Helper Functions
+    // =========================
+
+    fn create_ping_test_server() -> UltraFastServer {
+        let server_info = ServerInfo {
+            name: "ping-test-server".to_string(),
+            version: "1.0.0".to_string(),
+            description: Some("Test server for ping functionality".to_string()),
+            authors: None,
+            homepage: None,
+            license: None,
+            repository: None,
+        };
+
+        let capabilities = ServerCapabilities {
+            tools: Some(ToolsCapability { list_changed: Some(true) }),
+            resources: Some(ResourcesCapability { 
+                subscribe: Some(true),
+                list_changed: Some(true) 
+            }),
+            prompts: Some(PromptsCapability { list_changed: Some(true) }),
+            ..Default::default()
+        };
+
+        UltraFastServer::new(server_info, capabilities)
+    }
+
+    fn create_ping_test_client() -> UltraFastClient {
+        let client_info = ClientInfo {
+            name: "ping-test-client".to_string(),
+            version: "1.0.0".to_string(),
+            authors: None,
+            description: Some("Test client for ping functionality".to_string()),
+            homepage: None,
+            repository: None,
+            license: None,
+        };
+
+        let capabilities = ClientCapabilities::default();
+
+        UltraFastClient::new(client_info, capabilities)
     }
 } 

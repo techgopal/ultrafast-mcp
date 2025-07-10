@@ -398,6 +398,9 @@ pub use ultrafast_mcp_core::{
     MCPResult,
 };
 
+// Re-export utility functions from core
+pub use ultrafast_mcp_core::utils::identifiers::{generate_session_id, generate_state};
+
 // Prelude module for convenient imports
 pub mod prelude;
 
@@ -494,8 +497,6 @@ pub use ultrafast_mcp_auth::{
     error as McpAuthError,
     extract_bearer_token,
     generate_pkce_params,
-    generate_session_id,
-    generate_state,
     oauth,
     pkce,
     types as AuthTypes,

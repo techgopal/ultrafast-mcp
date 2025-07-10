@@ -1,4 +1,5 @@
 use ultrafast_mcp_auth::*;
+use ultrafast_mcp_core::utils::{generate_session_id, generate_state};
 
 #[cfg(test)]
 mod oauth_tests {

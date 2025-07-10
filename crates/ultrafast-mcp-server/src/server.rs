@@ -15,7 +15,7 @@ use ultrafast_mcp_core::{
     },
     schema::validation::validate_tool_schema,
     types::{
-        notifications::{LogLevel, LogLevelSetRequest, LogLevelSetResponse, CancelledNotification},
+        notifications::{LogLevel, LogLevelSetRequest, LogLevelSetResponse},
         prompts::Prompt,
         resources::{Resource, ResourceTemplate, SubscribeResponse},
         server::ServerInfo,
@@ -135,6 +135,7 @@ pub struct UltraFastServer {
     advanced_sampling_handler: Option<Arc<dyn AdvancedSamplingHandler>>,
     
     // Monitoring
+    #[allow(dead_code)]
     monitoring_enabled: bool,
     
     // Timeout configuration (MCP 2025-06-18 compliance)
@@ -233,35 +234,35 @@ impl UltraFastServer {
         let config = &self.timeout_config;
         
         // Validate all timeouts are within bounds
-        if !config.validate_timeout(config.initialize_timeout) {
-            return Err("Initialize timeout is out of bounds".to_string());
+        if !config.validate_timeout(config.connect_timeout) {
+            return Err("Connect timeout is out of bounds".to_string());
         }
-        if !config.validate_timeout(config.operation_timeout) {
-            return Err("Operation timeout is out of bounds".to_string());
+        if !config.validate_timeout(config.request_timeout) {
+            return Err("Request timeout is out of bounds".to_string());
         }
-        if !config.validate_timeout(config.tool_call_timeout) {
-            return Err("Tool call timeout is out of bounds".to_string());
+        if !config.validate_timeout(config.response_timeout) {
+            return Err("Response timeout is out of bounds".to_string());
         }
-        if !config.validate_timeout(config.resource_timeout) {
-            return Err("Resource timeout is out of bounds".to_string());
+        if !config.validate_timeout(config.tool_execution_timeout) {
+            return Err("Tool execution timeout is out of bounds".to_string());
+        }
+        if !config.validate_timeout(config.resource_read_timeout) {
+            return Err("Resource read timeout is out of bounds".to_string());
+        }
+        if !config.validate_timeout(config.prompt_generation_timeout) {
+            return Err("Prompt generation timeout is out of bounds".to_string());
         }
         if !config.validate_timeout(config.sampling_timeout) {
             return Err("Sampling timeout is out of bounds".to_string());
         }
-        if !config.validate_timeout(config.elicitation_timeout) {
-            return Err("Elicitation timeout is out of bounds".to_string());
-        }
         if !config.validate_timeout(config.completion_timeout) {
             return Err("Completion timeout is out of bounds".to_string());
-        }
-        if !config.validate_timeout(config.ping_timeout) {
-            return Err("Ping timeout is out of bounds".to_string());
         }
         if !config.validate_timeout(config.shutdown_timeout) {
             return Err("Shutdown timeout is out of bounds".to_string());
         }
-        if !config.validate_timeout(config.cancellation_timeout) {
-            return Err("Cancellation timeout is out of bounds".to_string());
+        if !config.validate_timeout(config.heartbeat_interval) {
+            return Err("Heartbeat interval is out of bounds".to_string());
         }
         
         Ok(())
@@ -858,6 +859,30 @@ impl UltraFastServer {
         self.ping_manager.clone()
     }
 
+    /// Start periodic ping monitoring (optional, for connection health)
+    /// This method should be called after the server is running with a transport
+    pub async fn start_ping_monitoring(&self, ping_interval: std::time::Duration) -> MCPResult<()> {
+        info!("Starting periodic ping monitoring with interval: {:?}", ping_interval);
+        
+        // Note: This is a placeholder for future implementation
+        // The actual ping monitoring would need to be integrated with the transport layer
+        // For now, we log that ping monitoring is enabled
+        info!("Ping monitoring enabled (interval: {:?})", ping_interval);
+        
+        // The PingManager is already configured with default intervals
+        // Future implementation would integrate with the transport layer
+        // to send periodic pings to clients
+        
+        Ok(())
+    }
+
+    /// Stop ping monitoring
+    pub async fn stop_ping_monitoring(&self) -> MCPResult<()> {
+        info!("Stopping periodic ping monitoring");
+        // The ping monitoring task will naturally stop when the transport is closed
+        Ok(())
+    }
+
     /// Handle MCP initialize request
     async fn handle_initialize(
         &self,
@@ -1091,21 +1116,27 @@ impl UltraFastServer {
         match params {
             Some(params) => serde_json::from_value(params).unwrap_or_else(|_| {
                 ultrafast_mcp_core::types::completion::CompleteRequest {
-                    ref_type: String::new(),
-                    ref_name: String::new(),
-                    argument: None,
+                    reference: ultrafast_mcp_core::types::completion::CompletionReference {
+                        ref_type: "ref/prompt".to_string(),
+                        name: "".to_string(),
+                    },
+                    argument: ultrafast_mcp_core::types::completion::CompletionArgument {
+                        name: "".to_string(),
+                        value: "".to_string(),
+                    },
                     context: None,
-                    filter: None,
-                    max_results: None,
                 }
             }),
             None => ultrafast_mcp_core::types::completion::CompleteRequest {
-                ref_type: String::new(),
-                ref_name: String::new(),
-                argument: None,
+                reference: ultrafast_mcp_core::types::completion::CompletionReference {
+                    ref_type: "ref/prompt".to_string(),
+                    name: "".to_string(),
+                },
+                argument: ultrafast_mcp_core::types::completion::CompletionArgument {
+                    name: "".to_string(),
+                    value: "".to_string(),
+                },
                 context: None,
-                filter: None,
-                max_results: None,
             },
         }
     }

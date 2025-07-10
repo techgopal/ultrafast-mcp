@@ -214,9 +214,9 @@ impl PingManager {
     }
 
     /// Handle a ping request and return a pong response
-    pub async fn handle_ping(&self, _request: PingRequest) -> MCPResult<PingResponse> {
-        // Return an empty response as per MCP 2025-06-18 specification
-        Ok(PingResponse::new())
+    pub async fn handle_ping(&self, request: PingRequest) -> MCPResult<PingResponse> {
+        // Echo back the data as per MCP 2025-06-18 specification
+        Ok(PingResponse { data: request.data })
     }
 }
 
@@ -319,8 +319,8 @@ mod tests {
         let request = PingRequest::new().with_data(serde_json::json!({"test": "data"}));
         let response = manager.handle_ping(request).await.unwrap();
 
-        // PingResponse is empty as per MCP 2025-06-18 specification
-        assert_eq!(format!("{:?}", response), "PingResponse { data: None }");
+        // PingResponse should echo back the data as per MCP 2025-06-18 specification
+        assert_eq!(format!("{:?}", response), "PingResponse { data: Some(Object {\"test\": String(\"data\")}) }");
     }
 
     #[test]

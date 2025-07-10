@@ -356,7 +356,7 @@ impl Default for MiddlewareConfig {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tokio::time::sleep;
+
 
     #[tokio::test]
     async fn test_http_middleware() {
@@ -375,7 +375,7 @@ mod tests {
         middleware.process_response(&context, 200, true).await;
 
         // Test disabled middleware
-        let mut disabled_middleware = HttpMonitoringMiddleware::with_config(
+        let disabled_middleware = HttpMonitoringMiddleware::with_config(
             Arc::new(MetricsCollector::new()),
             false,
         );

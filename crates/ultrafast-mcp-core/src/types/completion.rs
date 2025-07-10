@@ -3,53 +3,56 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-/// Completion request
+/// Completion reference (MCP 2025-06-18 compliant)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CompletionReference {
+    /// Reference type ("ref/prompt" or "ref/resource")
+    #[serde(rename = "type")]
+    pub ref_type: String,
+    /// Reference name (prompt name or resource URI)
+    pub name: String,
+}
+
+/// Completion argument (MCP 2025-06-18 compliant)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CompletionArgument {
+    /// Argument name
+    pub name: String,
+    /// Current argument value
+    pub value: String,
+}
+
+/// Completion request (MCP 2025-06-18 compliant)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CompleteRequest {
-    /// Reference type ("prompts", "resource_templates", "tools", "resources")
+    /// Reference to prompt or resource
     #[serde(rename = "ref")]
-    pub ref_type: String,
-
-    /// Reference name (prompt name, resource template URI, tool name, etc.)
-    #[serde(rename = "name")]
-    pub ref_name: String,
-
-    /// Argument to complete (optional)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub argument: Option<String>,
-
+    pub reference: CompletionReference,
+    /// Argument being completed
+    pub argument: CompletionArgument,
     /// Context for completion (optional)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub context: Option<CompletionContext>,
-
-    /// Filter criteria (optional)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub filter: Option<CompletionFilter>,
-
-    /// Maximum number of completions to return
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub max_results: Option<u32>,
 }
 
 /// Context for completion requests
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CompletionContext {
+    /// Already-resolved argument names to their values
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub arguments: Option<HashMap<String, String>>,
     /// Current cursor position
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cursor_position: Option<u32>,
-
     /// Current line content
     #[serde(skip_serializing_if = "Option::is_none")]
     pub line_content: Option<String>,
-
     /// Document content around cursor
     #[serde(skip_serializing_if = "Option::is_none")]
     pub document_content: Option<String>,
-
     /// Language or file type
     #[serde(skip_serializing_if = "Option::is_none")]
     pub language: Option<String>,
-
     /// Additional context metadata
     #[serde(skip_serializing_if = "Option::is_none")]
     pub metadata: Option<HashMap<String, serde_json::Value>>,
@@ -427,29 +430,49 @@ impl CompleteRequest {
     /// Create a new completion request
     pub fn new(ref_type: impl Into<String>, ref_name: impl Into<String>) -> Self {
         Self {
-            ref_type: ref_type.into(),
-            ref_name: ref_name.into(),
-            argument: None,
+            reference: CompletionReference {
+                ref_type: ref_type.into(),
+                name: ref_name.into(),
+            },
+            argument: CompletionArgument {
+                name: "".to_string(),
+                value: "".to_string(),
+            },
             context: None,
-            filter: None,
-            max_results: None,
         }
     }
 
-    /// Create with argument
+    /// Create with argument name and value
     pub fn with_argument(
         ref_type: impl Into<String>,
         ref_name: impl Into<String>,
-        argument: impl Into<String>,
+        argument_name: impl Into<String>,
+        argument_value: impl Into<String>,
     ) -> Self {
         Self {
-            ref_type: ref_type.into(),
-            ref_name: ref_name.into(),
-            argument: Some(argument.into()),
+            reference: CompletionReference {
+                ref_type: ref_type.into(),
+                name: ref_name.into(),
+            },
+            argument: CompletionArgument {
+                name: argument_name.into(),
+                value: argument_value.into(),
+            },
             context: None,
-            filter: None,
-            max_results: None,
         }
+    }
+
+    /// Set argument name and value
+    pub fn with_argument_name_value(
+        mut self,
+        name: impl Into<String>,
+        value: impl Into<String>,
+    ) -> Self {
+        self.argument = CompletionArgument {
+            name: name.into(),
+            value: value.into(),
+        };
+        self
     }
 
     /// Add context
@@ -459,14 +482,18 @@ impl CompleteRequest {
     }
 
     /// Add filter
-    pub fn with_filter(mut self, filter: CompletionFilter) -> Self {
-        self.filter = Some(filter);
+    pub fn with_filter(self, _filter: CompletionFilter) -> Self {
+        // The filter field is removed from CompleteRequest, so this method is no longer applicable.
+        // Keeping it for now as it might be re-introduced or removed later.
+        // For now, it will just return the original self.
         self
     }
 
     /// Set max results
-    pub fn with_max_results(mut self, max_results: u32) -> Self {
-        self.max_results = Some(max_results);
+    pub fn with_max_results(self, _max_results: u32) -> Self {
+        // The max_results field is removed from CompleteRequest, so this method is no longer applicable.
+        // Keeping it for now as it might be re-introduced or removed later.
+        // For now, it will just return the original self.
         self
     }
 }
@@ -475,6 +502,7 @@ impl CompletionContext {
     /// Create a new completion context
     pub fn new() -> Self {
         Self {
+            arguments: None,
             cursor_position: None,
             line_content: None,
             document_content: None,
@@ -578,20 +606,17 @@ mod tests {
 
     #[test]
     fn test_completion_request_builder() {
-        let request = CompleteRequest::new("tools", "myTool")
-            .with_context(CompletionContext::new().with_language("rust"))
-            .with_filter(CompletionFilter {
-                prefix: Some("my".to_string()),
-                ..Default::default()
-            })
-            .with_max_results(10);
+        let request = CompleteRequest::new("ref/prompt", "code_review")
+            .with_argument_name_value("language", "py")
+            .with_context(CompletionContext::new().with_language("rust"));
 
-        assert_eq!(request.ref_type, "tools");
-        assert_eq!(request.ref_name, "myTool");
+        assert_eq!(request.reference.ref_type, "ref/prompt");
+        assert_eq!(request.reference.name, "code_review");
+        assert_eq!(request.argument.name, "language");
+        assert_eq!(request.argument.value, "py");
         assert_eq!(
             request.context.as_ref().and_then(|c| c.language.as_ref()),
             Some(&"rust".to_string())
         );
-        assert_eq!(request.max_results, Some(10));
     }
 }

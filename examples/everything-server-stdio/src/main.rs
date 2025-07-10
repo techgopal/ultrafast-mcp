@@ -708,23 +708,18 @@ impl CompletionHandler for EverythingCompletionHandler {
         &self,
         request: completion::CompleteRequest,
     ) -> MCPResult<completion::CompleteResponse> {
-        let ref_type = request.ref_type.as_str();
-        let argument = request.argument;
+        let ref_type = request.reference.ref_type.as_str();
+        let argument_name = &request.argument.name;
+        let argument_value = &request.argument.value;
 
         match ref_type {
             "ref/resource" => {
-                let uri = request.ref_name;
+                let uri = &request.reference.name;
                 let _resource_id = uri.split("/").last().unwrap_or("");
 
                 let values = vec!["1", "2", "3", "4", "5"]
                     .into_iter()
-                    .filter(|id| {
-                        if let Some(arg) = &argument {
-                            id.starts_with(arg)
-                        } else {
-                            true
-                        }
-                    })
+                    .filter(|id| id.starts_with(argument_value))
                     .map(completion::CompletionValue::new)
                     .collect();
 
@@ -734,23 +729,32 @@ impl CompletionHandler for EverythingCompletionHandler {
                 })
             }
             "ref/prompt" => {
-                let arg_name = request.ref_name.as_str();
-                let values = match arg_name {
-                    "temperature" => vec!["0", "0.5", "0.7", "1.0"],
-                    "style" => vec!["casual", "formal", "technical", "friendly"],
-                    "resourceId" => vec!["0", "1", "2", "3", "4", "5"],
+                let prompt_name = &request.reference.name;
+                let values = match (prompt_name.as_str(), argument_name.as_str()) {
+                    ("code_review", "language") => vec!["python", "pytorch", "pyside", "rust", "javascript", "typescript"],
+                    ("code_review", "framework") => {
+                        // Check context for language to provide framework-specific suggestions
+                        let context_language = request.context
+                            .as_ref()
+                            .and_then(|c| c.arguments.as_ref())
+                            .and_then(|args| args.get("language"))
+                            .cloned();
+                        
+                        match context_language.as_deref() {
+                            Some("python") => vec!["flask", "django", "fastapi", "pytorch", "tensorflow"],
+                            Some("javascript") => vec!["react", "vue", "angular", "express", "next"],
+                            Some("rust") => vec!["actix", "rocket", "axum", "tokio", "serde"],
+                            _ => vec!["flask", "django", "react", "vue", "actix"],
+                        }
+                    },
+                    ("greeting", "style") => vec!["casual", "formal", "technical", "friendly"],
+                    ("greeting", "temperature") => vec!["0", "0.5", "0.7", "1.0"],
                     _ => vec![],
                 };
 
                 let filtered_values = values
                     .into_iter()
-                    .filter(|value| {
-                        if let Some(arg) = &argument {
-                            value.starts_with(arg)
-                        } else {
-                            true
-                        }
-                    })
+                    .filter(|value| value.starts_with(argument_value))
                     .map(completion::CompletionValue::new)
                     .collect();
 

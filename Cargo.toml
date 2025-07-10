@@ -10,6 +10,7 @@ members = [
     "crates/ultrafast-mcp-cli",
     "crates/ultrafast-mcp-auth",
     "crates/ultrafast-mcp-monitoring",
+    "crates/ultrafast-mcp-test-utils",
     "examples/01-basic-echo",
     "examples/02-file-operations",
     "examples/03-http-server",
