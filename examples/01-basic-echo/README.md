@@ -1,174 +1,236 @@
-# Basic Echo Example with Streamable HTTP
+# Basic Echo Example - Subprocess Transport
 
-This example demonstrates the ULTRAFAST_MCP framework using **Streamable HTTP transport** for high-performance communication between an MCP server and client.
+This example demonstrates how to use UltraFast MCP with **subprocess transport**, where the MCP server runs as a separate process and communicates via STDIO.
 
-## 🚀 Features Demonstrated
+## Overview
 
-- **Streamable HTTP Transport**: High-performance HTTP communication with session management
-- **Ergonomic API**: Simple, intuitive methods for server and client creation
-- **Server Implementation**: Simple echo tool with automatic schema generation
-- **Client Implementation**: HTTP client with automatic connection management
-- **Type Safety**: Full type-safe tool calling with serde serialization
-- **Error Handling**: Comprehensive error handling and logging
+The subprocess transport pattern is ideal for:
+- **Language isolation**: Run servers in different languages/environments
+- **Process isolation**: Separate server crashes don't affect the client
+- **Resource management**: Independent memory and resource allocation
+- **Deployment flexibility**: Deploy servers as standalone executables
 
-## 📋 Prerequisites
+## Architecture
 
-- Rust toolchain (1.70+)
-- Cargo
-
-## 🏗️ Architecture
-
-### Server (`src/server.rs`)
-- Creates an MCP server with echo tool capability
-- Uses **ergonomic `run_streamable_http()`** method for simple HTTP startup
-- Streamable HTTP transport on `127.0.0.1:8080`
-- Automatic JSON schema generation for tools
-
-### Client (`src/client.rs`)
-- Creates an MCP client with tool calling capability
-- Uses **ergonomic `connect_streamable_http()`** method for simple HTTP connection
-- Connects to server at `http://127.0.0.1:8080/mcp`
-- Demonstrates tool listing and calling
-
-## 🚀 Quick Start
-
-### 1. Build the Example
-```bash
-cargo build
+```
+┌─────────────────┐    STDIO    ┌─────────────────┐
+│   MCP Client    │ ──────────► │   MCP Server    │
+│   (Rust)        │             │   (Subprocess)  │
+└─────────────────┘             └─────────────────┘
 ```
 
-### 2. Run the Server (Terminal 1)
-```bash
-cargo run --bin server
-```
+## Components
 
-### 3. Run the Client (Terminal 2)
-```bash
-cargo run --bin client
-```
+### 1. Echo Server (`basic-echo-server`)
 
-## 📝 Code Examples
+A standalone MCP server that:
+- Runs as a subprocess via STDIO
+- Implements a simple `echo` tool
+- Returns messages with timestamps and metadata
+- Tracks echo count across calls
 
-### Server Creation (Simplified)
-```rust
-// Create server with ergonomic API
-let server = UltraFastServer::new(server_info, server_capabilities)
-    .with_tool_handler(Arc::new(EchoToolHandler));
+**Features:**
+- ✅ MCP 2025-06-18 protocol compliance
+- ✅ STDIO transport
+- ✅ Tool implementation with validation
+- ✅ Error handling and logging
+- ✅ Stateful echo counter
 
-// Start with Streamable HTTP - just one line!
-server.run_streamable_http("127.0.0.1", 8080).await?;
-```
+### 2. Echo Client (`basic-echo-client`)
 
-### Client Creation (Simplified)
-```rust
-// Create client
-let client = UltraFastClient::new(client_info, client_capabilities);
+A client that demonstrates subprocess transport by:
+- Spawning the server as a subprocess
+- Establishing STDIO communication
+- Calling the echo tool multiple times
+- Graceful shutdown and cleanup
 
-// Connect with Streamable HTTP - just one line!
-client.connect_streamable_http("http://127.0.0.1:8080/mcp").await?;
-```
+**Features:**
+- ✅ Subprocess spawning and management
+- ✅ STDIO transport setup
+- ✅ Multiple tool calls
+- ✅ Error handling
+- ✅ Process lifecycle management
 
-## 🔧 Available Ergonomic Methods
+## Quick Start
 
-### UltraFastServer
-- `run_streamable_http(host, port)` - **Recommended**: High-performance HTTP
-- `run_with_config(config)` - Custom HTTP configuration
-- `run_stdio()` - Local stdio transport
+### Prerequisites
 
-### UltraFastClient
-- `connect_streamable_http(url)` - **Recommended**: High-performance HTTP
-- `connect()` - Generic connection (uses configured transport)
-- `connect_stdio()` - Local stdio transport
-- `with_transport(transport)` - Configure custom transport
+- Rust toolchain (latest stable)
+- UltraFast MCP workspace built
 
-## 🎯 Expected Output
+### Running the Example
 
-### Server Output
-```
-2024-01-15T10:30:00.000Z INFO  basic_echo_example::server Server created, starting Streamable HTTP transport on 127.0.0.1:8080
-2024-01-15T10:30:00.000Z INFO  ultrafast_mcp_server Starting MCP server: Basic Echo Server
-2024-01-15T10:30:00.000Z INFO  ultrafast_mcp_server MCP server initialized and ready
-```
+1. **Build the example:**
+   ```bash
+   cd ultrafast-mcp/examples/01-basic-echo
+   cargo build --release
+   ```
 
-### Client Output
-```
-2024-01-15T10:30:05.000Z INFO  basic_echo_example::client 🚀 Starting Basic Echo Client
-2024-01-15T10:30:05.000Z INFO  basic_echo_example::client Connecting to server via Streamable HTTP at http://127.0.0.1:8080/mcp
-2024-01-15T10:30:05.000Z INFO  ultrafast_mcp_client Connecting to MCP server
-2024-01-15T10:30:05.000Z INFO  ultrafast_mcp_client Successfully connected and initialized
-2024-01-15T10:30:05.000Z INFO  basic_echo_example::client ✅ Connected! Listing available tools
-2024-01-15T10:30:05.000Z INFO  basic_echo_example::client Available tools: [Tool { name: "echo", description: "Echoes back the input message with a timestamp" }]
-2024-01-15T10:30:05.000Z INFO  basic_echo_example::client 🔧 Calling echo tool with message: "Hello, ULTRAFAST_MCP!"
-2024-01-15T10:30:05.000Z INFO  basic_echo_example::client ✅ Tool call successful!
-2024-01-15T10:30:05.000Z INFO  basic_echo_example::client 📤 Response: EchoResponse { message: "Hello, ULTRAFAST_MCP!", timestamp: "2024-01-15T10:30:05.123Z" }
-2024-01-15T10:30:05.000Z INFO  basic_echo_example::client 🎉 Example completed successfully!
-```
+2. **Run the subprocess client:**
+   ```bash
+   cargo run --release --bin basic-echo-client
+   ```
 
-## 🔍 Key Benefits
+3. **Expected output:**
+   ```
+   🚀 Starting Basic Echo MCP Client (Subprocess)
+   🔧 Spawning echo server as subprocess...
+   ✅ Server process spawned (PID: 12345)
+   🔌 Connecting client to subprocess server...
+   ✅ Connected to subprocess server
+   📋 Listing available tools...
+   Found 1 tools:
+     - echo: Echo back a message with timestamp and metadata
+   🔧 Calling echo tool (attempt 1)...
+   📤 Echo response 1:
+   {
+     "message": "Hello from UltraFast MCP Client! (attempt 1)",
+     "timestamp": "2024-01-15T10:30:45.123Z",
+     "echo_count": 1,
+     "server_id": "echo-server-12345"
+   }
+   🎉 Basic echo subprocess transport test completed successfully!
+   ```
 
-### **10x Performance Improvement**
-- Streamable HTTP provides 10x better performance than traditional HTTP transports under load
-- Efficient session management and connection pooling
-- Zero-copy message handling
+## API Reference
 
-### **Developer Experience**
-- **One-line server startup**: `server.run_streamable_http("127.0.0.1", 8080)`
-- **One-line client connection**: `client.connect_streamable_http(url)`
-- Automatic transport configuration and error handling
-- Type-safe tool calling with automatic schema generation
+### Echo Tool
 
-### **Production Ready**
-- Comprehensive error handling and logging
-- Session management and reconnection logic
-- CORS support and security features
-- Monitoring and health check capabilities
+**Name:** `echo`
 
-## 🔗 Next Steps
+**Description:** Echo back a message with timestamp and metadata
 
-- Explore the [File Operations Example](../02-file-operations/) for resource handling
-- Check out the [HTTP Server Example](../03-http-server/) for advanced HTTP features
-- Review the [Advanced Features Example](../04-advanced-features/) for Phase 3 capabilities
-
-## 🔍 What's Different from stdio
-
-| Feature | stdio Transport | Streamable HTTP Transport |
-|---------|----------------|---------------------------|
-| **Communication** | Subprocess pipes | HTTP requests/responses |
-| **Scalability** | Single client | Multiple concurrent clients |
-| **Network** | Local only | Network accessible |
-| **Session Management** | None | Built-in session management |
-| **Performance** | Good for local | Excellent for distributed |
-| **Infrastructure** | Simple | Enterprise-ready |
-
-## 🧪 Testing
-
-You can test the server manually using curl:
-
-```bash
-# Test the Streamable HTTP endpoint
-curl -X POST http://127.0.0.1:8080/mcp \
-  -H "Content-Type: application/json" \
-  -d '{
-    "session_id": null,
+**Input Schema:**
+```json
+{
+  "type": "object",
+  "properties": {
     "message": {
-      "jsonrpc": "2.0",
-      "id": "1",
-      "method": "tools/list",
-      "params": {}
+      "type": "string",
+      "description": "Message to echo back (max 1000 characters, optional - defaults to 'Hello, World!')",
+      "maxLength": 1000,
+      "default": "Hello, World!"
     }
-  }'
+  }
+}
 ```
 
-## 📚 Next Steps
+**Output:**
+```json
+{
+  "message": "User's message",
+  "timestamp": "2024-01-15T10:30:45.123Z",
+  "echo_count": 1,
+  "server_id": "echo-server-12345"
+}
+```
 
-This example demonstrates the basic Streamable HTTP transport. For more advanced features, see:
+## Implementation Details
 
-- **02-file-operations**: File system operations with HTTP transport
-- **03-http-server**: HTTP client operations and network integration  
-- **04-advanced-features**: Complete MCP capabilities with all features
+### Server Implementation
 
-## 🔗 Related Documentation
+The server uses the standard UltraFast MCP server pattern:
 
-- [ULTRAFAST_MCP PRD](../ULTRAFAST_MCP_PRD_LLM_FRIENDLY.md)
-- [Streamable HTTP Transport Documentation](../../docs/core-concepts/architecture.md)
-- [MCP 2025-06-18 Specification](https://modelcontextprotocol.io/) 
+```rust
+// Create server with tool handler
+let server = UltraFastServer::new(server_info, capabilities)
+    .with_tool_handler(Arc::new(EchoToolHandler::new()));
+
+// Run with STDIO transport
+server.run_stdio().await?;
+```
+
+### Client Implementation
+
+The client demonstrates subprocess transport:
+
+```rust
+// Spawn server as subprocess
+let mut server_process = Command::new("cargo")
+    .args(&["run", "--release", "--bin", "basic-echo-server"])
+    .stdin(Stdio::piped())
+    .stdout(Stdio::piped())
+    .stderr(Stdio::piped())
+    .spawn()?;
+
+// Create STDIO transport from pipes
+let transport = StdioTransport::from_stdio(
+    server_process.stdin.take().unwrap(),
+    server_process.stdout.take().unwrap(),
+    server_process.stderr.take().unwrap(),
+).await?;
+
+// Connect client to transport
+client.connect(Box::new(transport)).await?;
+```
+
+## Benefits of Subprocess Transport
+
+### 1. **Language Flexibility**
+- Run servers in any language that supports STDIO
+- Mix and match languages in your MCP ecosystem
+- Leverage language-specific libraries and tools
+
+### 2. **Process Isolation**
+- Server crashes don't affect the client
+- Independent memory management
+- Separate resource allocation
+
+### 3. **Deployment Options**
+- Deploy servers as standalone executables
+- Container-friendly architecture
+- Easy integration with existing systems
+
+### 4. **Development Workflow**
+- Independent development and testing
+- Language-specific tooling and debugging
+- Clear separation of concerns
+
+## Error Handling
+
+The example includes comprehensive error handling:
+
+- **Process spawning errors**: Invalid commands, missing executables
+- **Transport errors**: Pipe failures, communication issues
+- **Protocol errors**: Invalid messages, timeouts
+- **Tool errors**: Invalid arguments, server-side failures
+
+## Performance Considerations
+
+- **Process startup overhead**: ~10-50ms for simple servers
+- **STDIO communication**: Very low latency for local processes
+- **Memory usage**: Separate memory spaces for client and server
+- **Resource cleanup**: Automatic cleanup when processes exit
+
+## Next Steps
+
+This example provides a foundation for:
+
+1. **Multi-language MCP servers**: Implement servers in Python, Node.js, Go, etc.
+2. **Containerized deployment**: Package servers as Docker containers
+3. **Load balancing**: Run multiple server instances
+4. **Advanced error handling**: Implement retry logic and circuit breakers
+5. **Monitoring and observability**: Add metrics and health checks
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Server not found**: Ensure the server binary is built and accessible
+2. **Permission denied**: Check file permissions and PATH
+3. **Communication errors**: Verify STDIO pipes are properly configured
+4. **Protocol errors**: Check MCP protocol version compatibility
+
+### Debug Mode
+
+Enable debug logging:
+
+```bash
+RUST_LOG=debug cargo run --release --bin basic-echo-client
+```
+
+This will show detailed communication between client and server.
+
+## License
+
+MIT OR Apache-2.0 

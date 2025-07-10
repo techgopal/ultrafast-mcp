@@ -1,7 +1,7 @@
-//! Basic Echo Server for MCP Inspector
+//! Basic Echo Server for MCP Subprocess Transport
 //!
-//! This is a STDIO-based MCP server that can be used with the MCP Inspector.
-//! It implements a simple echo tool that returns the input message with a timestamp.
+//! This is a STDIO-based MCP server designed to be spawned as a subprocess.
+//! It implements a simple echo tool that returns the input message with metadata.
 
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -25,9 +25,21 @@ fn default_message() -> String {
 struct EchoResponse {
     message: String,
     timestamp: String,
+    echo_count: u32,
+    server_id: String,
 }
 
-struct EchoToolHandler;
+struct EchoToolHandler {
+    echo_count: std::sync::atomic::AtomicU32,
+}
+
+impl EchoToolHandler {
+    fn new() -> Self {
+        Self {
+            echo_count: std::sync::atomic::AtomicU32::new(0),
+        }
+    }
+}
 
 #[async_trait::async_trait]
 impl ToolHandler for EchoToolHandler {
@@ -65,10 +77,15 @@ impl ToolHandler for EchoToolHandler {
             ));
         }
 
+        // Increment echo counter
+        let echo_count = self.echo_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
+
         // Process the request
         let response = EchoResponse {
             message: request.message,
             timestamp: chrono::Utc::now().to_rfc3339(),
+            echo_count,
+            server_id: format!("echo-server-{}", std::process::id()),
         };
 
         let response_text = serde_json::to_string_pretty(&response).map_err(|e| {
@@ -76,7 +93,7 @@ impl ToolHandler for EchoToolHandler {
             MCPError::serialization_error(e.to_string())
         })?;
 
-        info!("Echo tool completed successfully");
+        info!("Echo tool completed successfully (count: {})", echo_count);
         Ok(ToolResult {
             content: vec![ToolContent::text(response_text)],
             is_error: None,
@@ -88,7 +105,7 @@ impl ToolHandler for EchoToolHandler {
         Ok(ListToolsResponse {
             tools: vec![Tool {
                 name: "echo".to_string(),
-                description: "Echo back a message with timestamp".to_string(),
+                description: "Echo back a message with timestamp and metadata".to_string(),
                 input_schema: serde_json::json!({
                     "type": "object",
                     "properties": {
@@ -117,7 +134,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_target(false)
         .init();
 
-    info!("🚀 Starting Basic Echo MCP Server (STDIO)");
+    info!("🚀 Starting Basic Echo MCP Server (STDIO Subprocess)");
 
     // Create server capabilities
     let capabilities = ServerCapabilities {
@@ -131,7 +148,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let server_info = ServerInfo {
         name: "basic-echo-server".to_string(),
         version: "1.0.0".to_string(),
-        description: Some("A simple echo server for MCP Inspector testing".to_string()),
+        description: Some("A simple echo server for MCP subprocess transport".to_string()),
         authors: Some(vec!["ULTRAFAST_MCP Team".to_string()]),
         homepage: Some("https://github.com/ultrafast-mcp/ultrafast-mcp".to_string()),
         license: Some("MIT OR Apache-2.0".to_string()),
@@ -140,11 +157,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Create server with tool handler
     let server = UltraFastServer::new(server_info, capabilities)
-        .with_tool_handler(Arc::new(EchoToolHandler));
+        .with_tool_handler(Arc::new(EchoToolHandler::new()));
 
     info!("✅ Server created, starting STDIO transport");
 
-    // Run the server with STDIO transport (for MCP Inspector)
+    // Run the server with STDIO transport (for subprocess)
     server.run_stdio().await?;
 
     info!("Server shutdown completed");

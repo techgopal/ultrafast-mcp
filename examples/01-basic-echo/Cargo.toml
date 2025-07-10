@@ -4,22 +4,22 @@ version = "0.1.0"
 edition = "2021"
 
 [[bin]]
-name = "server"
-path = "src/server.rs"
-doc = false
-
-[[bin]]
-name = "client"
-path = "src/client.rs"
-doc = false
-
-[[bin]]
 name = "basic-echo-server"
 path = "src/basic-echo-server.rs"
 doc = false
 
+[[bin]]
+name = "basic-echo-client"
+path = "src/basic-echo-client.rs"
+doc = false
+
+[[bin]]
+name = "subprocess-demo"
+path = "src/subprocess-demo.rs"
+doc = false
+
 [dependencies]
-ultrafast-mcp = { path = "../../crates/ultrafast-mcp", features = ["http"] }
+ultrafast-mcp = { path = "../../crates/ultrafast-mcp" }
 tokio = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
