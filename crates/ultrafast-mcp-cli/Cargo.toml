@@ -72,8 +72,12 @@ regex = { workspace = true }
 
 [features]
 default = []
+# Authentication support
 auth = ["ultrafast-mcp-auth"]
+# Monitoring support
 monitoring = ["ultrafast-mcp-monitoring"]
+# All features
+full = ["auth", "monitoring"]
 
 [dev-dependencies]
 tempfile = { workspace = true }

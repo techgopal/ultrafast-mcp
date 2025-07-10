@@ -34,7 +34,12 @@ uuid = { workspace = true }
 
 [features]
 default = []
+# Core client functionality
+core = []
+# HTTP transport support
 http = ["ultrafast-mcp-transport/http"]
+# All client features
+full = ["core", "http"]
 
 [dev-dependencies]
 tokio-test = { workspace = true }

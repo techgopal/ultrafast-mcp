@@ -41,13 +41,18 @@ sha2 = { workspace = true }
 # HTTP client for token requests
 reqwest = { workspace = true }
 
-# Tracing
+# Tracing and utilities
 tracing = { workspace = true }
 rand_distr = { workspace = true }
 
 [features]
 default = ["oauth"]
+# Core authentication functionality
+core = []
+# OAuth 2.1 authentication support
 oauth = []
+# All authentication methods
+full = ["core", "oauth"]
 
 [dev-dependencies]
 tokio-test = { workspace = true }

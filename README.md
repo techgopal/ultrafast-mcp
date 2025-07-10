@@ -8,36 +8,74 @@
 [![Rust](https://img.shields.io/badge/rust-1.70+-blue.svg)](https://www.rust-lang.org)
 [![MCP](https://img.shields.io/badge/MCP-2025--06--18-green.svg)](https://modelcontextprotocol.io)
 
-> **UltraFast MCP** is a high-performance, developer-friendly MCP framework in the Rust ecosystem. Built with performance, safety, and ergonomics in mind, it enables robust MCP servers and clients with minimal boilerplate while maintaining full MCP 2025-06-18, 2025-03-26, and 2024-11-05 specification compliance.
+> **UltraFast MCP** is a high-performance, developer-friendly MCP framework in the Rust ecosystem. Built with performance, safety, and ergonomics in mind, it enables robust MCP servers and clients with minimal boilerplate while maintaining full MCP 2025-06-18 specification compliance.
 
 ## ⚠️ Release Candidate Status
 
 This is **Release Candidate 2 (v20250618.1.0-rc.2)** of UltraFast MCP. While the framework is feature-complete and well-tested, it should be considered **pre-production** software. We recommend thorough testing in your environment before deploying to production.
 
+## 🏗️ Architecture Overview
+
+UltraFast MCP is built as a modular, high-performance framework with the following core components:
+
+### Core Crates
+
+- **`ultrafast-mcp-core`**: Foundation types, protocol implementation, and utilities
+- **`ultrafast-mcp-server`**: High-performance server implementation with handler traits
+- **`ultrafast-mcp-client`**: Async client with connection management and retry logic
+- **`ultrafast-mcp-transport`**: Transport layer with STDIO and HTTP support
+- **`ultrafast-mcp-auth`**: OAuth 2.1 authentication with PKCE support
+- **`ultrafast-mcp-monitoring`**: Metrics, health checks, and OpenTelemetry integration
+- **`ultrafast-mcp-cli`**: Command-line tools for development and testing
+- **`ultrafast-mcp-test-utils`**: Testing utilities and fixtures
+
+### Key Design Principles
+
+- **Type Safety**: Compile-time guarantees for protocol compliance
+- **Async-First**: Built on `tokio` for high-performance async operations
+- **Modular Design**: Independent crates for different concerns
+- **Production Ready**: Comprehensive error handling, logging, and monitoring
+- **Developer Experience**: Ergonomic APIs with minimal boilerplate
+
 ## ✨ Features
 
-### 🎯 **Developer Experience**
-- **Ergonomic APIs** with minimal boilerplate
-- **Type-safe** with automatic schema generation
-- **Async-first** design with `tokio` integration
-- **Comprehensive CLI** with project scaffolding
-- **5 working examples** with full documentation
-
-### 🔧 **Complete Feature Set**
+### 🎯 **Core Protocol Support**
+- **Complete MCP 2025-06-18 Implementation**: Full specification compliance
 - **Tools**: Function execution with JSON Schema validation
 - **Resources**: URI-based resource management with templates
 - **Prompts**: Template-based prompt system with arguments
 - **Sampling**: Server-initiated LLM completions
 - **Roots**: Filesystem boundary management
-- **Elicitation**: User input collection
-- **Logging**: RFC 5424 compliant structured logging
+- **Elicitation**: User input collection and validation
 - **Completion**: Argument autocompletion system
 
+### 🚀 **Performance & Reliability**
+- **High-Performance Transport**: Streamable HTTP with connection pooling
+- **Async/Await**: Non-blocking I/O with `tokio` integration
+- **Connection Recovery**: Automatic reconnection with exponential backoff
+- **Request Timeouts**: Configurable timeout management
+- **Memory Safety**: Rust's ownership system prevents common bugs
+
 ### 🛡️ **Security & Authentication**
-- **OAuth 2.1** with PKCE and dynamic client registration
-- **Streamable HTTP transport** with session management
-- **Comprehensive error handling** and recovery
-- **Memory safety** guaranteed by Rust
+- **OAuth 2.1**: Complete OAuth implementation with PKCE
+- **Token Management**: Secure token storage and validation
+- **Session Management**: Secure session handling
+- **CSRF Protection**: State parameter validation
+- **Scope Management**: Fine-grained permission control
+
+### 🔧 **Developer Experience**
+- **Ergonomic APIs**: Simple, intuitive interfaces
+- **Type-Safe Schemas**: Automatic JSON Schema generation
+- **Comprehensive CLI**: Project scaffolding and development tools
+- **Rich Examples**: 5+ working examples with full documentation
+- **Testing Utilities**: Comprehensive test support
+
+### 📊 **Observability**
+- **Metrics Collection**: Request, transport, and system metrics
+- **Health Checking**: Application and system health monitoring
+- **Distributed Tracing**: OpenTelemetry integration
+- **Structured Logging**: RFC 5424 compliant logging
+- **Performance Monitoring**: Response times and throughput tracking
 
 ## 📦 Installation
 
@@ -64,7 +102,7 @@ ultrafast-mcp = { version = "20250618.1.0-rc.2", features = [
 ] }
 ```
 
-**Note:** stdio transport and JSON Schema support are always included by default.
+**Note:** STDIO transport and JSON Schema support are always included by default.
 
 ### Convenience Features
 
@@ -83,40 +121,93 @@ cargo add ultrafast-mcp --features="full"
 ```rust
 use ultrafast_mcp::prelude::*;
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 
 #[derive(Deserialize)]
 struct GreetRequest {
     name: String,
+    greeting: Option<String>,
 }
 
 #[derive(Serialize)]
 struct GreetResponse {
     message: String,
+    timestamp: String,
+}
+
+// Implement the tool handler
+struct GreetToolHandler;
+
+#[async_trait::async_trait]
+impl ToolHandler for GreetToolHandler {
+    async fn handle_tool_call(&self, call: ToolCall) -> MCPResult<ToolResult> {
+        match call.name.as_str() {
+            "greet" => {
+                // Parse the arguments
+                let args: GreetRequest = serde_json::from_value(
+                    call.arguments.unwrap_or_default()
+                )?;
+
+                // Generate the response
+                let greeting = args.greeting.unwrap_or_else(|| "Hello".to_string());
+                let message = format!("{}, {}!", greeting, args.name);
+
+                Ok(ToolResult {
+                    content: vec![ToolContent::text(message)],
+                    is_error: Some(false),
+                })
+            }
+            _ => Err(MCPError::method_not_found(
+                format!("Unknown tool: {}", call.name)
+            )),
+        }
+    }
+
+    async fn list_tools(&self, _request: ListToolsRequest) -> MCPResult<ListToolsResponse> {
+        Ok(ListToolsResponse {
+            tools: vec![Tool {
+                name: "greet".to_string(),
+                description: "Greet a person by name".to_string(),
+                input_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "name": {"type": "string"},
+                        "greeting": {"type": "string", "default": "Hello"}
+                    },
+                    "required": ["name"]
+                }),
+                output_schema: None,
+            }],
+            next_cursor: None,
+        })
+    }
 }
 
 #[tokio::main]
-async fn main() -> Result<()> {
-    let server = UltraFastServer::new("My MCP Server")
-        .with_protocol_version("2025-06-18")
-        .with_capabilities(ServerCapabilities {
-            tools: Some(ToolsCapability { list_changed: true }),
-            ..Default::default()
-        });
-    
-    // Add a simple greeting tool
-    server.tool("greet", |request: GreetRequest, ctx: Context| async move {
-        ctx.progress("Processing greeting...", 0.5, Some(1.0)).await?;
-        ctx.log_info(&format!("Greeting requested for {}", request.name)).await?;
-        
-        Ok(GreetResponse {
-            message: format!("Hello, {}! Welcome to UltraFast MCP!", request.name),
-        })
-    })
-    .description("Greet a user by name")
-    .output_schema::<GreetResponse>();
-    
-    // Run the server
+async fn main() -> anyhow::Result<()> {
+    // Create server configuration
+    let server_info = ServerInfo {
+        name: "greeting-server".to_string(),
+        version: "1.0.0".to_string(),
+        description: Some("A simple greeting server".to_string()),
+        authors: None,
+        homepage: None,
+        license: None,
+        repository: None,
+    };
+
+    let capabilities = ServerCapabilities {
+        tools: Some(ToolsCapability { list_changed: Some(true) }),
+        ..Default::default()
+    };
+
+    // Create and configure the server
+    let server = UltraFastServer::new(server_info, capabilities)
+        .with_tool_handler(Arc::new(GreetToolHandler));
+
+    // Start the server with STDIO transport
     server.run_stdio().await?;
+
     Ok(())
 }
 ```
@@ -125,703 +216,388 @@ async fn main() -> Result<()> {
 
 ```rust
 use ultrafast_mcp::prelude::*;
+use serde_json::json;
 
 #[tokio::main]
-async fn main() -> Result<()> {
-    let client = UltraFastClient::connect(Transport::Stdio {
-        command: "cargo".into(),
-        args: vec!["run", "--bin", "server"].into(),
-    }).await?;
-    
-    // Initialize the client
-    client.initialize(ClientCapabilities {
-        tools: Some(ToolsCapability { list_changed: true }),
-        ..Default::default()
-    }).await?;
-    
-    // Call the greeting tool
-    let response: GreetResponse = client.call_tool("greet")
-        .arg("name", "Alice")
-        .with_progress(|progress, total, message| {
-            println!("Progress: {}/{:?} - {}", progress, total, message.unwrap_or_default());
-        })
-        .await?;
-    
-    println!("Server says: {}", response.message);
+async fn main() -> anyhow::Result<()> {
+    // Create client configuration
+    let client_info = ClientInfo {
+        name: "greeting-client".to_string(),
+        version: "1.0.0".to_string(),
+        authors: None,
+        description: Some("A simple greeting client".to_string()),
+        homepage: None,
+        repository: None,
+        license: None,
+    };
+
+    let capabilities = ClientCapabilities::default();
+
+    // Create the client
+    let client = UltraFastClient::new(client_info, capabilities);
+
+    // Connect to the server using STDIO
+    client.connect_stdio().await?;
+
+    // Call a tool
+    let tool_call = ToolCall {
+        name: "greet".to_string(),
+        arguments: Some(json!({
+            "name": "Alice",
+            "greeting": "Hello there"
+        })),
+    };
+
+    let result = client.call_tool(tool_call).await?;
+    println!("Server response: {:?}", result);
+
+    // Disconnect
+    client.disconnect().await?;
+
     Ok(())
 }
 ```
 
 ## 🔧 Advanced Examples
 
-### File Operations Server
+### HTTP Server with OAuth
 
 ```rust
 use ultrafast_mcp::prelude::*;
-use std::path::PathBuf;
+use std::sync::Arc;
 
-#[derive(Deserialize)]
-struct ReadFileRequest {
-    path: String,
-}
+struct SecureToolHandler;
 
-#[derive(Serialize)]
-struct ReadFileResponse {
-    content: String,
-    size: u64,
-}
-
-#[tokio::main]
-async fn main() -> Result<()> {
-    let server = UltraFastServer::new("File Operations Server")
-        .with_capabilities(ServerCapabilities {
-            tools: Some(ToolsCapability { list_changed: true }),
-            resources: Some(ResourcesCapability { list_changed: true }),
-            ..Default::default()
-        });
-    
-    // Add file reading tool
-    server.tool("read_file", |request: ReadFileRequest, ctx: Context| async move {
-        let path = PathBuf::from(&request.path);
-        
-        // Validate path is within allowed roots
-        ctx.validate_path(&path)?;
-        
-        ctx.progress("Reading file...", 0.0, Some(1.0)).await?;
-        
-        let content = tokio::fs::read_to_string(&path).await?;
-        let metadata = tokio::fs::metadata(&path).await?;
-        
-        ctx.progress("File read complete", 1.0, Some(1.0)).await?;
-        
-        Ok(ReadFileResponse {
-            content,
-            size: metadata.len(),
+#[async_trait::async_trait]
+impl ToolHandler for SecureToolHandler {
+    async fn handle_tool_call(&self, call: ToolCall) -> MCPResult<ToolResult> {
+        // Your secure tool implementation
+        Ok(ToolResult {
+            content: vec![ToolContent::text("Secure operation completed".to_string())],
+            is_error: Some(false),
         })
-    })
-    .description("Read a file from the filesystem")
-    .output_schema::<ReadFileResponse>();
-    
-    // Add resource for file listing
-    server.resource("file://{path}", |uri: Uri, ctx: Context| async move {
-        let path = uri.path().trim_start_matches('/');
-        let path_buf = PathBuf::from(path);
-        
-        ctx.validate_path(&path_buf)?;
-        
-        if path_buf.is_file() {
-            let content = tokio::fs::read_to_string(&path_buf).await?;
-            Ok(ResourceContent::Text(content))
-        } else if path_buf.is_dir() {
-            let entries = tokio::fs::read_dir(&path_buf).await?;
-            let files: Vec<String> = entries
-                .map(|entry| entry.map(|e| e.file_name().to_string_lossy().to_string()))
-                .collect::<Result<Vec<_>, _>>()?;
-            
-            Ok(ResourceContent::Text(files.join("\n")))
-        } else {
-            Err(Error::ResourceNotFound(uri))
-        }
-    });
-    
-    server.run_stdio().await?;
-    Ok(())
+    }
+
+    async fn list_tools(&self, _request: ListToolsRequest) -> MCPResult<ListToolsResponse> {
+        Ok(ListToolsResponse {
+            tools: vec![Tool {
+                name: "secure_operation".to_string(),
+                description: "Perform a secure operation".to_string(),
+                input_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "data": {"type": "string"}
+                    },
+                    "required": ["data"]
+                }),
+                output_schema: None,
+            }],
+            next_cursor: None,
+        })
+    }
 }
-```
-
-### HTTP Server with Authentication
-
-```rust
-use ultrafast_mcp::prelude::*;
-use ultrafast_mcp::auth::OAuthConfig;
 
 #[tokio::main]
-async fn main() -> Result<()> {
-    let server = UltraFastServer::new("HTTP MCP Server")
-        .with_capabilities(ServerCapabilities {
-            tools: Some(ToolsCapability { list_changed: true }),
-            prompts: Some(PromptsCapability { list_changed: true }),
-            ..Default::default()
-        });
-    
-    // Add OAuth configuration
-    let oauth_config = OAuthConfig {
-        client_id: "your-client-id".into(),
-        client_secret: Some("your-client-secret".into()),
-        auth_url: "https://accounts.google.com/oauth/authorize".into(),
-        token_url: "https://oauth2.googleapis.com/token".into(),
-        scopes: vec!["https://www.googleapis.com/auth/userinfo.profile".into()],
-        redirect_uri: "http://localhost:8080/callback".into(),
+async fn main() -> anyhow::Result<()> {
+    let server_info = ServerInfo {
+        name: "secure-server".to_string(),
+        version: "1.0.0".to_string(),
+        description: Some("A secure MCP server".to_string()),
+        authors: None,
+        homepage: None,
+        license: None,
+        repository: None,
     };
-    
-    // Add authenticated tool
-    server.tool("get_user_info", |_: (), ctx: Context| async move {
-        // Verify authentication
-        let token = ctx.get_auth_token()?;
-        
-        // Make authenticated request
-        let client = reqwest::Client::new();
-        let response = client
-            .get("https://www.googleapis.com/oauth2/v2/userinfo")
-            .bearer_auth(token)
-            .send()
-            .await?;
-        
-        let user_info: serde_json::Value = response.json().await?;
-        
-        Ok(user_info)
-    })
-    .description("Get authenticated user information")
-    .requires_auth(true);
-    
-    // Run HTTP server
-    server.run_http("127.0.0.1:8080", Some(oauth_config)).await?;
+
+    let capabilities = ServerCapabilities {
+        tools: Some(ToolsCapability { list_changed: Some(true) }),
+        ..Default::default()
+    };
+
+    let server = UltraFastServer::new(server_info, capabilities)
+        .with_tool_handler(Arc::new(SecureToolHandler));
+
+    // Run with HTTP transport
+    server.run_streamable_http("127.0.0.1", 8080).await?;
+
     Ok(())
 }
 ```
 
-### Advanced Features Example
+### Resource Management
 
 ```rust
 use ultrafast_mcp::prelude::*;
-use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 
-#[derive(Deserialize)]
-struct SearchRequest {
-    query: String,
-    limit: Option<u32>,
-}
+struct FileResourceHandler;
 
-#[derive(Serialize)]
-struct SearchResult {
-    title: String,
-    url: String,
-    snippet: String,
-}
+#[async_trait::async_trait]
+impl ResourceHandler for FileResourceHandler {
+    async fn read_resource(&self, request: ReadResourceRequest) -> MCPResult<ReadResourceResponse> {
+        // Implement file reading logic
+        let content = std::fs::read_to_string(&request.uri)?;
+        
+        Ok(ReadResourceResponse {
+            contents: vec![ResourceContent::text(
+                request.uri,
+                content
+            )],
+        })
+    }
 
-#[derive(Serialize)]
-struct SearchResponse {
-    results: Vec<SearchResult>,
-    total: u32,
+    async fn list_resources(&self, _request: ListResourcesRequest) -> MCPResult<ListResourcesResponse> {
+        Ok(ListResourcesResponse {
+            resources: vec![],
+            next_cursor: None,
+        })
+    }
+
+    async fn list_resource_templates(&self, _request: ListResourceTemplatesRequest) -> MCPResult<ListResourceTemplatesResponse> {
+        Ok(ListResourceTemplatesResponse {
+            resource_templates: vec![],
+            next_cursor: None,
+        })
+    }
 }
 
 #[tokio::main]
-async fn main() -> Result<()> {
-    let server = UltraFastServer::new("Advanced Features Server")
-        .with_capabilities(ServerCapabilities {
-            tools: Some(ToolsCapability { list_changed: true }),
-            prompts: Some(PromptsCapability { list_changed: true }),
-            sampling: Some(SamplingCapability { list_changed: true }),
-            ..Default::default()
-        });
-    
-    // Add search tool with progress tracking
-    server.tool("search", |request: SearchRequest, ctx: Context| async move {
-        let limit = request.limit.unwrap_or(10);
-        
-        ctx.progress("Starting search...", 0.0, Some(1.0)).await?;
-        ctx.log_info(&format!("Searching for: {}", request.query)).await?;
-        
-        // Simulate search with progress updates
-        for i in 0..limit {
-            tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-            ctx.progress("Searching...", (i + 1) as f64 / limit as f64, Some(1.0)).await?;
-        }
-        
-        // Simulate results
-        let results = (0..limit)
-            .map(|i| SearchResult {
-                title: format!("Result {}", i + 1),
-                url: format!("https://example.com/result-{}", i + 1),
-                snippet: format!("This is result {} for query '{}'", i + 1, request.query),
-            })
-            .collect();
-        
-        ctx.progress("Search complete", 1.0, Some(1.0)).await?;
-        
-        Ok(SearchResponse {
-            results,
-            total: limit,
-        })
-    })
-    .description("Search for information")
-    .output_schema::<SearchResponse>();
-    
-    // Add prompt template
-    server.prompt("search_prompt", |args: serde_json::Value, ctx: Context| async move {
-        let query = args["query"].as_str().unwrap_or("");
-        let limit = args["limit"].as_u64().unwrap_or(10);
-        
-        let prompt = format!(
-            "Please search for information about '{}' and return up to {} results. " \
-            "Format the results as a structured list with titles, URLs, and snippets.",
-            query, limit
-        );
-        
-        Ok(Prompt {
-            messages: vec![
-                PromptMessage::User { content: vec![PromptContent::Text(prompt)] }
-            ],
-        })
-    })
-    .description("Generate a search prompt")
-    .input_schema(json!({
-        "type": "object",
-        "properties": {
-            "query": { "type": "string" },
-            "limit": { "type": "integer", "minimum": 1, "maximum": 100 }
-        },
-        "required": ["query"]
-    }));
-    
-    // Add sampling capability
-    server.sampling("complete_search", |request: SamplingRequest, ctx: Context| async move {
-        let prompt = request.prompt.messages.first()
-            .and_then(|msg| msg.content.first())
-            .and_then(|content| {
-                if let PromptContent::Text(text) = content {
-                    Some(text.clone())
-                } else {
-                    None
-                }
-            })
-            .ok_or(Error::InvalidRequest("No text content found".into()))?;
-        
-        // Simulate LLM completion
-        tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
-        
-        let completion = format!("Based on the search query, here are the relevant results:\n\n{}", prompt);
-        
-        Ok(SamplingResponse {
-            content: vec![PromptContent::Text(completion)],
-            stop_reason: Some("end_turn".into()),
-        })
-    })
-    .description("Complete search queries with LLM");
-    
+async fn main() -> anyhow::Result<()> {
+    let server_info = ServerInfo {
+        name: "file-server".to_string(),
+        version: "1.0.0".to_string(),
+        description: Some("A file resource server".to_string()),
+        authors: None,
+        homepage: None,
+        license: None,
+        repository: None,
+    };
+
+    let capabilities = ServerCapabilities {
+        resources: Some(ResourcesCapability { list_changed: Some(true) }),
+        ..Default::default()
+    };
+
+    let server = UltraFastServer::new(server_info, capabilities)
+        .with_resource_handler(Arc::new(FileResourceHandler));
+
     server.run_stdio().await?;
+
     Ok(())
 }
 ```
 
-## 📚 Examples
+## 🛠️ Development Tools
 
-### 1. Basic Echo Server
+### CLI Commands
+
 ```bash
-cd examples/01-basic-echo
-cargo run --bin server  # Terminal 1
-cargo run --bin client  # Terminal 2
+# Install the CLI
+cargo install ultrafast-mcp-cli
+
+# Initialize a new project
+mcp init my-server --template server
+
+# Start development server
+mcp dev --watch
+
+# Test connections
+mcp test --server http://localhost:8080
+
+# Validate schemas
+mcp validate
+
+# Generate shell completions
+mcp completions bash > ~/.bash_completion
 ```
 
-### 2. File Operations Server
-```bash
-cd examples/02-file-operations
-cargo run --bin server  # Terminal 1
-cargo run --bin client  # Terminal 2
+### Project Structure
+
+```
+my-mcp-server/
+├── Cargo.toml
+├── src/
+│   ├── main.rs
+│   ├── handlers/
+│   │   ├── mod.rs
+│   │   ├── tools.rs
+│   │   └── resources.rs
+│   └── config.rs
+├── tests/
+│   └── integration_tests.rs
+└── README.md
 ```
 
-### 3. HTTP Server with Authentication
-```bash
-cd examples/03-http-server
-cargo run --bin server  # Terminal 1
-cargo run --bin client  # Terminal 2
-```
+## 📊 Monitoring & Observability
 
-### 4. Advanced Features
-```bash
-cd examples/04-advanced-features
-cargo run --bin server  # Terminal 1
-cargo run --bin client  # Terminal 2
-```
+### Basic Monitoring Setup
 
-## 🔍 Testing with MCP Inspector
-
-The [MCP Inspector](https://github.com/modelcontextprotocol/inspector) is a powerful web-based tool for testing and debugging MCP servers. UltraFast MCP servers are fully compatible with the MCP Inspector and can be easily tested using this tool.
-
-### Prerequisites
-
-1. **Install Node.js** (v18 or later)
-2. **Install MCP Inspector**:
-   ```bash
-   npm install -g @modelcontextprotocol/inspector
-   ```
-
-### Testing STDIO Servers
-
-#### 1. Build Your Server
-```bash
-# Build the everything-server-stdio example
-cd examples/everything-server-stdio
-cargo build --release
-```
-
-#### 2. Start the MCP Inspector
-```bash
-# Start the MCP Inspector
-mcp-inspector
-```
-
-#### 3. Connect to Your Server
-1. Open your browser and navigate to `http://localhost:3000`
-2. Click **"Add Server"** in the MCP Inspector
-3. Select **"Command"** as the connection type
-4. Enter the path to your server binary:
-   ```
-   /path/to/your/project/target/release/server
-   ```
-   For the everything-server-stdio example:
-   ```
-   /path/to/your/project/target/release/everything-server-stdio
-   ```
-5. Click **"Connect"**
-
-#### 4. Test Server Features
-Once connected, you can test:
-
-- **Tools**: Call the `echo`, `add`, `longRunningOperation`, etc.
-- **Resources**: List and read resources from `test://static/resource/1-100`
-- **Prompts**: Get prompts like `simple_prompt`, `complex_prompt`, `resource_prompt`
-- **Logging**: Set log levels and view log messages
-- **Ping**: Test connection health with the ping method
-
-### Testing HTTP Servers
-
-#### 1. Build and Start Your HTTP Server
-```bash
-# Build the everything-server-streamable-http example
-cd examples/everything-server-streamable-http
-cargo build --release
-
-# Start the HTTP server
-cargo run --release
-```
-
-#### 2. Connect via MCP Inspector
-1. Open the MCP Inspector at `http://localhost:3000`
-2. Click **"Add Server"**
-3. Select **"HTTP"** as the connection type
-4. Enter the server URL:
-   ```
-   http://localhost:8080/mcp
-   ```
-5. Click **"Connect"**
-
-### Testing Everything Server Examples
-
-UltraFast MCP includes comprehensive examples that demonstrate all MCP features:
-
-#### Everything Server (STDIO)
-```bash
-cd examples/everything-server-stdio
-cargo build --release
-# Use the binary path in MCP Inspector: target/release/everything-server-stdio
-```
-
-**Features Available:**
-- **Tools**: 9 different tools including echo, math operations, long-running tasks
-- **Resources**: 100 test resources with different content types
-- **Prompts**: 3 prompt templates with various complexity levels
-- **Logging**: Full logging capability with level control
-- **Ping**: Connection health monitoring
-
-#### Everything Server (Streamable HTTP)
-```bash
-cd examples/everything-server-streamable-http
-cargo build --release
-cargo run --release
-# Connect to http://localhost:8080/mcp in MCP Inspector
-```
-
-**Features Available:**
-- All STDIO features plus:
-- **Server-Sent Events**: Real-time notifications
-- **Session Management**: Persistent connections
-- **Streaming Responses**: Progressive data delivery
-
-### Common Test Scenarios
-
-#### 1. Basic Connectivity Test
-```json
-{
-  "method": "ping"
-}
-```
-**Expected Response:**
-```json
-{
-  "jsonrpc": "2.0",
-  "id": 1,
-  "result": {}
-}
-```
-
-#### 2. Tool Execution Test
-```json
-{
-  "method": "tools/call",
-  "params": {
-    "name": "echo",
-    "arguments": {
-      "message": "Hello, MCP Inspector!"
-    }
-  }
-}
-```
-
-#### 3. Resource Listing Test
-```json
-{
-  "method": "resources/list",
-  "params": {}
-}
-```
-
-#### 4. Prompt Retrieval Test
-```json
-{
-  "method": "prompts/get",
-  "params": {
-    "name": "simple_prompt"
-  }
-}
-```
-
-### Troubleshooting
-
-#### Common Issues
-
-1. **"Method not implemented" errors**:
-   - Ensure your server implements all required MCP methods
-   - Check that method names match the MCP specification exactly
-
-2. **Connection failures**:
-   - Verify the server binary path is correct
-   - Ensure the server has execute permissions
-   - Check that the server starts without errors
-
-3. **Resource not found errors**:
-   - Verify resource URIs are correctly formatted
-   - Check that resource handlers are properly registered
-
-4. **Schema validation errors**:
-   - Ensure tool input/output schemas are valid JSON Schema
-   - Check that argument types match the expected schema
-
-#### Debug Mode
-
-Enable debug logging in your server:
 ```rust
-// In your server code
-tracing_subscriber::fmt()
-    .with_max_level(tracing::Level::DEBUG)
-    .init();
+use ultrafast_mcp_monitoring::{MonitoringSystem, MonitoringConfig};
+
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    // Initialize monitoring
+    let monitoring = MonitoringSystem::init(MonitoringConfig::default()).await?;
+    
+    // Use monitoring in your application
+    let metrics = monitoring.metrics();
+    let timer = RequestTimer::start("tools/call", metrics.clone());
+    
+    // ... perform your operation ...
+    
+    // Record the request completion
+    timer.finish(true).await;
+    
+    Ok(())
+}
 ```
 
-#### MCP Inspector Logs
+### Health Checks
 
-The MCP Inspector provides detailed logs in the browser console:
-1. Open Developer Tools (F12)
-2. Go to the Console tab
-3. Look for MCP-related messages and errors
+```rust
+use ultrafast_mcp_monitoring::{HealthChecker, HealthStatus};
 
-### Advanced Testing
-
-#### Testing Long-Running Operations
-```json
-{
-  "method": "tools/call",
-  "params": {
-    "name": "longRunningOperation",
-    "arguments": {
-      "steps": 10
+async fn check_health(health_checker: &HealthChecker) {
+    match health_checker.check_all().await {
+        HealthStatus::Healthy => println!("All systems healthy"),
+        HealthStatus::Degraded(warnings) => {
+            println!("System degraded: {:?}", warnings);
+        }
+        HealthStatus::Unhealthy(errors) => {
+            println!("System unhealthy: {:?}", errors);
+        }
     }
-  }
 }
 ```
 
-#### Testing Resource Subscriptions
-```json
-{
-  "method": "resources/subscribe",
-  "params": {
-    "uri": "test://static/resource/1"
-  }
+## 🔐 Authentication
+
+### OAuth 2.1 Setup
+
+```rust
+use ultrafast_mcp_auth::{OAuthClient, OAuthConfig, generate_pkce_params};
+
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    let config = OAuthConfig {
+        client_id: "your-client-id".to_string(),
+        client_secret: "your-client-secret".to_string(),
+        auth_url: "https://auth.example.com/oauth/authorize".to_string(),
+        token_url: "https://auth.example.com/oauth/token".to_string(),
+        redirect_uri: "http://localhost:8080/callback".to_string(),
+        scopes: vec!["read".to_string(), "write".to_string()],
+    };
+
+    let client = OAuthClient::from_config(config);
+    let pkce_params = generate_pkce_params()?;
+
+    // Create authorization URL
+    let auth_url = client.get_authorization_url_with_pkce("state", pkce_params.clone()).await?;
+    println!("Authorization URL: {}", auth_url);
+
+    Ok(())
 }
 ```
 
-#### Testing Log Level Changes
-```json
-{
-  "method": "logging/setLevel",
-  "params": {
-    "level": "debug"
-  }
+## 🧪 Testing
+
+### Integration Tests
+
+```rust
+use ultrafast_mcp_test_utils::*;
+use ultrafast_mcp::prelude::*;
+
+#[tokio::test]
+async fn test_tool_execution() {
+    // Create test server
+    let server = create_test_server().await;
+    
+    // Create test client
+    let client = create_test_client().await;
+    
+    // Test tool call
+    let result = client.call_tool(ToolCall {
+        name: "test_tool".to_string(),
+        arguments: Some(serde_json::json!({"input": "test"})),
+    }).await;
+    
+    assert!(result.is_ok());
 }
-```
-
-### Performance Testing
-
-The MCP Inspector can help you test server performance:
-
-1. **Concurrent Requests**: Send multiple requests simultaneously
-2. **Large Payloads**: Test with large resource content or tool arguments
-3. **Connection Stability**: Monitor for connection drops or timeouts
-4. **Memory Usage**: Watch for memory leaks during extended testing
-
-### Integration Testing
-
-For automated testing, you can also use the MCP Inspector programmatically:
-
-```javascript
-// Example: Automated testing with MCP Inspector
-const inspector = require('@modelcontextprotocol/inspector');
-
-async function testServer() {
-  const client = await inspector.connect({
-    type: 'command',
-    command: '/path/to/your/server'
-  });
-  
-  // Test ping
-  const pingResult = await client.ping();
-  console.log('Ping result:', pingResult);
-  
-  // Test tool call
-  const toolResult = await client.callTool('echo', {
-    message: 'Test message'
-  });
-  console.log('Tool result:', toolResult);
-}
-```
-
-## 🏗️ Architecture
-
-### Core Components
-
-```
-ultrafast-mcp/              # Main crate with unified APIs
-├── ultrafast-mcp-core/     # Core protocol implementation
-├── ultrafast-mcp-server/   # Server-side implementation
-├── ultrafast-mcp-client/   # Client-side implementation
-├── ultrafast-mcp-transport/# Transport layer (stdio/HTTP)
-├── ultrafast-mcp-auth/     # OAuth 2.1 authentication
-├── ultrafast-mcp-cli/      # Command-line interface
-└── ultrafast-mcp-monitoring/# Observability and metrics
-```
-
-### Transport Layer
-
-#### Streamable HTTP (Primary)
-- **Single endpoint** (`/mcp`) for all operations
-- **Optional SSE upgrade** for streaming when needed
-- **Stateless architecture** for horizontal scaling
-- **Session management** with secure session IDs
-- **High performance** with connection pooling
-
-#### stdio Transport
-- **Subprocess communication** for local tools
-- **Newline-delimited JSON-RPC** messages
-- **Bidirectional communication** with proper lifecycle
-- **stderr logging** support
-
-## 📚 Documentation
-
-### API Documentation
-- **[Main Documentation](https://docs.rs/ultrafast-mcp)** - Complete API reference
-- **[Core Types](https://docs.rs/ultrafast-mcp-core)** - Protocol definitions and types
-- **[Server API](https://docs.rs/ultrafast-mcp-server)** - Server implementation details
-- **[Client API](https://docs.rs/ultrafast-mcp-client)** - Client implementation details
-- **[Transport Layer](https://docs.rs/ultrafast-mcp-transport)** - Transport implementations
-- **[Authentication](https://docs.rs/ultrafast-mcp-auth)** - OAuth 2.1 implementation
-- **[CLI Tools](https://docs.rs/ultrafast-mcp-cli)** - Command-line interface
-- **[Monitoring](https://docs.rs/ultrafast-mcp-monitoring)** - Observability features
-
-### Local Documentation
-```bash
-# Generate and open local documentation
-cargo doc --open
-
-# Generate documentation for specific crates
-cargo doc --package ultrafast-mcp --open
-cargo doc --package ultrafast-mcp-server --open
 ```
 
 ## 📚 Examples
 
-### 1. Basic Echo Server
-```bash
-cd examples/01-basic-echo
-cargo run --bin server  # Terminal 1
-cargo run --bin client  # Terminal 2
-```
+The repository includes comprehensive examples:
 
-### 2. File Operations Server
-```bash
-cd examples/02-file-operations
-cargo run --bin server  # Terminal 1
-cargo run --bin client  # Terminal 2
-```
+- **01-basic-echo**: Simple echo server with HTTP transport
+- **02-file-operations**: File reading and writing tools
+- **03-http-server**: HTTP server with OAuth authentication
+- **04-advanced-features**: Advanced features demonstration
+- **05-lifecycle-compliance**: Lifecycle management examples
 
-### 3. HTTP Server with Authentication
-```bash
-cd examples/03-http-server
-cargo run --bin server  # Terminal 1
-cargo run --bin client  # Terminal 2
-```
-
-### 4. Advanced Features
-```bash
-cd examples/04-advanced-features
-cargo run --bin server  # Terminal 1
-cargo run --bin client  # Terminal 2
-```
-
-## 🛠️ CLI Tools
-
-### Project Management
+Run examples with:
 
 ```bash
-# Initialize a new MCP project
-mcp init my-project
+# Run basic echo server
+cargo run --example basic-echo-server
 
-# Generate project scaffolding
-mcp generate server --name my-server
+# Run HTTP server
+cargo run --example http-server
 
-# Run development server with hot reload
-mcp dev --port 8080
-
-# Build the project
-mcp build --release
-
-# Test MCP connections
-mcp test --endpoint http://localhost:8080/mcp
-
-# Validate schemas and configurations
-mcp validate --config config.toml
+# Run client
+cargo run --example basic-echo-client
 ```
 
-### Server Management
+## 🤝 Contributing
+
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
+
+### Development Setup
 
 ```bash
-# Start a server
-mcp server start --config server.toml
+# Clone the repository
+git clone https://github.com/your-repo/ultrafast-mcp
+cd ultrafast-mcp
 
-# Check server health
-mcp server health --endpoint http://localhost:8080
+# Install dependencies
+cargo build
 
-# View server logs
-mcp server logs --follow
+# Run tests
+cargo test
+
+# Run benchmarks
+cargo bench
+
+# Check formatting
+cargo fmt
+
+# Run clippy
+cargo clippy
 ```
 
-### Client Management
+## 📄 License
 
-```bash
-# Connect to a server
-mcp client connect --endpoint http://localhost:8080/mcp
+This project is licensed under either of
 
-# List available tools
-mcp client tools
+- Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or https://www.apache.org/licenses/LICENSE-2.0)
+- MIT license ([LICENSE-MIT](LICENSE-MIT) or https://opensource.org/licenses/MIT)
 
-# Call a tool
-mcp client call-tool greet --arg name=Alice
-```
+at your option.
+
+## 🙏 Acknowledgments
+
+- [Model Context Protocol](https://modelcontextprotocol.io) for the specification
+- [Tokio](https://tokio.rs) for the async runtime
+- [Serde](https://serde.rs) for serialization
+- [Tracing](https://tracing.rs) for observability
+
+## 📞 Support
+
+- **Documentation**: [docs.rs/ultrafast-mcp](https://docs.rs/ultrafast-mcp)
+- **Issues**: [GitHub Issues](https://github.com/your-repo/ultrafast-mcp/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/your-repo/ultrafast-mcp/discussions)
+
+---
+
+**UltraFast MCP** - Making MCP development fast, safe, and enjoyable! 🚀

@@ -30,14 +30,18 @@ async-trait = { workspace = true }
 uuid = { workspace = true }
 tracing = { workspace = true }
 schemars = { workspace = true }
-regex.workspace = true
+regex = { workspace = true }
 lazy_static = { workspace = true }
 chrono = { workspace = true }
 urlencoding = { workspace = true }
 rand = { workspace = true }
 
-# Internal dependencies
-# ultrafast-mcp-transport = { path = "../ultrafast-mcp-transport" }
+[features]
+default = []
+# Core functionality (always available)
+core = []
+# All features
+full = ["core"]
 
 [dev-dependencies]
 tokio-test = { workspace = true }

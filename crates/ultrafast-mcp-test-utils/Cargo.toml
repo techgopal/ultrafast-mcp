@@ -9,7 +9,14 @@ documentation.workspace = true
 authors.workspace = true
 keywords.workspace = true
 categories.workspace = true
+readme = "README.md"
 description = "Test utilities for UltraFast MCP"
+
+# docs.rs configuration
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
 # Internal dependencies
@@ -24,6 +31,13 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 anyhow = { workspace = true }
 async-trait = { workspace = true }
+
+[features]
+default = []
+# Core test utilities
+core = []
+# All test utilities
+full = ["core"]
 
 [dev-dependencies]
 tokio-test = { workspace = true } 
