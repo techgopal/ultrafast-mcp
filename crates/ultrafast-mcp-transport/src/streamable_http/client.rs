@@ -6,10 +6,7 @@
 use crate::{Result, Transport, TransportError};
 use async_trait::async_trait;
 
-use ultrafast_mcp_core::protocol::{
-    jsonrpc::{JsonRpcRequest, RequestId},
-    JsonRpcMessage,
-};
+use ultrafast_mcp_core::protocol::JsonRpcMessage;
 use ultrafast_mcp_core::utils::generate_state;
 
 /// Streamable HTTP client configuration
@@ -22,6 +19,7 @@ pub struct StreamableHttpClientConfig {
     pub max_retries: u32,
     pub auth_token: Option<String>,
     pub oauth_config: Option<ultrafast_mcp_auth::OAuthConfig>,
+    pub auth_method: Option<ultrafast_mcp_auth::AuthMethod>,
 }
 
 impl Default for StreamableHttpClientConfig {
@@ -34,7 +32,55 @@ impl Default for StreamableHttpClientConfig {
             max_retries: 3,
             auth_token: None,
             oauth_config: None,
+            auth_method: None,
         }
+    }
+}
+
+impl StreamableHttpClientConfig {
+    /// Set Bearer token authentication
+    pub fn with_bearer_auth(mut self, token: String) -> Self {
+        self.auth_method = Some(ultrafast_mcp_auth::AuthMethod::bearer(token));
+        self
+    }
+
+    /// Set OAuth authentication
+    pub fn with_oauth_auth(mut self, config: ultrafast_mcp_auth::OAuthConfig) -> Self {
+        self.auth_method = Some(ultrafast_mcp_auth::AuthMethod::oauth(config));
+        self
+    }
+
+    /// Set API key authentication
+    pub fn with_api_key_auth(mut self, api_key: String) -> Self {
+        self.auth_method = Some(ultrafast_mcp_auth::AuthMethod::api_key(api_key));
+        self
+    }
+
+    /// Set API key authentication with custom header name
+    pub fn with_api_key_auth_custom(mut self, api_key: String, header_name: String) -> Self {
+        let api_key_auth = ultrafast_mcp_auth::ApiKeyAuth::new(api_key)
+            .with_header_name(header_name);
+        let auth_method = ultrafast_mcp_auth::AuthMethod::ApiKey(api_key_auth);
+        self.auth_method = Some(auth_method);
+        self
+    }
+
+    /// Set Basic authentication
+    pub fn with_basic_auth(mut self, username: String, password: String) -> Self {
+        self.auth_method = Some(ultrafast_mcp_auth::AuthMethod::basic(username, password));
+        self
+    }
+
+    /// Set custom header authentication
+    pub fn with_custom_auth(mut self) -> Self {
+        self.auth_method = Some(ultrafast_mcp_auth::AuthMethod::custom());
+        self
+    }
+
+    /// Set authentication method
+    pub fn with_auth_method(mut self, auth_method: ultrafast_mcp_auth::AuthMethod) -> Self {
+        self.auth_method = Some(auth_method);
+        self
     }
 }
 
@@ -47,6 +93,7 @@ pub struct StreamableHttpClient {
     oauth_client: Option<ultrafast_mcp_auth::OAuthClient>,
     access_token: Option<String>,
     token_expiry: Option<std::time::SystemTime>,
+    auth_middleware: Option<ultrafast_mcp_auth::ClientAuthMiddleware>,
 }
 
 impl StreamableHttpClient {
@@ -65,6 +112,11 @@ impl StreamableHttpClient {
 
         let access_token = config.auth_token.clone();
 
+        let auth_middleware = config
+            .auth_method
+            .as_ref()
+            .map(|auth_method| ultrafast_mcp_auth::ClientAuthMiddleware::new(auth_method.clone()));
+
         Ok(Self {
             client,
             config,
@@ -73,6 +125,7 @@ impl StreamableHttpClient {
             oauth_client,
             access_token,
             token_expiry: None,
+            auth_middleware,
         })
     }
 
@@ -130,12 +183,23 @@ impl StreamableHttpClient {
     async fn get_auth_headers(&mut self) -> Result<Vec<(String, String)>> {
         let mut headers = Vec::new();
 
-        // Refresh token if needed
-        self.refresh_token_if_needed().await?;
+        // Use auth middleware if available
+        if let Some(auth_middleware) = &mut self.auth_middleware {
+            let auth_headers = auth_middleware.get_headers().await.map_err(|e| {
+                TransportError::AuthenticationError {
+                    message: format!("Failed to get auth headers: {}", e),
+                }
+            })?;
+            
+            headers.extend(auth_headers.into_iter());
+        } else {
+            // Fallback to legacy OAuth token handling
+            self.refresh_token_if_needed().await?;
 
-        // Add OAuth token if available
-        if let Some(token) = &self.access_token {
-            headers.push(("Authorization".to_string(), format!("Bearer {}", token)));
+            // Add OAuth token if available
+            if let Some(token) = &self.access_token {
+                headers.push(("Authorization".to_string(), format!("Bearer {}", token)));
+            }
         }
 
         Ok(headers)
@@ -148,74 +212,16 @@ impl StreamableHttpClient {
             self.authenticate().await?;
         }
 
-        // For Streamable HTTP, we establish a session by sending an initialize request
-        let initialize_request = JsonRpcMessage::Request(JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
-            method: "initialize".to_string(),
-            params: Some(serde_json::json!({
-                "protocolVersion": self.config.protocol_version,
-                "capabilities": {},
-                "clientInfo": {
-                    "name": "ultrafast-mcp-client",
-                    "version": "1.0.0"
-                }
-            })),
-            id: Some(RequestId::String("1".to_string())),
-            meta: std::collections::HashMap::new(),
-        });
-
+        // For Streamable HTTP, we just establish a session ID without sending initialize
+        // The client will handle the initialize request separately
         let session_id = self
             .config
             .session_id
             .clone()
             .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
 
-        let url = format!("{}/mcp", self.config.base_url);
-
-        // Get authentication headers
-        let auth_headers = self.get_auth_headers().await?;
-
-        let mut request_builder = self
-            .client
-            .post(&url)
-            .header("content-type", "application/json")
-            .header("accept", "application/json, text/event-stream") // Required Accept header
-            .header("mcp-session-id", &session_id)
-            .header("mcp-protocol-version", &self.config.protocol_version)
-            .json(&initialize_request);
-
-        // Add authentication headers
-        for (key, value) in auth_headers {
-            request_builder = request_builder.header(key, value);
-        }
-
-        let response =
-            request_builder
-                .send()
-                .await
-                .map_err(|e| TransportError::ConnectionError {
-                    message: format!("Failed to connect: {}", e),
-                })?;
-
-        if !response.status().is_success() {
-            let error_text = response.text().await.unwrap_or_default();
-            return Err(TransportError::ConnectionError {
-                message: format!("Connection failed: {}", error_text),
-            });
-        }
-
-        // Parse the initialize response
-        let response_message: JsonRpcMessage =
-            response
-                .json()
-                .await
-                .map_err(|e| TransportError::SerializationError {
-                    message: format!("Failed to parse initialize response: {}", e),
-                })?;
-
-        // Store session ID and response
+        // Store session ID
         self.session_id = Some(session_id.clone());
-        self.pending_response = Some(response_message);
 
         Ok(session_id)
     }
@@ -263,15 +269,44 @@ impl StreamableHttpClient {
         }
 
         // Parse the response - it should be a single JSON-RPC message
-        let response_message: JsonRpcMessage =
-            response
-                .json()
-                .await
-                .map_err(|e| TransportError::SerializationError {
-                    message: format!("Failed to parse response: {}", e),
-                })?;
+        let response_message: JsonRpcMessage = response.json().await.map_err(|e| TransportError::SerializationError {
+            message: format!("Failed to parse response: {}", e),
+        })?;
 
         Ok(response_message)
+    }
+
+    /// Send a JSON-RPC notification (fire-and-forget, do not wait for response)
+    pub async fn send_notification_internal(&mut self, message: JsonRpcMessage) -> Result<()> {
+        let session_id =
+            self.session_id
+                .clone()
+                .ok_or_else(|| TransportError::ConnectionError {
+                    message: "Not connected".to_string(),
+                })?;
+
+        let url = format!("{}/mcp", self.config.base_url);
+
+        // Get authentication headers
+        let auth_headers = self.get_auth_headers().await?;
+
+        let mut request_builder = self
+            .client
+            .post(&url)
+            .header("content-type", "application/json")
+            .header("accept", "application/json, text/event-stream")
+            .header("mcp-session-id", session_id)
+            .header("mcp-protocol-version", &self.config.protocol_version)
+            .json(&message);
+
+        // Add authentication headers
+        for (key, value) in auth_headers {
+            request_builder = request_builder.header(key, value);
+        }
+
+        // Fire and forget: do not block on response
+        let _ = request_builder.send().await;
+        Ok(())
     }
 
     /// Get current connection health
@@ -404,11 +439,15 @@ impl StreamableHttpClient {
 #[async_trait]
 impl Transport for StreamableHttpClient {
     async fn send_message(&mut self, message: JsonRpcMessage) -> Result<()> {
-        // For Streamable HTTP, we send and get immediate response
-        // Store the response for the next receive_message call
-        let response = self.send_message_internal(message).await?;
-        self.pending_response = Some(response);
-        Ok(())
+        // For notifications, use fire-and-forget
+        if matches!(message, JsonRpcMessage::Notification(_)) {
+            self.send_notification_internal(message).await
+        } else {
+            // For requests, wait for response
+            let response = self.send_message_internal(message).await?;
+            self.pending_response = Some(response);
+            Ok(())
+        }
     }
 
     async fn receive_message(&mut self) -> Result<JsonRpcMessage> {
@@ -474,4 +513,5 @@ impl Transport for StreamableHttpClient {
     async fn reset(&mut self) -> Result<()> {
         self.reset().await
     }
+
 }

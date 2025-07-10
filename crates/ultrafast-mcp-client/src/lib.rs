@@ -147,6 +147,9 @@ pub struct UltraFastClient {
     request_timeout: std::time::Duration,
     // Timeout configuration (MCP 2025-06-18 compliance)
     timeout_config: Arc<TimeoutConfig>,
+    // Authentication middleware
+    #[cfg(feature = "oauth")]
+    auth_middleware: Arc<RwLock<Option<ultrafast_mcp_auth::ClientAuthMiddleware>>>,
 }
 
 impl UltraFastClient {
@@ -160,6 +163,8 @@ impl UltraFastClient {
             message_receiver: Arc::new(RwLock::new(None)),
             request_timeout: std::time::Duration::from_secs(30),
             timeout_config: Arc::new(TimeoutConfig::default()),
+            #[cfg(feature = "oauth")]
+            auth_middleware: Arc::new(RwLock::new(None)),
         }
     }
 
@@ -177,6 +182,8 @@ impl UltraFastClient {
             message_receiver: Arc::new(RwLock::new(None)),
             request_timeout: timeout,
             timeout_config: Arc::new(TimeoutConfig::default()),
+            #[cfg(feature = "oauth")]
+            auth_middleware: Arc::new(RwLock::new(None)),
         }
     }
 
@@ -212,6 +219,80 @@ impl UltraFastClient {
     /// Get operation-specific timeout
     pub fn get_operation_timeout(&self, operation: &str) -> std::time::Duration {
         self.timeout_config.get_timeout_for_operation(operation)
+    }
+
+    /// Set authentication method
+    #[cfg(feature = "oauth")]
+    pub fn with_auth(mut self, auth_method: ultrafast_mcp_auth::AuthMethod) -> Self {
+        let auth_middleware = ultrafast_mcp_auth::ClientAuthMiddleware::new(auth_method);
+        let mut auth = self.auth_middleware.write().blocking_lock();
+        *auth = Some(auth_middleware);
+        self
+    }
+
+    /// Set Bearer token authentication
+    #[cfg(feature = "oauth")]
+    pub fn with_bearer_auth(mut self, token: String) -> Self {
+        let auth_method = ultrafast_mcp_auth::AuthMethod::bearer(token);
+        self.with_auth(auth_method)
+    }
+
+    /// Set Bearer token authentication with auto-refresh
+    #[cfg(feature = "oauth")]
+    pub fn with_bearer_auth_refresh<F, Fut>(mut self, token: String, refresh_fn: F) -> Self 
+    where 
+        F: Fn() -> Fut + Send + Sync + 'static,
+        Fut: std::future::Future<Output = Result<String, ultrafast_mcp_auth::AuthError>> + Send + 'static,
+    {
+        let auth_method = ultrafast_mcp_auth::AuthMethod::bearer(token)
+            .with_auto_refresh(refresh_fn);
+        self.with_auth(auth_method)
+    }
+
+    /// Set OAuth authentication
+    #[cfg(feature = "oauth")]
+    pub fn with_oauth_auth(mut self, config: ultrafast_mcp_auth::OAuthConfig) -> Self {
+        let auth_method = ultrafast_mcp_auth::AuthMethod::oauth(config);
+        self.with_auth(auth_method)
+    }
+
+    /// Set API key authentication
+    #[cfg(feature = "oauth")]
+    pub fn with_api_key_auth(mut self, api_key: String) -> Self {
+        let auth_method = ultrafast_mcp_auth::AuthMethod::api_key(api_key);
+        self.with_auth(auth_method)
+    }
+
+    /// Set API key authentication with custom header name
+    #[cfg(feature = "oauth")]
+    pub fn with_api_key_auth_custom(mut self, api_key: String, header_name: String) -> Self {
+        let auth_method = ultrafast_mcp_auth::AuthMethod::api_key(api_key)
+            .with_header_name(header_name);
+        self.with_auth(auth_method)
+    }
+
+    /// Set Basic authentication
+    #[cfg(feature = "oauth")]
+    pub fn with_basic_auth(mut self, username: String, password: String) -> Self {
+        let auth_method = ultrafast_mcp_auth::AuthMethod::basic(username, password);
+        self.with_auth(auth_method)
+    }
+
+    /// Set custom header authentication
+    #[cfg(feature = "oauth")]
+    pub fn with_custom_auth(mut self) -> Self {
+        let auth_method = ultrafast_mcp_auth::AuthMethod::custom();
+        self.with_auth(auth_method)
+    }
+
+    /// Get authentication headers for requests
+    #[cfg(feature = "oauth")]
+    pub async fn get_auth_headers(&self) -> Result<std::collections::HashMap<String, String>, ultrafast_mcp_auth::AuthError> {
+        if let Some(auth) = self.auth_middleware.read().await.as_ref() {
+            auth.get_headers().await
+        } else {
+            Ok(std::collections::HashMap::new())
+        }
     }
 
     /// Set elicitation handler for handling server-initiated elicitation requests
@@ -399,7 +480,9 @@ impl UltraFastClient {
     }
 
     /// Initialize the connection with the server
-    async fn initialize(&self) -> MCPResult<()> {
+    /// Initialize the client connection
+    /// This method must be called after connecting to establish the MCP protocol
+    pub async fn initialize(&self) -> MCPResult<()> {
         {
             let mut state = self.state_manager.write().await;
             state.set_state(ClientState::Initializing);
@@ -436,13 +519,18 @@ impl UltraFastClient {
             state.set_state(ClientState::Initialized);
         }
 
-        // Send initialized notification
+        // Send initialized notification (skip for HTTP transport)
+        // Note: HTTP transport doesn't require initialized notification
         let init_notification = InitializedNotification {};
-        self.send_notification(
+        if let Err(e) = self.send_notification(
             "initialized",
             Some(serde_json::to_value(init_notification)?),
         )
-        .await?;
+        .await
+        {
+            // For HTTP transport, ignore errors on initialized notification
+            warn!("Failed to send initialized notification (this is normal for HTTP transport): {}", e);
+        }
 
         {
             let mut state = self.state_manager.write().await;
@@ -755,7 +843,10 @@ impl UltraFastClient {
     where
         T: serde::de::DeserializeOwned,
     {
-        self.ensure_operational().await?;
+        // Allow initialize request even when not operational
+        if method != "initialize" {
+            self.ensure_operational().await?;
+        }
 
         let request_id = self.generate_request_id().await;
         let request = JsonRpcRequest::new(
@@ -796,15 +887,29 @@ impl UltraFastClient {
                 .map_err(|e| MCPError::Transport(TransportError::SendFailed(e.to_string())))?;
         }
 
-        // Wait for response with operation-specific timeout
-        let response = tokio::time::timeout(operation_timeout, response_receiver)
-            .await
-            .map_err(|_| MCPError::Protocol(ProtocolError::RequestTimeout))?
-            .map_err(|_| {
-                MCPError::Protocol(ProtocolError::InternalError(
-                    "Response channel closed".to_string(),
-                ))
-            })?;
+        // Try to get immediate response from transport (for HTTP transport)
+        let immediate_response = {
+            let mut transport_guard = self.transport.write().await;
+            let transport = transport_guard
+                .as_mut()
+                .expect("Transport should be available");
+            transport.receive_message().await.ok()
+        };
+
+        let response = if let Some(immediate) = immediate_response {
+            // Got immediate response from transport
+            immediate
+        } else {
+            // Wait for response through message receiver task
+            tokio::time::timeout(operation_timeout, response_receiver)
+                .await
+                .map_err(|_| MCPError::Protocol(ProtocolError::RequestTimeout))?
+                .map_err(|_| {
+                    MCPError::Protocol(ProtocolError::InternalError(
+                        "Response channel closed".to_string(),
+                    ))
+                })?
+        };
 
         // Remove from pending requests
         {
@@ -833,7 +938,10 @@ impl UltraFastClient {
     }
 
     async fn send_notification(&self, method: &str, params: Option<Value>) -> MCPResult<()> {
-        self.ensure_operational().await?;
+        // Allow initialized notification even when not operational
+        if method != "initialized" {
+            self.ensure_operational().await?;
+        }
 
         let notification = JsonRpcRequest::notification(method.to_string(), params);
 

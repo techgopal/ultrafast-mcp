@@ -140,6 +140,10 @@ pub struct UltraFastServer {
 
     // Timeout configuration (MCP 2025-06-18 compliance)
     timeout_config: Arc<TimeoutConfig>,
+
+    // Authentication middleware
+    #[cfg(feature = "oauth")]
+    auth_middleware: Option<Arc<ultrafast_mcp_auth::ServerAuthMiddleware>>,
 }
 
 impl std::fmt::Debug for UltraFastServer {
@@ -186,6 +190,8 @@ impl UltraFastServer {
 
             // Timeout configuration (MCP 2025-06-18 compliance)
             timeout_config: Arc::new(TimeoutConfig::default()),
+            #[cfg(feature = "oauth")]
+            auth_middleware: None,
         }
     }
 
@@ -420,6 +426,42 @@ impl UltraFastServer {
     /// Enable OAuth authentication
     pub fn with_oauth(self) -> Self {
         info!("OAuth authentication enabled");
+        self
+    }
+
+    /// Enable authentication with custom configuration
+    #[cfg(feature = "oauth")]
+    pub fn with_authentication(
+        mut self,
+        token_validator: ultrafast_mcp_auth::TokenValidator,
+        required_scopes: Vec<String>,
+    ) -> Self {
+        use std::sync::Arc;
+        
+        let auth_middleware = ultrafast_mcp_auth::ServerAuthMiddleware::new(token_validator)
+            .with_required_scopes(required_scopes);
+        
+        self.auth_middleware = Some(Arc::new(auth_middleware));
+        info!("Authentication enabled with required scopes: {:?}", required_scopes);
+        self
+    }
+
+    /// Enable Bearer token authentication
+    #[cfg(feature = "oauth")]
+    pub fn with_bearer_auth(mut self, secret: String, required_scopes: Vec<String>) -> Self {
+        let token_validator = ultrafast_mcp_auth::TokenValidator::new(secret);
+        self.with_authentication(token_validator, required_scopes)
+    }
+
+    /// Enable API key authentication
+    pub fn with_api_key_auth(mut self) -> Self {
+        info!("API key authentication enabled");
+        self
+    }
+
+    /// Enable Basic authentication
+    pub fn with_basic_auth(mut self) -> Self {
+        info!("Basic authentication enabled");
         self
     }
 
@@ -813,9 +855,13 @@ impl UltraFastServer {
                     let response = self.handle_request(request).await;
                     let response_message = JsonRpcMessage::Response(response);
 
+                    info!("Sending response for session {}: {:?}", session_id, response_message);
+
                     // Send the response back through the response sender
                     if let Err(e) = response_sender.send((session_id_clone, response_message)) {
                         error!("Failed to send response for session {}: {}", session_id, e);
+                    } else {
+                        info!("Successfully sent response for session {}", session_id);
                     }
                 }
                 JsonRpcMessage::Notification(notification) => {

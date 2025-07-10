@@ -34,11 +34,14 @@ async fn main() -> anyhow::Result<()> {
         base_url: "http://127.0.0.1:8080".to_string(),
         session_id: Some("everything-client-session".to_string()),
         protocol_version: "2025-06-18".to_string(),
-        timeout: std::time::Duration::from_secs(30),
+        timeout: std::time::Duration::from_secs(60), // Increased timeout
         max_retries: 3,
         auth_token: None,
         oauth_config: None,
+        auth_method: None,
     };
+
+
 
     // Create HTTP transport
     let mut transport = StreamableHttpClient::new(transport_config)
@@ -50,9 +53,10 @@ async fn main() -> anyhow::Result<()> {
         .await
         .map_err(|e| anyhow::anyhow!("Transport connection failed: {}", e))?;
 
-    // Connect using HTTP transport
-    client.connect(Box::new(transport)).await?;
+    // Small delay to ensure server is ready
+    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
 
+    client.connect(Box::new(transport)).await?;
     println!("✅ Connected to MCP server successfully");
 
     // List available tools

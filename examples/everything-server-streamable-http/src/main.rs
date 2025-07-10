@@ -290,7 +290,8 @@ impl ToolHandler for EverythingToolHandler {
     }
 
     async fn list_tools(&self, _request: ListToolsRequest) -> MCPResult<ListToolsResponse> {
-        Ok(ListToolsResponse {
+        println!("DEBUG: Entered list_tools handler");
+        let response = ListToolsResponse {
             tools: vec![
                 Tool::new(
                     "echo".to_string(),
@@ -466,7 +467,9 @@ impl ToolHandler for EverythingToolHandler {
                 ),
             ],
             next_cursor: None,
-        })
+        };
+        println!("DEBUG: Returning from list_tools handler");
+        Ok(response)
     }
 }
 

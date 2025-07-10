@@ -80,6 +80,7 @@ impl AdvancedClient {
             max_retries: 3,
             auth_token: None,
             oauth_config: None,
+            auth_method: None,
         };
 
         // Create HTTP transport

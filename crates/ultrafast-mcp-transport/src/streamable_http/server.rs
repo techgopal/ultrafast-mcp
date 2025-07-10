@@ -525,7 +525,7 @@ async fn handle_jsonrpc_request(
 
     // Wait for response from server with timeout
     match tokio::time::timeout(
-        std::time::Duration::from_secs(5000), // 5 second timeout
+        std::time::Duration::from_secs(30), // Increased timeout to 30 seconds
         response_receiver.recv(),
     )
     .await
@@ -534,20 +534,24 @@ async fn handle_jsonrpc_request(
             if response_session_id == session_id || response_session_id == "*" {
                 // Return the actual response from the server
                 match response_message {
-                    JsonRpcMessage::Response(response) => (
-                        StatusCode::OK,
-                        [
-                            ("mcp-session-id", response_session_id),
-                            (
-                                "mcp-protocol-version",
-                                state.config.protocol_version.clone(),
-                            ),
-                        ],
-                        Json(response),
-                    )
-                        .into_response(),
+                    JsonRpcMessage::Response(response) => {
+                        info!("Sending response back to client: {:?}", response);
+                        (
+                            StatusCode::OK,
+                            [
+                                ("mcp-session-id", response_session_id),
+                                (
+                                    "mcp-protocol-version",
+                                    state.config.protocol_version.clone(),
+                                ),
+                            ],
+                            Json(response),
+                        )
+                            .into_response()
+                    }
                     _ => {
                         // Unexpected message type
+                        error!("Unexpected response type: {:?}", response_message);
                         Json(JsonRpcResponse::error(
                             JsonRpcError::new(-32000, "Unexpected response type".to_string()),
                             request.id,
@@ -577,7 +581,7 @@ async fn handle_jsonrpc_request(
             .into_response()
         }
         Err(_) => {
-            error!("Timeout waiting for response from server");
+            error!("Request timeout waiting for response from server");
             Json(JsonRpcResponse::error(
                 JsonRpcError::new(-32000, "Request timeout".to_string()),
                 request.id,

@@ -109,6 +109,31 @@ A demonstration of MCP 2025-06-18 lifecycle compliance improvements:
 - Progress tracking with configurable intervals
 - Cancellation notification support
 
+### 6. [Authentication Example](./06-authentication-example/) - **Authentication Methods and Middleware** ⭐
+**Difficulty**: Intermediate  
+**Focus**: Comprehensive authentication support
+
+A complete authentication system demonstrating all supported authentication methods:
+- Bearer token authentication with JWT validation
+- API key authentication with custom headers
+- Basic authentication with username/password
+- Custom header authentication for flexibility
+- OAuth 2.1 authentication with PKCE
+- Auto-refresh tokens for seamless operation
+- Server-side authentication middleware
+- Client-side authentication middleware
+- HTTP transport authentication integration
+
+**Key Features**:
+- **Multiple Authentication Methods**: Support for Bearer, API Key, Basic, Custom Headers, and OAuth
+- **Server-side Validation**: JWT token validation with scope checking
+- **Client-side Management**: Automatic header generation and token refresh
+- **HTTP Transport Integration**: Authentication support in HTTP transport layer
+- **Security Best Practices**: CSRF protection, PKCE, secure token handling
+- **Thread-safe Design**: All components are `Send + Sync`
+- **Comprehensive Error Handling**: Detailed error types and messages
+- **Performance Optimized**: Efficient validation and minimal allocations
+
 ## Common Patterns
 
 ### Server Creation

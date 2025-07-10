@@ -33,6 +33,7 @@ async-trait = { workspace = true }
 uuid = { workspace = true }
 
 [features]
+oauth = []
 default = []
 # Core client functionality
 core = []
