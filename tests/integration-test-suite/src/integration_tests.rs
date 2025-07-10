@@ -1,152 +1,15 @@
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
-    use async_trait::async_trait;
     use serde::{Deserialize, Serialize};
-    use serde_json::json;
-    use std::sync::Arc;
     use tokio::time::Duration;
     use ultrafast_mcp_core::{
-        error::{MCPError, MCPResult},
-        protocol::capabilities::{ClientCapabilities, ServerCapabilities, ToolsCapability},
-        types::{
-            client::ClientInfo,
-            server::ServerInfo,
-            tools::{ListToolsRequest, ListToolsResponse, Tool, ToolCall, ToolContent, ToolResult},
-        },
+        protocol::capabilities::ClientCapabilities,
+        types::client::ClientInfo,
     };
-    use ultrafast_mcp_server::ToolHandler;
     use ultrafast_mcp_test_utils::create_test_server_with_name;
 
-    // Mock tool handler for testing
-    struct TestToolHandler;
-
-    #[async_trait]
-    impl ToolHandler for TestToolHandler {
-        async fn handle_tool_call(&self, call: ToolCall) -> MCPResult<ToolResult> {
-            match call.name.as_str() {
-                "echo" => {
-                    let message = call
-                        .arguments
-                        .and_then(|args| args.get("message").cloned())
-                        .and_then(|v| v.as_str().map(|s| s.to_string()))
-                        .unwrap_or_else(|| "Hello, World!".to_string());
-
-                    Ok(ToolResult {
-                        content: vec![ToolContent::text(message)],
-                        is_error: Some(false),
-                    })
-                }
-                "concurrent_tool" => {
-                    let input = call
-                        .arguments
-                        .as_ref()
-                        .and_then(|args| args.get("input").cloned())
-                        .and_then(|v| v.as_str().map(|s| s.to_string()))
-                        .unwrap_or_else(|| "default".to_string());
-
-                    let worker_id = call
-                        .arguments
-                        .as_ref()
-                        .and_then(|args| args.get("worker_id").cloned())
-                        .and_then(|v| v.as_u64())
-                        .unwrap_or(0);
-
-                    // Simulate some async work
-                    tokio::time::sleep(Duration::from_millis(10)).await;
-
-                    Ok(ToolResult {
-                        content: vec![ToolContent::text(
-                            json!({
-                                "processed": input,
-                                "worker_id": worker_id
-                            })
-                            .to_string(),
-                        )],
-                        is_error: Some(false),
-                    })
-                }
-                "error_tool" => Err(MCPError::internal_error(
-                    "Intentional test failure".to_string(),
-                )),
-                _ => Err(MCPError::method_not_found(format!(
-                    "Unknown tool: {}",
-                    call.name
-                ))),
-            }
-        }
-
-        async fn list_tools(&self, _request: ListToolsRequest) -> MCPResult<ListToolsResponse> {
-            let tools = vec![
-                Tool {
-                    name: "echo".to_string(),
-                    description: "Echo a message back".to_string(),
-                    input_schema: json!({
-                        "type": "object",
-                        "properties": {
-                            "message": {"type": "string", "default": "Hello, World!"}
-                        },
-                        "required": ["message"]
-                    }),
-                    output_schema: None,
-                    annotations: None,
-                },
-                Tool {
-                    name: "concurrent_tool".to_string(),
-                    description: "Tool for concurrent testing".to_string(),
-                    input_schema: json!({
-                        "type": "object",
-                        "properties": {
-                            "input": {"type": "string"},
-                            "worker_id": {"type": "integer"}
-                        },
-                        "required": ["input", "worker_id"]
-                    }),
-                    output_schema: None,
-                    annotations: None,
-                },
-                Tool {
-                    name: "error_tool".to_string(),
-                    description: "Tool that always errors".to_string(),
-                    input_schema: json!({
-                        "type": "object",
-                        "properties": {}
-                    }),
-                    output_schema: None,
-                    annotations: None,
-                },
-            ];
-
-            Ok(ListToolsResponse {
-                tools,
-                next_cursor: None,
-            })
-        }
-    }
-
     // create_test_server function moved to ultrafast-mcp-test-utils
-
-    fn create_test_server_with_custom_handler() -> ultrafast_mcp::UltraFastServer {
-        let server_info = ServerInfo {
-            name: "integration-test-server".to_string(),
-            version: "1.0.0".to_string(),
-            description: Some("Test server for integration tests".to_string()),
-            homepage: None,
-            repository: None,
-            authors: Some(vec!["test".to_string()]),
-            license: Some("MIT".to_string()),
-        };
-
-        let capabilities = ServerCapabilities {
-            tools: Some(ToolsCapability {
-                list_changed: Some(true),
-            }),
-            ..Default::default()
-        };
-
-        ultrafast_mcp::UltraFastServer::new(server_info, capabilities)
-            .with_tool_handler(Arc::new(TestToolHandler))
-    }
 
     #[tokio::test]
     async fn test_complete_mcp_server_client_flow() -> Result<(), Box<dyn std::error::Error>> {

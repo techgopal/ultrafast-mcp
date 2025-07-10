@@ -2,7 +2,7 @@
 
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
-use ultrafast_mcp_core::protocol::{jsonrpc::RequestId, JsonRpcMessage};
+use ultrafast_mcp_core::protocol::JsonRpcMessage;
 use ultrafast_mcp_transport::{ConnectionState, Transport, TransportError, TransportHealth};
 
 /// Mock transport for testing without real network connections
@@ -136,7 +136,7 @@ pub fn create_failing_receive_transport() -> MockTransport {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ultrafast_mcp_core::protocol::jsonrpc::JsonRpcRequest;
+    use ultrafast_mcp_core::protocol::{jsonrpc::{JsonRpcRequest, RequestId}};
 
     #[tokio::test]
     async fn test_mock_transport_send() {

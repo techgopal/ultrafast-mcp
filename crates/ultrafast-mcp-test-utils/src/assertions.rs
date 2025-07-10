@@ -1,7 +1,7 @@
 //! Common test assertion helpers
 
 use std::fmt::Debug;
-use ultrafast_mcp_core::{MCPError, MCPResult};
+use ultrafast_mcp_core::MCPResult;
 
 /// Assert that a result is an MCP error of a specific type
 pub fn assert_mcp_error<T: Debug>(result: MCPResult<T>, expected_error_contains: &str) {
@@ -143,7 +143,7 @@ pub fn assert_not_empty<T>(collection: &[T]) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ultrafast_mcp_core::error::ProtocolError;
+    use ultrafast_mcp_core::{error::ProtocolError, MCPError};
 
     #[test]
     fn test_assert_mcp_error() {
