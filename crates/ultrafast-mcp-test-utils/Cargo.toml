@@ -13,10 +13,10 @@ description = "Test utilities for UltraFast MCP"
 
 [dependencies]
 # Internal dependencies
-ultrafast-mcp-core = { path = "../ultrafast-mcp-core" }
-ultrafast-mcp-server = { path = "../ultrafast-mcp-server" }
-ultrafast-mcp-client = { path = "../ultrafast-mcp-client" }
-ultrafast-mcp-transport = { path = "../ultrafast-mcp-transport" }
+ultrafast-mcp-core = { path = "../ultrafast-mcp-core", version = "=202506018.1.0-rc.2" }
+ultrafast-mcp-server = { path = "../ultrafast-mcp-server", version = "=202506018.1.0-rc.2" }
+ultrafast-mcp-client = { path = "../ultrafast-mcp-client", version = "=202506018.1.0-rc.2" }
+ultrafast-mcp-transport = { path = "../ultrafast-mcp-transport", version = "=202506018.1.0-rc.2" }
 
 # Testing dependencies
 tokio = { workspace = true }

@@ -247,8 +247,16 @@ impl MetricsCollector {
 
         // Method-specific metrics
         for (method, count) in &metrics.request.method_counts {
-            prometheus_output.push_str("# HELP mcp_requests_by_method_total Total requests by method\n".to_string().as_str());
-            prometheus_output.push_str("# TYPE mcp_requests_by_method_total counter\n".to_string().as_str());
+            prometheus_output.push_str(
+                "# HELP mcp_requests_by_method_total Total requests by method\n"
+                    .to_string()
+                    .as_str(),
+            );
+            prometheus_output.push_str(
+                "# TYPE mcp_requests_by_method_total counter\n"
+                    .to_string()
+                    .as_str(),
+            );
             prometheus_output.push_str(&format!(
                 "mcp_requests_by_method_total{{method=\"{}\"}} {}\n",
                 method, count
@@ -354,8 +362,6 @@ impl Default for RequestMetrics {
         }
     }
 }
-
-
 
 impl Default for SystemMetrics {
     fn default() -> Self {

@@ -525,9 +525,9 @@ pub use ultrafast_mcp_monitoring::{
     config::MonitoringConfig,
     // Re-export monitoring types explicitly for better discoverability
     health::{HealthCheck, HealthCheckResult, HealthChecker, HealthStatus},
+    metrics::RequestTimer,
     MetricsCollector,
     MonitoringSystem,
-    metrics::RequestTimer,
     RequestMetrics,
     SystemMetrics,
     TransportMetrics,

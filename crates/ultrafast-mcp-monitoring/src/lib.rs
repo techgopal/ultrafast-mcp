@@ -393,12 +393,10 @@ pub mod middleware;
 pub mod tracing;
 
 // Re-export types from metrics module
-pub use metrics::{TransportMetrics, RequestMetrics, SystemMetrics, Metrics, MetricsCollector};
+pub use metrics::{Metrics, MetricsCollector, RequestMetrics, SystemMetrics, TransportMetrics};
 
 pub use config::MonitoringConfig;
 pub use health::{HealthChecker, HealthStatus};
-
-
 
 /// The main monitoring system that orchestrates all monitoring components
 #[derive(Clone)]
@@ -514,7 +512,3 @@ impl MonitoringSystem {
         Ok(())
     }
 }
-
-
-
-

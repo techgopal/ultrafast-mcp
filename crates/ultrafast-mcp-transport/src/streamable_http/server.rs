@@ -25,8 +25,8 @@ use ultrafast_mcp_core::{
     utils::{generate_event_id, generate_session_id},
     validation::{validate_origin, validate_protocol_version, validate_session_id},
 };
-use ultrafast_mcp_monitoring::{MetricsCollector, MonitoringSystem};
 use ultrafast_mcp_monitoring::metrics::RequestTimer;
+use ultrafast_mcp_monitoring::{MetricsCollector, MonitoringSystem};
 
 use crate::{Result, Transport, TransportError};
 use async_trait::async_trait;
