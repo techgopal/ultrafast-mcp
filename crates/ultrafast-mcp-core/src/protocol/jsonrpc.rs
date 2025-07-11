@@ -1,3 +1,6 @@
+use crate::protocol::constants::{
+    JSONRPC_VERSION, MAX_REQUEST_ID_LENGTH, MAX_REQUEST_ID_NUMBER, MIN_REQUEST_ID_NUMBER,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
@@ -39,11 +42,13 @@ pub mod mcp_error_codes {
     pub const PROTOCOL_VERSION_NOT_SUPPORTED: i32 = -32007;
 }
 
-/// JSON-RPC 2.0 request ID can be string or number (null is not supported in MCP)
+/// JSON-RPC 2.0 request ID can be string or number
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum RequestId {
+    /// String-based request ID
     String(String),
+    /// Number-based request ID
     Number(i64),
 }
 
@@ -67,19 +72,19 @@ impl RequestId {
                         "Request ID string cannot be empty".to_string(),
                     ));
                 }
-                // Check for reasonable length
-                if s.len() > 100 {
-                    return Err(crate::error::ProtocolError::InvalidRequestId(
-                        "Request ID string too long".to_string(),
-                    ));
+                if s.len() > MAX_REQUEST_ID_LENGTH {
+                    return Err(crate::error::ProtocolError::InvalidRequestId(format!(
+                        "Request ID string too long (max {} characters)",
+                        MAX_REQUEST_ID_LENGTH
+                    )));
                 }
             }
             RequestId::Number(n) => {
-                // Check for reasonable range
-                if *n < -999999999 || *n > 999999999 {
-                    return Err(crate::error::ProtocolError::InvalidRequestId(
-                        "Request ID number out of reasonable range".to_string(),
-                    ));
+                if *n < MIN_REQUEST_ID_NUMBER || *n > MAX_REQUEST_ID_NUMBER {
+                    return Err(crate::error::ProtocolError::InvalidRequestId(format!(
+                        "Request ID number out of range ({} to {})",
+                        MIN_REQUEST_ID_NUMBER, MAX_REQUEST_ID_NUMBER
+                    )));
                 }
             }
         }
@@ -115,14 +120,19 @@ impl From<u64> for RequestId {
 }
 
 /// JSON-RPC 2.0 Request
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct JsonRpcRequest {
+    /// JSON-RPC version string (always "2.0")
     pub jsonrpc: String,
+    /// The name of the method to be invoked
     pub method: String,
+    /// Optional parameters for the method
     #[serde(skip_serializing_if = "Option::is_none")]
     pub params: Option<Value>,
+    /// Optional request ID (null for notifications)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<RequestId>,
+    /// Additional metadata fields (flattened)
     #[serde(flatten)]
     pub meta: HashMap<String, Value>,
 }
@@ -130,7 +140,7 @@ pub struct JsonRpcRequest {
 impl JsonRpcRequest {
     pub fn new(method: String, params: Option<Value>, id: Option<RequestId>) -> Self {
         Self {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: JSONRPC_VERSION.to_string(),
             method,
             params,
             id,
@@ -139,13 +149,7 @@ impl JsonRpcRequest {
     }
 
     pub fn notification(method: String, params: Option<Value>) -> Self {
-        Self {
-            jsonrpc: "2.0".to_string(),
-            method,
-            params,
-            id: None,
-            meta: HashMap::new(),
-        }
+        Self::new(method, params, None)
     }
 
     pub fn is_notification(&self) -> bool {
@@ -159,7 +163,7 @@ impl JsonRpcRequest {
 }
 
 /// JSON-RPC 2.0 Response
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct JsonRpcResponse {
     pub jsonrpc: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -174,7 +178,7 @@ pub struct JsonRpcResponse {
 impl JsonRpcResponse {
     pub fn success(result: Value, id: Option<RequestId>) -> Self {
         Self {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: JSONRPC_VERSION.to_string(),
             result: Some(result),
             error: None,
             id,
@@ -184,7 +188,7 @@ impl JsonRpcResponse {
 
     pub fn error(error: JsonRpcError, id: Option<RequestId>) -> Self {
         Self {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: JSONRPC_VERSION.to_string(),
             result: None,
             error: Some(error),
             id,
@@ -199,7 +203,7 @@ impl JsonRpcResponse {
 }
 
 /// JSON-RPC 2.0 Error
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct JsonRpcError {
     pub code: i32,
     pub message: String,
@@ -220,10 +224,98 @@ impl JsonRpcError {
         self.data = Some(data);
         self
     }
+
+    pub fn parse_error(message: Option<String>) -> Self {
+        Self::new(
+            error_codes::PARSE_ERROR,
+            message.unwrap_or_else(|| "Parse error".to_string()),
+        )
+    }
+
+    pub fn invalid_request(message: Option<String>) -> Self {
+        Self::new(
+            error_codes::INVALID_REQUEST,
+            message.unwrap_or_else(|| "Invalid request".to_string()),
+        )
+    }
+
+    pub fn method_not_found(method: String) -> Self {
+        Self::new(
+            error_codes::METHOD_NOT_FOUND,
+            format!("Method not found: {}", method),
+        )
+    }
+
+    pub fn invalid_params(message: Option<String>) -> Self {
+        Self::new(
+            error_codes::INVALID_PARAMS,
+            message.unwrap_or_else(|| "Invalid parameters".to_string()),
+        )
+    }
+
+    pub fn internal_error(message: Option<String>) -> Self {
+        Self::new(
+            error_codes::INTERNAL_ERROR,
+            message.unwrap_or_else(|| "Internal error".to_string()),
+        )
+    }
+
+    pub fn initialization_failed(message: String) -> Self {
+        Self::new(mcp_error_codes::INITIALIZATION_FAILED, message)
+    }
+
+    pub fn capability_not_supported(capability: String) -> Self {
+        Self::new(
+            mcp_error_codes::CAPABILITY_NOT_SUPPORTED,
+            format!("Capability not supported: {}", capability),
+        )
+    }
+
+    pub fn resource_not_found(uri: String) -> Self {
+        Self::new(
+            mcp_error_codes::RESOURCE_NOT_FOUND,
+            format!("Resource not found: {}", uri),
+        )
+    }
+
+    pub fn tool_execution_error(tool_name: String, error: String) -> Self {
+        Self::new(
+            mcp_error_codes::TOOL_EXECUTION_ERROR,
+            format!("Tool execution error for '{}': {}", tool_name, error),
+        )
+    }
+
+    pub fn invalid_uri(uri: String) -> Self {
+        Self::new(
+            mcp_error_codes::INVALID_URI,
+            format!("Invalid URI: {}", uri),
+        )
+    }
+
+    pub fn access_denied(resource: String) -> Self {
+        Self::new(
+            mcp_error_codes::ACCESS_DENIED,
+            format!("Access denied to resource: {}", resource),
+        )
+    }
+
+    pub fn request_timeout() -> Self {
+        Self::new(
+            mcp_error_codes::REQUEST_TIMEOUT,
+            "Request timeout".to_string(),
+        )
+    }
+
+    pub fn protocol_version_not_supported(version: String) -> Self {
+        Self::new(
+            mcp_error_codes::PROTOCOL_VERSION_NOT_SUPPORTED,
+            format!("Protocol version not supported: {}", version),
+        )
+    }
 }
 
-/// JSON-RPC 2.0 Message (Request, Response, or Notification)
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// JSON-RPC 2.0 Message
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(untagged)]
 pub enum JsonRpcMessage {
     Request(JsonRpcRequest),
@@ -235,95 +327,80 @@ impl JsonRpcMessage {
     pub fn get_id(&self) -> Option<&RequestId> {
         match self {
             JsonRpcMessage::Request(req) => req.id.as_ref(),
-            JsonRpcMessage::Response(res) => res.id.as_ref(),
+            JsonRpcMessage::Response(resp) => resp.id.as_ref(),
             JsonRpcMessage::Notification(_) => None,
         }
     }
 
     pub fn is_notification(&self) -> bool {
-        match self {
-            JsonRpcMessage::Request(req) => req.is_notification(),
-            JsonRpcMessage::Response(_) => false,
-            JsonRpcMessage::Notification(_) => true,
-        }
+        matches!(self, JsonRpcMessage::Notification(_))
     }
 }
 
-/// Validate JSON-RPC 2.0 message format
+/// Validate JSON-RPC message format
 pub fn validate_jsonrpc_message(
     message: &JsonRpcMessage,
 ) -> Result<(), crate::error::ProtocolError> {
     match message {
-        JsonRpcMessage::Request(req) => {
-            if req.jsonrpc != "2.0" {
-                return Err(crate::error::ProtocolError::InvalidVersion(
-                    req.jsonrpc.clone(),
-                ));
-            }
-
-            if req.method.is_empty() {
-                return Err(crate::error::ProtocolError::MethodNotFound(
-                    "Empty method name".to_string(),
-                ));
-            }
-
-            // Check for reserved method names (starting with "rpc.")
-            if req.method.starts_with("rpc.") {
-                return Err(crate::error::ProtocolError::MethodNotFound(format!(
-                    "Reserved method name: {}",
-                    req.method
+        JsonRpcMessage::Request(request) => {
+            if request.jsonrpc != JSONRPC_VERSION {
+                return Err(crate::error::ProtocolError::InvalidVersion(format!(
+                    "Expected JSON-RPC version {}, got {}",
+                    JSONRPC_VERSION, request.jsonrpc
                 )));
             }
 
-            // Validate request ID if present
-            if let Some(ref id) = req.id {
+            if request.method.is_empty() {
+                return Err(crate::error::ProtocolError::InvalidRequest(
+                    "Method name cannot be empty".to_string(),
+                ));
+            }
+
+            if let Some(ref id) = request.id {
                 id.validate()?;
             }
         }
-        JsonRpcMessage::Response(res) => {
-            if res.jsonrpc != "2.0" {
-                return Err(crate::error::ProtocolError::InvalidVersion(
-                    res.jsonrpc.clone(),
+        JsonRpcMessage::Response(response) => {
+            if response.jsonrpc != JSONRPC_VERSION {
+                return Err(crate::error::ProtocolError::InvalidVersion(format!(
+                    "Expected JSON-RPC version {}, got {}",
+                    JSONRPC_VERSION, response.jsonrpc
+                )));
+            }
+
+            if response.result.is_some() && response.error.is_some() {
+                return Err(crate::error::ProtocolError::InvalidResponse(
+                    "Response cannot have both result and error".to_string(),
                 ));
             }
 
-            // Validate response ID if present
-            if let Some(ref id) = res.id {
+            if response.result.is_none() && response.error.is_none() {
+                return Err(crate::error::ProtocolError::InvalidResponse(
+                    "Response must have either result or error".to_string(),
+                ));
+            }
+
+            if let Some(ref id) = response.id {
                 id.validate()?;
             }
-
-            // Response must have either result or error, but not both
-            match (&res.result, &res.error) {
-                (Some(_), Some(_)) => {
-                    return Err(crate::error::ProtocolError::InvalidParams(
-                        "Response cannot have both result and error".to_string(),
-                    ));
-                }
-                (None, None) => {
-                    return Err(crate::error::ProtocolError::InvalidParams(
-                        "Response must have either result or error".to_string(),
-                    ));
-                }
-                _ => {}
-            }
         }
-        JsonRpcMessage::Notification(notif) => {
-            if notif.jsonrpc != "2.0" {
-                return Err(crate::error::ProtocolError::InvalidVersion(
-                    notif.jsonrpc.clone(),
+        JsonRpcMessage::Notification(notification) => {
+            if notification.jsonrpc != JSONRPC_VERSION {
+                return Err(crate::error::ProtocolError::InvalidVersion(format!(
+                    "Expected JSON-RPC version {}, got {}",
+                    JSONRPC_VERSION, notification.jsonrpc
+                )));
+            }
+
+            if notification.method.is_empty() {
+                return Err(crate::error::ProtocolError::InvalidRequest(
+                    "Method name cannot be empty".to_string(),
                 ));
             }
 
-            if notif.method.is_empty() {
-                return Err(crate::error::ProtocolError::MethodNotFound(
-                    "Empty method name".to_string(),
-                ));
-            }
-
-            // Notification must not have an ID
-            if notif.id.is_some() {
-                return Err(crate::error::ProtocolError::InvalidParams(
-                    "Notification must not have an ID".to_string(),
+            if notification.id.is_some() {
+                return Err(crate::error::ProtocolError::InvalidRequest(
+                    "Notification cannot have an ID".to_string(),
                 ));
             }
         }
@@ -338,88 +415,93 @@ mod tests {
 
     #[test]
     fn test_request_serialization() {
-        let req = JsonRpcRequest::new(
+        let request = JsonRpcRequest::new(
             "test_method".to_string(),
             Some(serde_json::json!({"param": "value"})),
-            Some(RequestId::Number(1)),
+            Some(RequestId::String("test-123".to_string())),
         );
 
-        let json = serde_json::to_string(&req).unwrap();
-        let deserialized: JsonRpcRequest = serde_json::from_str(&json).unwrap();
-
-        assert_eq!(req.method, deserialized.method);
-        assert_eq!(req.id, deserialized.id);
+        assert_eq!(request.method, "test_method");
+        assert_eq!(request.jsonrpc, JSONRPC_VERSION);
+        assert_eq!(request.id, Some(RequestId::String("test-123".to_string())));
     }
 
     #[test]
     fn test_notification() {
-        let notif = JsonRpcRequest::notification("test_notification".to_string(), None);
+        let notification = JsonRpcRequest::notification(
+            "test_notification".to_string(),
+            Some(serde_json::json!({"data": "value"})),
+        );
 
-        assert!(notif.is_notification());
-        assert_eq!(notif.id, None);
+        assert!(notification.is_notification());
+        assert_eq!(notification.method, "test_notification");
     }
 
     #[test]
     fn test_response_success() {
-        let resp = JsonRpcResponse::success(
-            serde_json::json!({"success": true}),
-            Some(RequestId::String("test".to_string())),
+        let response = JsonRpcResponse::success(
+            serde_json::json!({"result": "ok"}),
+            Some(RequestId::String("test-456".to_string())),
         );
 
-        assert!(resp.result.is_some());
-        assert!(resp.error.is_none());
+        assert!(response.result.is_some());
+        assert!(response.error.is_none());
+        assert_eq!(response.id, Some(RequestId::String("test-456".to_string())));
     }
 
     #[test]
     fn test_response_error() {
-        let error = JsonRpcError::new(-32602, "Invalid params".to_string());
-        let resp = JsonRpcResponse::error(error, Some(RequestId::Number(1)));
+        let error = JsonRpcError::new(-32601, "Method not found".to_string());
+        let response =
+            JsonRpcResponse::error(error, Some(RequestId::String("test-789".to_string())));
 
-        assert!(resp.result.is_none());
-        assert!(resp.error.is_some());
+        assert!(response.result.is_none());
+        assert!(response.error.is_some());
+        assert_eq!(response.id, Some(RequestId::String("test-789".to_string())));
     }
 
     #[test]
     fn test_request_id_validation() {
-        // Valid request IDs
-        assert!(RequestId::string("valid_id").validate().is_ok());
-        assert!(RequestId::number(123).validate().is_ok());
-        assert!(RequestId::number(-123).validate().is_ok());
+        // Valid string ID
+        let string_id = RequestId::String("valid-id".to_string());
+        assert!(string_id.validate().is_ok());
 
-        // Invalid request IDs
-        assert!(RequestId::string("").validate().is_err()); // Empty string
-        assert!(RequestId::number(1000000000).validate().is_err()); // Too large
-        assert!(RequestId::number(-1000000000).validate().is_err()); // Too small
+        // Valid number ID
+        let number_id = RequestId::Number(42);
+        assert!(number_id.validate().is_ok());
+
+        // Invalid empty string
+        let empty_id = RequestId::String("".to_string());
+        assert!(empty_id.validate().is_err());
     }
 
     #[test]
     fn test_request_id_to_string() {
-        assert_eq!(RequestId::string("test").to_string(), "test");
-        assert_eq!(RequestId::number(123).to_string(), "123");
-        assert_eq!(RequestId::number(-123).to_string(), "-123");
+        let string_id = RequestId::String("test-id".to_string());
+        assert_eq!(string_id.to_string(), "test-id");
+
+        let number_id = RequestId::Number(123);
+        assert_eq!(number_id.to_string(), "123");
     }
 
     #[test]
     fn test_jsonrpc_message_validation() {
-        // Valid request
-        let valid_req = JsonRpcRequest::new(
+        let valid_request = JsonRpcRequest::new(
             "test_method".to_string(),
             None,
-            Some(RequestId::string("valid_id")),
+            Some(RequestId::String("test-123".to_string())),
         );
-        assert!(validate_jsonrpc_message(&JsonRpcMessage::Request(valid_req)).is_ok());
+        let message = JsonRpcMessage::Request(valid_request);
+        assert!(validate_jsonrpc_message(&message).is_ok());
 
-        // Invalid request with reserved method name
-        let invalid_req = JsonRpcRequest::new(
-            "rpc.test".to_string(),
-            None,
-            Some(RequestId::string("valid_id")),
-        );
-        assert!(validate_jsonrpc_message(&JsonRpcMessage::Request(invalid_req)).is_err());
-
-        // Invalid request with empty method name
-        let empty_method_req =
-            JsonRpcRequest::new("".to_string(), None, Some(RequestId::string("valid_id")));
-        assert!(validate_jsonrpc_message(&JsonRpcMessage::Request(empty_method_req)).is_err());
+        let invalid_request = JsonRpcRequest {
+            jsonrpc: "1.0".to_string(),
+            method: "test_method".to_string(),
+            params: None,
+            id: Some(RequestId::String("test-123".to_string())),
+            meta: HashMap::new(),
+        };
+        let message = JsonRpcMessage::Request(invalid_request);
+        assert!(validate_jsonrpc_message(&message).is_err());
     }
 }

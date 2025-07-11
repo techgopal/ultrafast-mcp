@@ -6,10 +6,15 @@ members = [
     "crates/ultrafast-mcp-transport",
     "crates/ultrafast-mcp-server",
     "crates/ultrafast-mcp-client",
-    "crates/ultrafast-mcp-macros",
     "crates/ultrafast-mcp-cli",
     "crates/ultrafast-mcp-auth",
     "crates/ultrafast-mcp-monitoring",
+    "crates/ultrafast-mcp-test-utils",
+    "examples/01-basic-echo",
+    "examples/02-file-operations",
+    "examples/03-everything-server",
+    "examples/04-authentication-example",
+    "tests/integration-test-suite",
 ]
 
 # Workspace-wide profile configurations
@@ -56,41 +61,44 @@ codegen-units = 16
 incremental = false
 
 [workspace.package]
-version = "202506018.1.0-rc.1.7"
+version = "202506018.1.0-rc.2"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/techgopal/ultrafast-mcp"
 homepage = "https://ultrafast-mcp.com"
 documentation = "https://docs.rs/ultrafast-mcp"
 authors = ["ULTRAFAST_MCP Team <team@ultrafast-mcp.com>"]
-keywords = ["mcp", "protocol", "llm", "ai", "json-rpc"]
-categories = ["api-bindings", "asynchronous", "network-programming"]
+keywords = [
+    "mcp-protocol", "model-context-protocol", "llm", "ai", "json-rpc", "async", "transport", "server", "client", "openai", "chatgpt", "nlp", "rust"
+]
+categories = [
+    "api-bindings", "asynchronous", "network-programming", "web-programming", "command-line-utilities", "parsing"
+]
 readme = "README.md"
 description = "UltraFast MCP - High-performance Model Context Protocol implementation in Rust"
 
 [workspace.dependencies]
 # Core runtime dependencies
-tokio = { version = "1.46", features = ["full"] }
-tokio-util = { version = "0.7", features = ["codec"] }
-tokio-stream = { version = "0.1", features = ["sync"] }
+tokio = { version = "1.46", features = ["macros", "rt-multi-thread", "net", "time", "sync", "io-util", "signal", "process"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 anyhow = "1.0"
 thiserror = "2.0"
-
-# Async utilities
 futures = "0.3"
 async-trait = "0.1"
+uuid = { version = "1.17", features = ["v4", "serde"] }
 
-# HTTP transport
+# HTTP transport and networking
 axum = "0.8"
 reqwest = { version = "0.12", features = ["json"] }
 tower = { version = "0.5", features = ["util"] }
 tower-http = { version = "0.6", features = ["cors", "trace"] }
 hyper = "1.6"
 hyper-util = { version = "0.1", features = ["tokio"] }
+axum-extra = "0.10"
+bytes = "1.10"
 
-# Authentication
+# Authentication and security
 oauth2 = "5.0"
 jsonwebtoken = "9.3"
 base64 = "0.22"
@@ -98,32 +106,24 @@ url = "2.5"
 rand = "0.9"
 sha2 = "0.10"
 
-# Procedural macros
-proc-macro2 = "1.0"
-quote = "1.0"
-syn = { version = "2.0", features = ["full", "extra-traits"] }
-
-# CLI dependencies
+# CLI and user interface
 clap = { version = "4.5", features = ["derive"] }
 clap_complete = "4.5"
 console = "0.16"
-indicatif = "0.17"
+indicatif = "0.18"
 colored = "3.0"
 dirs = "6.0"
 
-# UUID generation  
-uuid = { version = "1.17", features = ["v4", "serde"] }
-
-# Logging
+# Logging and tracing
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 
-# Testing dependencies
+# Testing and benchmarking (dev-dependencies only)
 criterion = { version = "0.6", features = ["html_reports"] }
 tokio-test = "0.4"
 tempfile = "3.20"
 
-# JSON Schema
+# JSON Schema and validation
 schemars = { version = "1.0", features = ["uuid1"] }
 
 # Monitoring and observability
@@ -135,17 +135,15 @@ opentelemetry-otlp = { version = "0.30", features = ["grpc-tonic", "tokio"] }
 tracing-opentelemetry = "0.31"
 metrics = "0.24"
 metrics-exporter-prometheus = "0.17"
-sysinfo = "0.35"
+sysinfo = "0.36"
 chrono = { version = "0.4", features = ["serde"] }
 
-# Configuration formats
-toml = "0.8"
+# Configuration and serialization
+toml = "0.9"
 serde_yaml = "0.9"
 
-# Text processing
-regex = "1.10"
-
-# Additional utilities
-lazy_static = "1.4"
+# Text processing and utilities
+regex = "1.11"
+lazy_static = "1.5"
 urlencoding = "2.1"
 rand_distr = "0.5.1"

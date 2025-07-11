@@ -48,6 +48,7 @@
 //! - **[`capabilities`]**: Feature negotiation and capability discovery
 //! - **[`messages`]**: Message type definitions and handling
 //! - **[`metadata`]**: Protocol metadata and implementation details
+//! - **[`constants`]**: Protocol constants and definitions
 //!
 //! ## Usage Examples
 //!
@@ -182,6 +183,7 @@
 //! - Version negotiation ensures backward compatibility
 
 pub mod capabilities;
+pub mod constants;
 pub mod jsonrpc;
 pub mod lifecycle;
 pub mod messages;

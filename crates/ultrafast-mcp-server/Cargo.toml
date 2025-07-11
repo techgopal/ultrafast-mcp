@@ -19,34 +19,36 @@ rustdoc-args = ["--cfg", "docsrs"]
 targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
-ultrafast-mcp-core = { path = "../ultrafast-mcp-core", version = "202506018.1.0-rc.1.4" }
-ultrafast-mcp-transport = { path = "../ultrafast-mcp-transport", version = "202506018.1.0-rc.1.4" }
-ultrafast-mcp-monitoring = { path = "../ultrafast-mcp-monitoring", version = "202506018.1.0-rc.1.4", optional = true }
+# Internal dependencies
+ultrafast-mcp-core = { path = "../ultrafast-mcp-core", version = "=202506018.1.0-rc.2" }
+ultrafast-mcp-transport = { path = "../ultrafast-mcp-transport", version = "=202506018.1.0-rc.2" }
+ultrafast-mcp-monitoring = { path = "../ultrafast-mcp-monitoring", version = "=202506018.1.0-rc.2", optional = true }
 
-# Async runtime
+# Core dependencies
 tokio = { workspace = true }
-
-# Serialization
 serde = { workspace = true }
 serde_json = { workspace = true }
-
-# Error handling
 thiserror = { workspace = true }
 anyhow = { workspace = true }
-
-# Async traits
 async-trait = { workspace = true }
-
-# Logging
 tracing = { workspace = true }
-
-# Time handling
 chrono = { workspace = true }
+
+[features]
+# No default features for minimal footprint
+default = []
+
+# Core server functionality
+core = []
+
+# Monitoring and observability
+monitoring = ["ultrafast-mcp-monitoring"]
+
+# HTTP transport support
+http = ["ultrafast-mcp-transport/http"]
+
+# All server features
+full = ["core", "monitoring", "http"]
 
 [dev-dependencies]
 tokio-test = { workspace = true }
-
-[features]
-default = []
-monitoring = ["ultrafast-mcp-monitoring"]
-http = ["ultrafast-mcp-transport/http"]

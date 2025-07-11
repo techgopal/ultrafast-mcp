@@ -10,7 +10,7 @@ authors.workspace = true
 keywords.workspace = true
 categories.workspace = true
 readme = "README.md"
-description = "Transport layer implementation for UltraFast MCP"
+description = "Transport layer for UltraFast MCP"
 
 # docs.rs configuration
 [package.metadata.docs.rs]
@@ -20,45 +20,52 @@ targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
 # Internal dependencies
-ultrafast-mcp-core = { path = "../ultrafast-mcp-core", version = "202506018.1.0-rc.1.4" }
-ultrafast-mcp-auth = { path = "../ultrafast-mcp-auth", version = "202506018.1.0-rc.1.4", optional = true }
+ultrafast-mcp-core = { path = "../ultrafast-mcp-core", version = "=202506018.1.0-rc.2" }
+ultrafast-mcp-auth = { path = "../ultrafast-mcp-auth", version = "=202506018.1.0-rc.2" }
+ultrafast-mcp-monitoring = { path = "../ultrafast-mcp-monitoring", version = "=202506018.1.0-rc.2" }
 
-# Core runtime dependencies
+# Core dependencies
 tokio = { workspace = true }
-tokio-util = { workspace = true }
-futures = { workspace = true }
+async-trait = { workspace = true }
+tracing = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-tracing = { workspace = true }
-async-trait = { workspace = true }
-uuid = { workspace = true }
-thiserror = { workspace = true }
 anyhow = { workspace = true }
+thiserror = { workspace = true }
+uuid = { workspace = true }
+futures = { workspace = true }
 
-# HTTP transport dependencies
+# HTTP transport (optional)
 axum = { workspace = true, optional = true }
-tokio-stream = { workspace = true, optional = true }
-tower-http = { workspace = true, features = ["cors", "compression-gzip", "compression-deflate"], optional = true }
-tower = { workspace = true, features = ["util"], optional = true }
 reqwest = { workspace = true, optional = true }
-hyper = { workspace = true, optional = true }
-hyper-util = { workspace = true, optional = true }
+tower-http = { workspace = true, optional = true }
+axum-extra = { workspace = true, optional = true }
+bytes = { workspace = true, optional = true }
+
+# Time (optional)
+chrono = { workspace = true, optional = true }
+
+# Random (required)
+rand = { workspace = true }
 
 [features]
-default = ["stdio"]
-stdio = []
-http = [
-    "dep:axum", 
-    "dep:tokio-stream", 
-    "dep:tower-http", 
-    "dep:tower", 
-    "dep:reqwest", 
-    "dep:hyper", 
-    "dep:hyper-util",
-    "dep:ultrafast-mcp-auth"
-]
-full = ["http"]
+# No default features for minimal footprint
+default = []
+
+# Core functionality (always available)
+core = []
+
+# Standard I/O transport (always available)
+stdio = ["tokio/io-std"]
+
+# HTTP transport support
+http = ["axum", "reqwest", "tower-http", "axum-extra", "bytes"]
+
+# Time handling
+time = ["chrono"]
+
+# All transport types
+full = ["core", "stdio", "http", "time"]
 
 [dev-dependencies]
 tokio-test = { workspace = true }
-tempfile = { workspace = true }

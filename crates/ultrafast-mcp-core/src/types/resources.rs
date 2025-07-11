@@ -540,6 +540,7 @@ pub struct ReadResourceResponse {
 pub enum ResourceContent {
     #[serde(rename = "text")]
     Text {
+        uri: String,
         text: String,
         #[serde(rename = "mimeType", skip_serializing_if = "Option::is_none")]
         mime_type: Option<String>,
@@ -547,6 +548,7 @@ pub enum ResourceContent {
 
     #[serde(rename = "blob")]
     Blob {
+        uri: String,
         blob: String, // Base64 encoded
         #[serde(rename = "mimeType")]
         mime_type: String,
@@ -590,6 +592,18 @@ pub struct UnsubscribeRequest {
     pub uri: String,
 }
 
+/// Response to a resource subscription request
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct SubscribeResponse {
+    // Empty response as per MCP 2025-06-18 specification
+}
+
+impl SubscribeResponse {
+    pub fn new() -> Self {
+        Self::default()
+    }
+}
+
 /// Resource updated notification
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResourceUpdatedNotification {
@@ -619,29 +633,36 @@ impl Resource {
 }
 
 impl ResourceContent {
-    pub fn text(text: String) -> Self {
+    pub fn text(uri: String, text: String) -> Self {
         Self::Text {
+            uri,
             text,
             mime_type: Some("text/plain".to_string()),
         }
     }
 
-    pub fn text_with_mime_type(text: String, mime_type: String) -> Self {
+    pub fn text_with_mime_type(uri: String, text: String, mime_type: String) -> Self {
         Self::Text {
+            uri,
             text,
             mime_type: Some(mime_type),
         }
     }
 
-    pub fn json(value: &Value) -> Self {
+    pub fn json(uri: String, value: &Value) -> Self {
         Self::Text {
+            uri,
             text: serde_json::to_string_pretty(value).unwrap_or_default(),
             mime_type: Some("application/json".to_string()),
         }
     }
 
-    pub fn blob(blob: String, mime_type: String) -> Self {
-        Self::Blob { blob, mime_type }
+    pub fn blob(uri: String, blob: String, mime_type: String) -> Self {
+        Self::Blob {
+            uri,
+            blob,
+            mime_type,
+        }
     }
 }
 
@@ -1025,9 +1046,15 @@ mod tests {
 
     #[test]
     fn test_resource_content_creation() {
-        let text_content = ResourceContent::text("Hello, World!".to_string());
+        let text_content =
+            ResourceContent::text("Hello, World!".to_string(), "Hello, World!".to_string());
         match text_content {
-            ResourceContent::Text { text, mime_type } => {
+            ResourceContent::Text {
+                uri,
+                text,
+                mime_type,
+            } => {
+                assert_eq!(uri, "Hello, World!".to_string());
                 assert_eq!(text, "Hello, World!");
                 assert_eq!(mime_type, Some("text/plain".to_string()));
             }
@@ -1038,9 +1065,14 @@ mod tests {
     #[test]
     fn test_resource_content_json() {
         let json_value = serde_json::json!({"key": "value"});
-        let json_content = ResourceContent::json(&json_value);
+        let json_content = ResourceContent::json("Hello, World!".to_string(), &json_value);
         match json_content {
-            ResourceContent::Text { text, mime_type } => {
+            ResourceContent::Text {
+                uri,
+                text,
+                mime_type,
+            } => {
+                assert_eq!(uri, "Hello, World!".to_string());
                 assert!(text.contains("key"));
                 assert!(text.contains("value"));
                 assert_eq!(mime_type, Some("application/json".to_string()));
@@ -1051,9 +1083,18 @@ mod tests {
 
     #[test]
     fn test_resource_content_blob() {
-        let blob_content = ResourceContent::blob("base64data".to_string(), "image/png".to_string());
+        let blob_content = ResourceContent::blob(
+            "Hello, World!".to_string(),
+            "base64data".to_string(),
+            "image/png".to_string(),
+        );
         match blob_content {
-            ResourceContent::Blob { blob, mime_type } => {
+            ResourceContent::Blob {
+                uri,
+                blob,
+                mime_type,
+            } => {
+                assert_eq!(uri, "Hello, World!".to_string());
                 assert_eq!(blob, "base64data");
                 assert_eq!(mime_type, "image/png");
             }

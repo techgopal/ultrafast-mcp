@@ -69,7 +69,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **ultrafast-mcp-auth**: OAuth 2.1 authentication
 - **ultrafast-mcp-cli**: Command-line interface
 - **ultrafast-mcp-monitoring**: Observability and metrics
-- **ultrafast-mcp-macros**: Procedural macros
 
 ### Examples
 - **Basic Echo**: Simple server-client communication
@@ -128,4 +127,4 @@ This project is licensed under either of
 - Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or https://www.apache.org/licenses/LICENSE-2.0)
 - MIT license ([LICENSE-MIT](LICENSE-MIT) or https://opensource.org/licenses/MIT)
 
-at your option. 
+at your option.

@@ -1,266 +1,150 @@
-//! # UltraFast MCP Transport
+//! UltraFast MCP Transport Layer
 //!
-//! High-performance transport layer implementations for the Model Context Protocol (MCP).
-//!
-//! This crate provides flexible, efficient transport mechanisms for MCP communication,
-//! supporting multiple protocols and deployment scenarios. It offers both high-performance
-//! options for production use and compatibility options for legacy systems.
-//!
-//! ## Overview
-//!
-//! The UltraFast MCP Transport layer is designed to provide:
-//!
-//! - **Multiple Transport Options**: STDIO, HTTP, and Streamable HTTP support
-//! - **High Performance**: Optimized for throughput and low latency
-//! - **Production Ready**: Robust error handling, authentication, and monitoring
-//! - **Extensible Architecture**: Easy to add new transport protocols
-//! - **Backward Compatibility**: Support for legacy MCP implementations
-//!
-//! ## Transport Options
-//!
-//! ### Streamable HTTP (Recommended)
-//! The **Streamable HTTP** transport is the recommended choice for production deployments:
-//!
-//! - **Performance**: 10x faster than HTTP+SSE under load
-//! - **Compatibility**: Works with all HTTP proxies and load balancers
-//! - **Features**: Session management, OAuth 2.1 authentication, compression
-//! - **Scalability**: Designed for high-concurrency environments
-//! - **Reliability**: Robust error handling and automatic retries
-//!
-//! ### HTTP+SSE (Legacy)
-//! The **HTTP+SSE** transport provides backward compatibility:
-//!
-//! - **Compatibility**: Works with existing MCP implementations
-//! - **Features**: Server-sent events for real-time updates
-//! - **Use Case**: Legacy systems and gradual migration
-//! - **Standards**: Based on established web standards
-//!
-//! ### STDIO
-//! The **STDIO** transport is ideal for local development and simple integrations:
-//!
-//! - **Performance**: Minimal overhead for local communication
-//! - **Security**: Process isolation and simple deployment
-//! - **Simplicity**: No network configuration required
-//! - **Use Case**: Local development, testing, and simple integrations
-//!
-//! ## Architecture
-//!
-//! The transport layer is built around a unified interface:
-//!
-//! ```text
-//! ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-//! │   Application   │    │   Transport     │    │   Protocol      │
-//! │   Layer         │◄──►│   Interface     │◄──►│   Layer         │
-//! └─────────────────┘    └─────────────────┘    └─────────────────┘
-//!         │                       │                       │
-//!         │                       │                       │
-//!         ▼                       ▼                       ▼
-//! ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-//! │   Middleware    │    │   Transport     │    │   Network       │
-//! │   Layer         │    │   Implement.    │    │   Layer         │
-//! └─────────────────┘    └─────────────────┘    └─────────────────┘
-//! ```
-//!
-//! ## Usage Examples
-//!
-//! ### Basic Transport Usage
-//!
-//! ```rust
-//! use ultrafast_mcp_transport::{
-//!     Transport, TransportConfig, create_transport
-//! };
-//! use ultrafast_mcp_core::protocol::JsonRpcMessage;
-//!
-//! #[tokio::main]
-//! async fn main() -> anyhow::Result<()> {
-//!     // Create STDIO transport
-//!     let config = TransportConfig::Stdio;
-//!     let mut transport = create_transport(config).await?;
-//!
-//!     // Send/receive messages here using transport.send_message(...) and transport.receive_message(...)
-//!     // Close the transport
-//!     transport.close().await?;
-//!
-//!     Ok(())
-//! }
-//! ```
-//!
-//! ### Custom Transport Implementation
-//!
-//! ```rust
-//! use ultrafast_mcp_transport::{Transport, Result};
-//! use ultrafast_mcp_core::protocol::JsonRpcMessage;
-//! use async_trait::async_trait;
-//!
-//! struct CustomTransport {
-//!     // Your transport implementation
-//! }
-//!
-//! #[async_trait]
-//! impl Transport for CustomTransport {
-//!     async fn send_message(&mut self, message: JsonRpcMessage) -> Result<()> {
-//!         // Implement message sending
-//!         Ok(())
-//!     }
-//!
-//!     async fn receive_message(&mut self) -> Result<JsonRpcMessage> {
-//!         // Implement message receiving
-//!         todo!()
-//!     }
-//!
-//!     async fn close(&mut self) -> Result<()> {
-//!         // Implement connection cleanup
-//!         Ok(())
-//!     }
-//! }
-//! ```
-//!
-//! ## Performance Characteristics
-//!
-//! ### Streamable HTTP
-//! - **Throughput**: 10,000+ requests/second on modern hardware
-//! - **Latency**: Sub-millisecond for local connections
-//! - **Memory Usage**: Efficient with minimal allocations
-//! - **Concurrency**: Designed for high-concurrency environments
-//!
-//! ### HTTP+SSE
-//! - **Throughput**: 1,000+ requests/second (legacy performance)
-//! - **Latency**: 1-10ms depending on network conditions
-//! - **Memory Usage**: Moderate with event stream overhead
-//! - **Concurrency**: Limited by HTTP connection pooling
-//!
-//! ### STDIO
-//! - **Throughput**: 50,000+ requests/second for local communication
-//! - **Latency**: Microsecond-level for local operations
-//! - **Memory Usage**: Minimal with zero-copy operations
-//! - **Concurrency**: Single-threaded by design
-//!
-//! ## Authentication and Security
-//!
-//! ### Security Features
-//! - **TLS/SSL**: Encrypted communication for HTTP transports
-//! - **Token Management**: Secure token storage and rotation
-//! - **Session Management**: Secure session handling
-//! - **Input Validation**: Comprehensive input validation
-//!
-//! ## Error Handling
-//!
-//! The transport layer provides comprehensive error handling:
-//!
-//! ```rust
-//! use ultrafast_mcp_transport::{TransportError, Result};
-//! use ultrafast_mcp_transport::Transport;
-//!
-//! async fn handle_transport_errors(transport: &mut Box<dyn Transport>) -> Result<()> {
-//!     match transport.receive_message().await {
-//!         Ok(message) => {
-//!             // Process message
-//!             Ok(())
-//!         }
-//!         Err(TransportError::ConnectionError { message }) => {
-//!             // Handle connection errors
-//!             eprintln!("Connection error: {}", message);
-//!             Err(TransportError::ConnectionError { message })
-//!         }
-//!         Err(TransportError::AuthenticationError { message }) => {
-//!             // Handle authentication errors
-//!             eprintln!("Authentication error: {}", message);
-//!             Err(TransportError::AuthenticationError { message })
-//!         }
-//!         Err(e) => {
-//!             // Handle other errors
-//!             eprintln!("Transport error: {:?}", e);
-//!             Err(e)
-//!         }
-//!     }
-//! }
-//! ```
-//!
-//! ## Middleware Support
-//!
-//! The transport layer supports middleware for extensibility:
-//!
-//! - **Logging Middleware**: Request/response logging
-//! - **Metrics Middleware**: Performance monitoring
-//! - **Authentication Middleware**: Token management
-//! - **Retry Middleware**: Automatic retry logic
-//! - **Rate Limiting Middleware**: Request throttling
-//!
-//! ## Configuration Options
-//!
-//! ## Best Practices
-//!
-//! ### Transport Selection
-//! - **Production**: Use Streamable HTTP for high-performance scenarios
-//! - **Development**: Use STDIO for local development and testing
-//! - **Legacy**: Use HTTP+SSE for backward compatibility
-//! - **Custom**: Implement custom transports for specialized needs
-//!
-//! ### Performance Optimization
-//! - Use connection pooling for HTTP transports
-//! - Implement appropriate timeouts
-//! - Handle errors gracefully with retry logic
-//! - Monitor transport performance metrics
-//! - Use compression for large payloads
-//!
-//! ### Security Considerations
-//! - Use TLS/SSL for all network communication
-//! - Implement proper token management
-//! - Validate all input data
-//! - Handle authentication errors appropriately
-//! - Use secure session management
-//!
-//! ### Error Handling
-//! - Implement comprehensive error handling
-//! - Provide meaningful error messages
-//! - Implement retry logic for transient failures
-//! - Log errors for debugging
-//! - Handle connection failures gracefully
-//!
-//! ## Monitoring and Observability
-//!
-//! The transport layer supports comprehensive monitoring:
-//!
-//! - **Metrics**: Request counts, response times, error rates
-//! - **Logging**: Structured logging with different levels
-//! - **Tracing**: Distributed tracing for request flows
-//! - **Health Checks**: Transport health and readiness monitoring
-//!
-//! ## Examples
-//!
-//! See the `examples/` directory for complete working examples:
-//! - Basic transport usage
-//! - HTTP transport with authentication
-//! - Custom transport implementation
-//! - Middleware integration
+//! This crate provides high-performance transport implementations for the Model Context Protocol (MCP).
+//! It supports multiple transport types including STDIO and HTTP with advanced features like
+//! connection pooling, rate limiting, and request optimization.
 
 use async_trait::async_trait;
+use serde::{Deserialize, Serialize};
+use std::fmt;
 use thiserror::Error;
 use ultrafast_mcp_core::protocol::JsonRpcMessage;
-
-// Define our own Result type for this crate
-pub type Result<T> = std::result::Result<T, TransportError>;
 
 pub mod middleware;
 pub mod stdio;
 
-// Re-export key types
-pub use stdio::StdioTransport;
-
 #[cfg(feature = "http")]
-pub mod http;
+pub mod streamable_http;
 
-#[cfg(feature = "http")]
-pub use http::{HttpTransportConfig, HttpTransportServer, StreamableHttpTransport};
+/// Result type for transport operations
+pub type Result<T> = std::result::Result<T, TransportError>;
 
-/// Transport errors
-#[derive(Error, Debug)]
+/// Connection state for transport lifecycle management
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ConnectionState {
+    /// Transport is disconnected
+    Disconnected,
+    /// Transport is connecting
+    Connecting,
+    /// Transport is connected and ready
+    Connected,
+    /// Transport is reconnecting after a failure
+    Reconnecting,
+    /// Transport is shutting down gracefully
+    ShuttingDown,
+    /// Transport has failed and needs recovery
+    Failed(String),
+}
+
+impl fmt::Display for ConnectionState {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ConnectionState::Disconnected => write!(f, "disconnected"),
+            ConnectionState::Connecting => write!(f, "connecting"),
+            ConnectionState::Connected => write!(f, "connected"),
+            ConnectionState::Reconnecting => write!(f, "reconnecting"),
+            ConnectionState::ShuttingDown => write!(f, "shutting down"),
+            ConnectionState::Failed(reason) => write!(f, "failed: {}", reason),
+        }
+    }
+}
+
+/// Transport health information
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TransportHealth {
+    pub state: ConnectionState,
+    pub last_activity: Option<std::time::SystemTime>,
+    pub messages_sent: u64,
+    pub messages_received: u64,
+    pub connection_duration: Option<std::time::Duration>,
+    pub error_count: u64,
+    pub last_error: Option<String>,
+}
+
+impl Default for TransportHealth {
+    fn default() -> Self {
+        Self {
+            state: ConnectionState::Disconnected,
+            last_activity: None,
+            messages_sent: 0,
+            messages_received: 0,
+            connection_duration: None,
+            error_count: 0,
+            last_error: None,
+        }
+    }
+}
+
+/// Transport lifecycle events
+#[derive(Debug, Clone)]
+pub enum TransportEvent {
+    Connected,
+    Disconnected,
+    Reconnecting,
+    MessageSent,
+    MessageReceived,
+    Error(String),
+    ShutdownRequested,
+    ShutdownComplete,
+}
+
+/// Callback trait for transport lifecycle events
+#[async_trait]
+pub trait TransportEventHandler: Send + Sync {
+    async fn handle_event(&self, event: TransportEvent);
+}
+
+/// Configuration for transport recovery
+#[derive(Debug, Clone)]
+pub struct RecoveryConfig {
+    pub max_retries: u32,
+    pub initial_delay: std::time::Duration,
+    pub max_delay: std::time::Duration,
+    pub backoff_multiplier: f64,
+    pub enable_jitter: bool,
+}
+
+impl Default for RecoveryConfig {
+    fn default() -> Self {
+        Self {
+            max_retries: 5,
+            initial_delay: std::time::Duration::from_millis(100),
+            max_delay: std::time::Duration::from_secs(30),
+            backoff_multiplier: 2.0,
+            enable_jitter: true,
+        }
+    }
+}
+
+/// Transport shutdown configuration
+#[derive(Debug, Clone)]
+pub struct ShutdownConfig {
+    pub graceful_timeout: std::time::Duration,
+    pub force_timeout: std::time::Duration,
+    pub drain_pending_messages: bool,
+}
+
+impl Default for ShutdownConfig {
+    fn default() -> Self {
+        Self {
+            graceful_timeout: std::time::Duration::from_secs(5),
+            force_timeout: std::time::Duration::from_secs(10),
+            drain_pending_messages: true,
+        }
+    }
+}
+
+/// Transport error types
+#[derive(Debug, Error)]
 pub enum TransportError {
     #[error("Connection error: {message}")]
     ConnectionError { message: String },
 
     #[error("Connection closed")]
     ConnectionClosed,
+
+    #[error("Connection timeout")]
+    ConnectionTimeout,
 
     #[error("Serialization error: {message}")]
     SerializationError { message: String },
@@ -279,9 +163,18 @@ pub enum TransportError {
 
     #[error("Internal error: {message}")]
     InternalError { message: String },
+
+    #[error("Recovery failed after {attempts} attempts: {message}")]
+    RecoveryFailed { attempts: u32, message: String },
+
+    #[error("Shutdown timeout: {message}")]
+    ShutdownTimeout { message: String },
+
+    #[error("Transport not ready: current state is {state}")]
+    NotReady { state: ConnectionState },
 }
 
-/// Transport trait for MCP communication
+/// Enhanced transport trait with lifecycle management
 #[async_trait]
 pub trait Transport: Send + Sync {
     /// Send a message through the transport
@@ -290,8 +183,254 @@ pub trait Transport: Send + Sync {
     /// Receive a message from the transport
     async fn receive_message(&mut self) -> Result<JsonRpcMessage>;
 
-    /// Close the transport connection
+    /// Close the transport connection gracefully
     async fn close(&mut self) -> Result<()>;
+
+    /// Get current connection state
+    fn get_state(&self) -> ConnectionState {
+        ConnectionState::Connected // Default implementation for backward compatibility
+    }
+
+    /// Get transport health information
+    fn get_health(&self) -> TransportHealth {
+        TransportHealth {
+            state: self.get_state(),
+            ..Default::default()
+        }
+    }
+
+    /// Check if transport is ready for operations
+    fn is_ready(&self) -> bool {
+        matches!(self.get_state(), ConnectionState::Connected)
+    }
+
+    /// Initiate graceful shutdown
+    async fn shutdown(&mut self, config: ShutdownConfig) -> Result<()> {
+        // Default implementation just calls close()
+        tokio::time::timeout(config.graceful_timeout, self.close())
+            .await
+            .map_err(|_| TransportError::ShutdownTimeout {
+                message: "Graceful shutdown timeout".to_string(),
+            })?
+    }
+
+    /// Force immediate shutdown
+    async fn force_shutdown(&mut self) -> Result<()> {
+        // Default implementation just calls close()
+        self.close().await
+    }
+
+    /// Attempt to reconnect the transport
+    async fn reconnect(&mut self) -> Result<()> {
+        // Default implementation: close and let the caller handle reconnection
+        self.close().await?;
+        Err(TransportError::ConnectionError {
+            message: "Reconnection not supported by this transport".to_string(),
+        })
+    }
+
+    /// Reset transport state and clear any cached data
+    async fn reset(&mut self) -> Result<()> {
+        // Default implementation just calls close()
+        self.close().await
+    }
+}
+
+/// Enhanced transport with automatic recovery
+pub struct RecoveringTransport {
+    inner: Box<dyn Transport>,
+    recovery_config: RecoveryConfig,
+    health: TransportHealth,
+    event_handler: Option<Box<dyn TransportEventHandler>>,
+    retry_count: u32,
+    last_error: Option<String>,
+}
+
+impl RecoveringTransport {
+    pub fn new(transport: Box<dyn Transport>, recovery_config: RecoveryConfig) -> Self {
+        Self {
+            inner: transport,
+            recovery_config,
+            health: TransportHealth::default(),
+            event_handler: None,
+            retry_count: 0,
+            last_error: None,
+        }
+    }
+
+    pub fn with_event_handler(mut self, handler: Box<dyn TransportEventHandler>) -> Self {
+        self.event_handler = Some(handler);
+        self
+    }
+
+    async fn emit_event(&self, event: TransportEvent) {
+        if let Some(handler) = &self.event_handler {
+            handler.handle_event(event).await;
+        }
+    }
+
+    async fn attempt_recovery(&mut self) -> Result<()> {
+        if self.retry_count >= self.recovery_config.max_retries {
+            let error_msg = format!(
+                "Max retries ({}) exceeded. Last error: {}",
+                self.recovery_config.max_retries,
+                self.last_error.as_deref().unwrap_or("unknown")
+            );
+            self.health.state = ConnectionState::Failed(error_msg.clone());
+            return Err(TransportError::RecoveryFailed {
+                attempts: self.retry_count,
+                message: error_msg,
+            });
+        }
+
+        self.health.state = ConnectionState::Reconnecting;
+        self.emit_event(TransportEvent::Reconnecting).await;
+
+        // Calculate delay with exponential backoff
+        let delay = self.calculate_retry_delay();
+        tokio::time::sleep(delay).await;
+
+        // Attempt reconnection
+        match self.inner.reconnect().await {
+            Ok(()) => {
+                self.health.state = ConnectionState::Connected;
+                self.retry_count = 0;
+                self.last_error = None;
+                self.emit_event(TransportEvent::Connected).await;
+                Ok(())
+            }
+            Err(e) => {
+                self.retry_count += 1;
+                self.last_error = Some(e.to_string());
+                self.health.error_count += 1;
+                self.health.last_error = Some(e.to_string());
+                Err(e)
+            }
+        }
+    }
+
+    fn calculate_retry_delay(&self) -> std::time::Duration {
+        let base_delay = self.recovery_config.initial_delay.as_millis() as f64;
+        let multiplier = self
+            .recovery_config
+            .backoff_multiplier
+            .powi(self.retry_count as i32);
+        let mut delay_ms = base_delay * multiplier;
+
+        // Add jitter if enabled
+        if self.recovery_config.enable_jitter {
+            use rand::Rng;
+            let mut rng = rand::rng();
+            let jitter: f64 = rng.random_range(0.8..1.2);
+            delay_ms *= jitter;
+        }
+
+        // Cap at max delay
+        let max_delay_ms = self.recovery_config.max_delay.as_millis() as f64;
+        delay_ms = delay_ms.min(max_delay_ms);
+
+        std::time::Duration::from_millis(delay_ms as u64)
+    }
+}
+
+#[async_trait]
+impl Transport for RecoveringTransport {
+    async fn send_message(&mut self, message: JsonRpcMessage) -> Result<()> {
+        loop {
+            match self.inner.send_message(message.clone()).await {
+                Ok(()) => {
+                    self.health.messages_sent += 1;
+                    self.health.last_activity = Some(std::time::SystemTime::now());
+                    self.emit_event(TransportEvent::MessageSent).await;
+                    return Ok(());
+                }
+                Err(e) => {
+                    self.emit_event(TransportEvent::Error(e.to_string())).await;
+
+                    // Try recovery for connection errors
+                    if matches!(
+                        e,
+                        TransportError::ConnectionClosed | TransportError::ConnectionError { .. }
+                    ) {
+                        match self.attempt_recovery().await {
+                            Ok(()) => continue, // Retry the send
+                            Err(recovery_err) => return Err(recovery_err),
+                        }
+                    } else {
+                        return Err(e);
+                    }
+                }
+            }
+        }
+    }
+
+    async fn receive_message(&mut self) -> Result<JsonRpcMessage> {
+        loop {
+            match self.inner.receive_message().await {
+                Ok(message) => {
+                    self.health.messages_received += 1;
+                    self.health.last_activity = Some(std::time::SystemTime::now());
+                    self.emit_event(TransportEvent::MessageReceived).await;
+                    return Ok(message);
+                }
+                Err(e) => {
+                    self.emit_event(TransportEvent::Error(e.to_string())).await;
+
+                    // Try recovery for connection errors
+                    if matches!(
+                        e,
+                        TransportError::ConnectionClosed | TransportError::ConnectionError { .. }
+                    ) {
+                        match self.attempt_recovery().await {
+                            Ok(()) => continue, // Retry the receive
+                            Err(recovery_err) => return Err(recovery_err),
+                        }
+                    } else {
+                        return Err(e);
+                    }
+                }
+            }
+        }
+    }
+
+    async fn close(&mut self) -> Result<()> {
+        self.health.state = ConnectionState::ShuttingDown;
+        self.emit_event(TransportEvent::ShutdownRequested).await;
+
+        let result = self.inner.close().await;
+
+        self.health.state = ConnectionState::Disconnected;
+        self.emit_event(TransportEvent::ShutdownComplete).await;
+
+        result
+    }
+
+    fn get_state(&self) -> ConnectionState {
+        self.health.state.clone()
+    }
+
+    fn get_health(&self) -> TransportHealth {
+        self.health.clone()
+    }
+
+    async fn shutdown(&mut self, config: ShutdownConfig) -> Result<()> {
+        self.inner.shutdown(config).await
+    }
+
+    async fn force_shutdown(&mut self) -> Result<()> {
+        self.inner.force_shutdown().await
+    }
+
+    async fn reconnect(&mut self) -> Result<()> {
+        self.attempt_recovery().await
+    }
+
+    async fn reset(&mut self) -> Result<()> {
+        self.health = TransportHealth::default();
+        self.retry_count = 0;
+        self.last_error = None;
+        self.inner.reset().await
+    }
 }
 
 /// Transport configuration
@@ -303,14 +442,6 @@ pub enum TransportConfig {
     /// Streamable HTTP transport (PRD recommended)
     #[cfg(feature = "http")]
     Streamable {
-        base_url: String,
-        auth_token: Option<String>,
-        session_id: Option<String>,
-    },
-
-    /// Legacy HTTP+SSE transport (backward compatibility)
-    #[cfg(feature = "http")]
-    HttpSse {
         base_url: String,
         auth_token: Option<String>,
         session_id: Option<String>,
@@ -331,34 +462,27 @@ pub async fn create_transport(config: TransportConfig) -> Result<Box<dyn Transpo
             auth_token,
             session_id,
         } => {
-            let client_config = http::streamable::StreamableHttpClientConfig {
+            let client_config = streamable_http::client::StreamableHttpClientConfig {
                 base_url,
                 auth_token,
                 session_id,
+                auth_method: None,
                 ..Default::default()
             };
 
-            let mut client = http::streamable::StreamableHttpClient::new(client_config)?;
-            client.connect().await?;
-            Ok(Box::new(client))
-        }
-
-        #[cfg(feature = "http")]
-        TransportConfig::HttpSse {
-            base_url,
-            auth_token,
-            session_id,
-        } => {
-            let client_config = http::client::HttpClientConfig {
-                base_url,
-                auth_token,
-                session_id,
-                ..Default::default()
-            };
-
-            let mut client = http::client::HttpTransportClient::new(client_config)?;
+            let mut client = streamable_http::client::StreamableHttpClient::new(client_config)?;
             client.connect().await?;
             Ok(Box::new(client))
         }
     }
+}
+
+/// Create a transport with automatic recovery
+pub async fn create_recovering_transport(
+    config: TransportConfig,
+    recovery_config: RecoveryConfig,
+) -> Result<Box<dyn Transport>> {
+    let transport = create_transport(config).await?;
+    let recovering_transport = RecoveringTransport::new(transport, recovery_config);
+    Ok(Box::new(recovering_transport))
 }

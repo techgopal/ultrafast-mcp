@@ -1,176 +1,275 @@
-# Basic Echo Example with Streamable HTTP
+# Basic Echo Example - Transport Choice Demo
 
-This example demonstrates the ULTRAFAST_MCP framework using **Streamable HTTP transport** for high-performance communication between an MCP server and client.
+This example demonstrates UltraFast MCP's flexible transport layer by implementing a simple echo server and client that can work with both STDIO and Streamable HTTP transports.
 
-## 🚀 Features Demonstrated
+## Features
 
-- **Streamable HTTP Transport**: High-performance HTTP communication with session management
-- **Ergonomic API**: Simple, intuitive methods for server and client creation
-- **Server Implementation**: Simple echo tool with automatic schema generation
-- **Client Implementation**: HTTP client with automatic connection management
-- **Type Safety**: Full type-safe tool calling with serde serialization
-- **Error Handling**: Comprehensive error handling and logging
+- **Dual Transport Support**: Choose between STDIO (subprocess) and Streamable HTTP (network) transports
+- **Command Line Interface**: Easy-to-use CLI with transport selection
+- **Comprehensive Demo**: Shows all transport options in action
+- **Real-world Patterns**: Demonstrates proper server/client lifecycle management
 
-## 📋 Prerequisites
+## Quick Start
 
-- Rust toolchain (1.70+)
-- Cargo
+### Run the Comprehensive Demo
 
-## 🏗️ Architecture
-
-### Server (`src/server.rs`)
-- Creates an MCP server with echo tool capability
-- Uses **ergonomic `run_streamable_http()`** method for simple HTTP startup
-- Streamable HTTP transport on `127.0.0.1:8080`
-- Automatic JSON schema generation for tools
-
-### Client (`src/client.rs`)
-- Creates an MCP client with tool calling capability
-- Uses **ergonomic `connect_streamable_http()`** method for simple HTTP connection
-- Connects to server at `http://127.0.0.1:8080/mcp`
-- Demonstrates tool listing and calling
-
-## 🚀 Quick Start
-
-### 1. Build the Example
 ```bash
-cargo build
+# Demo both transports
+cargo run --bin basic-echo-demo
+
+# Demo STDIO transport only
+cargo run --bin basic-echo-demo -- stdio
+
+# Demo HTTP transport only
+cargo run --bin basic-echo-demo -- http
 ```
 
-### 2. Run the Server (Terminal 1)
-```bash
-cargo run --bin server
+### Run Individual Components
+
+#### Server
+
+   ```bash
+# Start STDIO server (subprocess mode)
+cargo run --bin basic-echo-server -- stdio
+
+# Start HTTP server (network mode)
+cargo run --bin basic-echo-server -- http --host 127.0.0.1 --port 8080
+   ```
+
+#### Client
+
+   ```bash
+# Connect to STDIO server (spawns server automatically)
+cargo run --bin basic-echo-client -- stdio --spawn-server
+
+# Connect to HTTP server
+cargo run --bin basic-echo-client -- http --url http://127.0.0.1:8080
 ```
 
-### 3. Run the Client (Terminal 2)
-```bash
-cargo run --bin client
-```
+## Transport Comparison
 
-## 📝 Code Examples
-
-### Server Creation (Simplified)
-```rust
-// Create server with ergonomic API
-let server = UltraFastServer::new(server_info, server_capabilities)
-    .with_tool_handler(Arc::new(EchoToolHandler));
-
-// Start with Streamable HTTP - just one line!
-server.run_streamable_http("127.0.0.1", 8080).await?;
-```
-
-### Client Creation (Simplified)
-```rust
-// Create client
-let client = UltraFastClient::new(client_info, client_capabilities);
-
-// Connect with Streamable HTTP - just one line!
-client.connect_streamable_http("http://127.0.0.1:8080/mcp").await?;
-```
-
-## 🔧 Available Ergonomic Methods
-
-### UltraFastServer
-- `run_streamable_http(host, port)` - **Recommended**: High-performance HTTP
-- `run_http_sse(host, port)` - Legacy HTTP+SSE compatibility
-- `run_with_config(config)` - Custom HTTP configuration
-- `run_stdio()` - Local stdio transport
-
-### UltraFastClient
-- `connect_streamable_http(url)` - **Recommended**: High-performance HTTP
-- `connect_http_sse(url)` - Legacy HTTP+SSE compatibility
-- `connect()` - Generic connection (uses configured transport)
-- `connect_stdio()` - Local stdio transport
-- `with_transport(transport)` - Configure custom transport
-
-## 🎯 Expected Output
-
-### Server Output
-```
-2024-01-15T10:30:00.000Z INFO  basic_echo_example::server Server created, starting Streamable HTTP transport on 127.0.0.1:8080
-2024-01-15T10:30:00.000Z INFO  ultrafast_mcp_server Starting MCP server: Basic Echo Server
-2024-01-15T10:30:00.000Z INFO  ultrafast_mcp_server MCP server initialized and ready
-```
-
-### Client Output
-```
-2024-01-15T10:30:05.000Z INFO  basic_echo_example::client 🚀 Starting Basic Echo Client
-2024-01-15T10:30:05.000Z INFO  basic_echo_example::client Connecting to server via Streamable HTTP at http://127.0.0.1:8080/mcp
-2024-01-15T10:30:05.000Z INFO  ultrafast_mcp_client Connecting to MCP server
-2024-01-15T10:30:05.000Z INFO  ultrafast_mcp_client Successfully connected and initialized
-2024-01-15T10:30:05.000Z INFO  basic_echo_example::client ✅ Connected! Listing available tools
-2024-01-15T10:30:05.000Z INFO  basic_echo_example::client Available tools: [Tool { name: "echo", description: "Echoes back the input message with a timestamp" }]
-2024-01-15T10:30:05.000Z INFO  basic_echo_example::client 🔧 Calling echo tool with message: "Hello, ULTRAFAST_MCP!"
-2024-01-15T10:30:05.000Z INFO  basic_echo_example::client ✅ Tool call successful!
-2024-01-15T10:30:05.000Z INFO  basic_echo_example::client 📤 Response: EchoResponse { message: "Hello, ULTRAFAST_MCP!", timestamp: "2024-01-15T10:30:05.123Z" }
-2024-01-15T10:30:05.000Z INFO  basic_echo_example::client 🎉 Example completed successfully!
-```
-
-## 🔍 Key Benefits
-
-### **10x Performance Improvement**
-- Streamable HTTP provides 10x better performance than HTTP+SSE under load
-- Efficient session management and connection pooling
-- Zero-copy message handling
-
-### **Developer Experience**
-- **One-line server startup**: `server.run_streamable_http("127.0.0.1", 8080)`
-- **One-line client connection**: `client.connect_streamable_http(url)`
-- Automatic transport configuration and error handling
-- Type-safe tool calling with automatic schema generation
-
-### **Production Ready**
-- Comprehensive error handling and logging
-- Session management and reconnection logic
-- CORS support and security features
-- Monitoring and health check capabilities
-
-## 🔗 Next Steps
-
-- Explore the [File Operations Example](../02-file-operations/) for resource handling
-- Check out the [HTTP Server Example](../03-http-server/) for advanced HTTP features
-- Review the [Advanced Features Example](../04-advanced-features/) for Phase 3 capabilities
-
-## 🔍 What's Different from stdio
-
-| Feature | stdio Transport | Streamable HTTP Transport |
+| Feature | STDIO Transport | Streamable HTTP Transport |
 |---------|----------------|---------------------------|
-| **Communication** | Subprocess pipes | HTTP requests/responses |
-| **Scalability** | Single client | Multiple concurrent clients |
-| **Network** | Local only | Network accessible |
-| **Session Management** | None | Built-in session management |
-| **Performance** | Good for local | Excellent for distributed |
-| **Infrastructure** | Simple | Enterprise-ready |
+| **Use Case** | Subprocess communication | Network communication |
+| **Connection** | Parent-child process | Client-server over network |
+| **Performance** | Very fast (no network overhead) | Network-dependent |
+| **Deployment** | Local execution | Remote/cloud deployment |
+| **Security** | Process isolation | Network security required |
+| **Scalability** | Single client per server | Multiple clients per server |
 
-## 🧪 Testing
+## Architecture
 
-You can test the server manually using curl:
+### Server Components
 
-```bash
-# Test the Streamable HTTP endpoint
-curl -X POST http://127.0.0.1:8080/mcp \
-  -H "Content-Type: application/json" \
-  -d '{
-    "session_id": null,
-    "message": {
-      "jsonrpc": "2.0",
-      "id": "1",
-      "method": "tools/list",
-      "params": {}
+- **EchoToolHandler**: Implements the echo tool with transport awareness
+- **Transport Selection**: Command-line argument parsing for transport choice
+- **Configuration**: Transport-specific setup (STDIO vs HTTP)
+
+### Client Components
+
+- **Transport Connection**: Automatic transport detection and connection
+- **Server Management**: Optional subprocess spawning for STDIO
+- **Error Handling**: Robust error handling for both transports
+
+### Demo Components
+
+- **Comprehensive Testing**: Tests all transport combinations
+- **Lifecycle Management**: Proper server/client startup/shutdown
+- **Real-world Scenarios**: Demonstrates practical usage patterns
+
+## Code Examples
+
+### Server Implementation
+
+```rust
+// Transport selection via CLI
+let args = Args::parse();
+
+// Run with chosen transport
+match args.transport {
+    TransportType::Stdio => {
+        server.run_stdio().await?;
     }
-  }'
+    TransportType::Http => {
+        let config = HttpTransportConfig { /* ... */ };
+        server.run_streamable_http_with_config(config).await?;
+    }
+}
 ```
 
-## 📚 Next Steps
+### Client Implementation
 
-This example demonstrates the basic Streamable HTTP transport. For more advanced features, see:
+```rust
+// Connect based on transport type
+match args.transport {
+    TransportType::Stdio => {
+        client.connect_stdio().await?;
+    }
+    TransportType::Http => {
+        client.connect_streamable_http(&args.url).await?;
+    }
+}
+   ```
 
-- **02-file-operations**: File system operations with HTTP transport
-- **03-http-server**: HTTP client operations and network integration  
-- **04-advanced-features**: Complete MCP capabilities with all features
+## Echo Tool
 
-## 🔗 Related Documentation
+The example implements a simple echo tool that:
 
-- [ULTRAFAST_MCP PRD](../ULTRAFAST_MCP_PRD_LLM_FRIENDLY.md)
-- [Streamable HTTP Transport Documentation](../../docs/core-concepts/architecture.md)
-- [MCP 2025-06-18 Specification](https://modelcontextprotocol.io/) 
+- **Accepts Messages**: Takes a message parameter (optional, defaults to "Hello, World!")
+- **Validates Input**: Ensures message is not empty and under 1000 characters
+- **Adds Metadata**: Includes timestamp, echo counter, server ID, and transport type
+- **Returns JSON**: Structured response with all metadata
+
+### Tool Schema
+
+```json
+{
+  "name": "echo",
+  "description": "Echo back a message with timestamp and metadata",
+  "input_schema": {
+  "type": "object",
+  "properties": {
+    "message": {
+      "type": "string",
+        "description": "Message to echo back (max 1000 characters, optional)",
+      "maxLength": 1000,
+      "default": "Hello, World!"
+      }
+    }
+  }
+}
+```
+
+### Example Response
+
+```json
+{
+  "message": "Hello from UltraFast MCP!",
+  "timestamp": "2024-01-15T10:30:00Z",
+  "echo_count": 42,
+  "server_id": "echo-server-12345",
+  "transport": "Http"
+}
+```
+
+## Development
+
+### Building
+
+```bash
+# Build all components
+cargo build --release
+
+# Build specific component
+cargo build --release --bin basic-echo-server
+cargo build --release --bin basic-echo-client
+cargo build --release --bin basic-echo-demo
+```
+
+### Testing
+
+```bash
+# Run the comprehensive demo
+cargo run --bin basic-echo-demo
+
+# Test individual transports
+cargo run --bin basic-echo-demo -- stdio
+cargo run --bin basic-echo-demo -- http
+```
+
+### Debugging
+
+```bash
+# Enable debug logging
+RUST_LOG=debug cargo run --bin basic-echo-server -- stdio
+
+# Run with specific log level
+RUST_LOG=ultrafast_mcp=debug cargo run --bin basic-echo-client -- http
+```
+
+## Integration Examples
+
+### With External Tools
+
+```bash
+# Use with curl (HTTP transport)
+curl -X POST http://127.0.0.1:8080/tools/call \
+  -H "Content-Type: application/json" \
+  -d '{"name": "echo", "arguments": {"message": "Hello from curl!"}}'
+
+# Use with subprocess (STDIO transport)
+echo '{"jsonrpc": "2.0", "method": "tools/call", "params": {"name": "echo", "arguments": {"message": "Hello!"}}}' | \
+  cargo run --bin basic-echo-server -- stdio
+```
+
+### With Other MCP Clients
+
+This server is compatible with any MCP client that supports STDIO or Streamable HTTP transports, including:
+
+- Claude Desktop
+- MCP Inspector
+- Custom MCP clients
+
+### Using MCP Inspector
+
+This example includes an `mcp-inspector-config.json` file for easy testing with the MCP Inspector tool:
+
+1. **Install MCP Inspector**: Follow the [MCP Inspector installation guide](https://github.com/modelcontextprotocol/inspector)
+2. **Configure**: Copy the `mcp-inspector-config.json` file to your MCP Inspector configuration directory
+3. **Test**: Use MCP Inspector to connect to the `basic-echo-server` and test the echo tool
+
+The configuration automatically spawns the server as a subprocess and connects via STDIO transport.
+
+```bash
+# Example: Copy config to MCP Inspector directory (adjust path as needed)
+cp mcp-inspector-config.json ~/.config/mcp-inspector/
+
+# Or use with MCP Inspector directly
+mcp-inspector --config mcp-inspector-config.json
+```
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Port Already in Use**: Change the port with `--port 8081`
+2. **Permission Denied**: Ensure you have permission to bind to the specified port
+3. **Connection Refused**: Make sure the server is running before connecting the client
+4. **Subprocess Spawn Failed**: Ensure the server binary is built and accessible
+
+### Debug Commands
+
+```bash
+# Check if server is running (HTTP)
+curl http://127.0.0.1:8080/health
+
+# Check server logs
+RUST_LOG=debug cargo run --bin basic-echo-server -- http 2>&1 | tee server.log
+
+# Test connection manually
+nc -v 127.0.0.1 8080
+```
+
+## Next Steps
+
+After understanding this example, explore:
+
+1. **Advanced Examples**: Check out other examples in the `examples/` directory
+2. **Custom Tools**: Implement your own tools following the same pattern
+3. **Authentication**: Add OAuth or API key authentication
+4. **Monitoring**: Enable metrics and health checks
+5. **Production Deployment**: Configure for production environments
+
+## Contributing
+
+This example serves as a foundation for understanding UltraFast MCP's transport layer. Feel free to:
+
+- Add new transport types
+- Implement more complex tools
+- Add authentication examples
+- Improve error handling
+- Add performance benchmarks
+
+## License
+
+This example is part of the UltraFast MCP project and is licensed under the same terms as the main project. 

@@ -62,12 +62,13 @@
 //! // Parse a URI
 //! let uri = Uri::new("file:///path/to/document.txt");
 //! assert_eq!(uri.scheme(), Some("file"));
-//! assert_eq!(uri.path(), Some("/path/to/document.txt"));
+//! assert!(uri.is_file());
+//! assert_eq!(uri.as_str(), "file:///path/to/document.txt");
 //!
-//! // Join URIs
-//! let base = Uri::new("https://api.example.com/v1/");
-//! let joined = base.join("resources/123").unwrap();
-//! assert_eq!(joined.to_string(), "https://api.example.com/v1/resources/123");
+//! let http_uri = Uri::new("https://api.example.com/v1/resources/123");
+//! assert_eq!(http_uri.scheme(), Some("https"));
+//! assert!(http_uri.is_http());
+//! assert_eq!(http_uri.as_str(), "https://api.example.com/v1/resources/123");
 //! ```
 //!
 //! ### Pagination
@@ -234,7 +235,11 @@ pub mod pagination;
 pub mod progress;
 pub mod uri;
 
+// New identifiers module for consolidating ID generation functions
+pub mod identifiers;
+
 pub use cancellation::*;
+pub use identifiers::*;
 pub use pagination::*;
 pub use progress::*;
 pub use uri::*;

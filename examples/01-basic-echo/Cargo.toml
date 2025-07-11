@@ -5,22 +5,27 @@ edition = "2021"
 
 [[bin]]
 name = "basic-echo-server"
-path = "src/server.rs"
+path = "src/basic-echo-server.rs"
 doc = false
 
 [[bin]]
 name = "basic-echo-client"
-path = "src/client.rs"
+path = "src/basic-echo-client.rs"
+doc = false
+
+[[bin]]
+name = "basic-echo-demo"
+path = "src/basic-echo-demo.rs"
 doc = false
 
 [dependencies]
-ultrafast-mcp = { path = "../../crates/ultrafast-mcp", features = ["http"] }
-ultrafast-mcp-transport = { path = "../../crates/ultrafast-mcp-transport", features = ["http"] }
-tokio = { workspace = true }
+ultrafast-mcp = { path = "../../crates/ultrafast-mcp", features = ["http-with-auth"] }
+tokio = { workspace = true, features = ["full"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
 anyhow = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 async-trait = { workspace = true }
-chrono = { workspace = true } 
+chrono = { workspace = true }
+clap = { workspace = true } 

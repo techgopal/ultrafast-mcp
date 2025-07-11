@@ -1,22 +1,10 @@
 use schemars::{schema_for, JsonSchema};
 use serde_json::Value;
 
-/// Trait for automatic JSON Schema generation
-pub trait SchemaGeneration {
-    fn generate_schema() -> Value;
-}
-
-/// Implement SchemaGeneration for types that implement JsonSchema
-impl<T: JsonSchema> SchemaGeneration for T {
-    fn generate_schema() -> Value {
-        let schema = schema_for!(T);
-        serde_json::to_value(schema).unwrap_or_else(|_| Value::Object(Default::default()))
-    }
-}
-
 /// Generate JSON Schema for a type at runtime
 pub fn generate_schema_for<T: JsonSchema>() -> Value {
-    T::generate_schema()
+    let schema = schema_for!(T);
+    serde_json::to_value(schema).unwrap_or_else(|_| Value::Object(Default::default()))
 }
 
 /// Generate a basic JSON Schema for simple types
@@ -102,7 +90,7 @@ mod tests {
 
     #[test]
     fn test_schema_generation() {
-        let schema = TestStruct::generate_schema();
+        let schema = generate_schema_for::<TestStruct>();
         assert!(schema.is_object());
 
         let schema_obj = schema.as_object().unwrap();

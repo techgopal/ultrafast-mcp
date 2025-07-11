@@ -1,0 +1,25 @@
+[package]
+name = "integration-test-suite"
+version = "0.1.0"
+edition = "2021"
+description = "Integration tests for UltraFast MCP"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+ultrafast-mcp = { path = "../../crates/ultrafast-mcp" }
+ultrafast-mcp-core = { path = "../../crates/ultrafast-mcp-core" }
+ultrafast-mcp-client = { path = "../../crates/ultrafast-mcp-client" }
+ultrafast-mcp-server = { path = "../../crates/ultrafast-mcp-server" }
+ultrafast-mcp-transport = { path = "../../crates/ultrafast-mcp-transport" }
+ultrafast-mcp-auth = { path = "../../crates/ultrafast-mcp-auth" }
+ultrafast-mcp-test-utils = { path = "../../crates/ultrafast-mcp-test-utils" }
+
+# Core dependencies
+tokio = { workspace = true, features = ["full", "test-util"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+async-trait = { workspace = true }
+futures = { workspace = true }
+anyhow = { workspace = true }
+chrono = { workspace = true }
+tempfile = { workspace = true } 

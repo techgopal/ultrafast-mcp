@@ -5,19 +5,33 @@ use serde::{Deserialize, Serialize};
 /// Tools list changed notification
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolsListChangedNotification {
-    // Empty object for now
+    /// Optional metadata about the change
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub metadata: Option<serde_json::Value>,
 }
 
-/// Resources list changed notification
+/// Resources list changed notification  
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResourcesListChangedNotification {
-    // Empty object for now
+    /// Optional metadata about the change
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub metadata: Option<serde_json::Value>,
 }
 
 /// Prompts list changed notification
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PromptsListChangedNotification {
-    // Empty object for now
+    /// Optional metadata about the change
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub metadata: Option<serde_json::Value>,
+}
+
+/// Roots list changed notification
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RootsListChangedNotification {
+    /// Optional metadata about the change
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub metadata: Option<serde_json::Value>,
 }
 
 /// Logging message notification - MCP 2025-06-18 compliant
@@ -103,26 +117,151 @@ pub struct PingRequest {
 /// Ping response for connection health monitoring
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PingResponse {
-    /// Echoed data from the request
+    /// Echo back any data that was sent in the request
     #[serde(skip_serializing_if = "Option::is_none")]
     pub data: Option<serde_json::Value>,
 }
 
+/// Client capability notification - sent when client capabilities change
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ClientCapabilityNotification {
+    /// Updated client capabilities
+    pub capabilities: crate::protocol::capabilities::ClientCapabilities,
+
+    /// Optional reason for the capability change
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+}
+
+/// Server capability notification - sent when server capabilities change
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ServerCapabilityNotification {
+    /// Updated server capabilities
+    pub capabilities: crate::protocol::capabilities::ServerCapabilities,
+
+    /// Optional reason for the capability change
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+}
+
+/// Connection status notification
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ConnectionStatusNotification {
+    /// Current connection status
+    pub status: ConnectionStatus,
+
+    /// Optional message about the status
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
+
+    /// Optional metadata
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub metadata: Option<serde_json::Value>,
+}
+
+/// Connection status enum
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ConnectionStatus {
+    Connected,
+    Disconnected,
+    Reconnecting,
+    Error,
+}
+
+/// Request timeout notification
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RequestTimeoutNotification {
+    /// Request ID that timed out
+    #[serde(rename = "requestId")]
+    pub request_id: serde_json::Value,
+
+    /// Timeout duration in milliseconds
+    #[serde(rename = "timeoutMs")]
+    pub timeout_ms: u64,
+
+    /// Optional reason for the timeout
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+}
+
+/// Rate limit notification
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RateLimitNotification {
+    /// Rate limit type
+    #[serde(rename = "limitType")]
+    pub limit_type: RateLimitType,
+
+    /// Current request count
+    #[serde(rename = "currentCount")]
+    pub current_count: u64,
+
+    /// Maximum allowed requests
+    #[serde(rename = "maxCount")]
+    pub max_count: u64,
+
+    /// Time window in seconds
+    #[serde(rename = "windowSeconds")]
+    pub window_seconds: u64,
+
+    /// Time until reset in seconds
+    #[serde(rename = "resetInSeconds")]
+    pub reset_in_seconds: u64,
+}
+
+/// Rate limit type
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RateLimitType {
+    RequestsPerMinute,
+    RequestsPerHour,
+    RequestsPerDay,
+    BytesPerMinute,
+    BytesPerHour,
+    BytesPerDay,
+}
+
 impl ToolsListChangedNotification {
     pub fn new() -> Self {
-        Self {}
+        Self { metadata: None }
+    }
+
+    pub fn with_metadata(mut self, metadata: serde_json::Value) -> Self {
+        self.metadata = Some(metadata);
+        self
     }
 }
 
 impl ResourcesListChangedNotification {
     pub fn new() -> Self {
-        Self {}
+        Self { metadata: None }
+    }
+
+    pub fn with_metadata(mut self, metadata: serde_json::Value) -> Self {
+        self.metadata = Some(metadata);
+        self
     }
 }
 
 impl PromptsListChangedNotification {
     pub fn new() -> Self {
-        Self {}
+        Self { metadata: None }
+    }
+
+    pub fn with_metadata(mut self, metadata: serde_json::Value) -> Self {
+        self.metadata = Some(metadata);
+        self
+    }
+}
+
+impl RootsListChangedNotification {
+    pub fn new() -> Self {
+        Self { metadata: None }
+    }
+
+    pub fn with_metadata(mut self, metadata: serde_json::Value) -> Self {
+        self.metadata = Some(metadata);
+        self
     }
 }
 
@@ -255,5 +394,43 @@ impl Default for PingResponse {
 impl Default for LogLevelSetResponse {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl Default for RootsListChangedNotification {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Default for ConnectionStatusNotification {
+    fn default() -> Self {
+        Self {
+            status: ConnectionStatus::Connected,
+            message: None,
+            metadata: None,
+        }
+    }
+}
+
+impl Default for RequestTimeoutNotification {
+    fn default() -> Self {
+        Self {
+            request_id: serde_json::Value::Null,
+            timeout_ms: 30000,
+            reason: None,
+        }
+    }
+}
+
+impl Default for RateLimitNotification {
+    fn default() -> Self {
+        Self {
+            limit_type: RateLimitType::RequestsPerMinute,
+            current_count: 0,
+            max_count: 60,
+            window_seconds: 60,
+            reset_in_seconds: 60,
+        }
     }
 }

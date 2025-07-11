@@ -34,6 +34,7 @@ pub struct CancellableRequest {
 }
 
 /// Ping manager for connection health monitoring
+#[derive(Clone)]
 pub struct PingManager {
     /// Ping interval
     ping_interval: Duration,
@@ -214,8 +215,8 @@ impl PingManager {
 
     /// Handle a ping request and return a pong response
     pub async fn handle_ping(&self, request: PingRequest) -> MCPResult<PingResponse> {
-        // Simply echo back the data (if any)
-        Ok(PingResponse::new().with_data(request.data.unwrap_or(serde_json::json!({}))))
+        // Echo back the data as per MCP 2025-06-18 specification
+        Ok(PingResponse { data: request.data })
     }
 }
 
@@ -318,6 +319,17 @@ mod tests {
         let request = PingRequest::new().with_data(serde_json::json!({"test": "data"}));
         let response = manager.handle_ping(request).await.unwrap();
 
-        assert_eq!(response.data, Some(serde_json::json!({"test": "data"})));
+        // PingResponse should echo back the data as per MCP 2025-06-18 specification
+        assert_eq!(
+            format!("{:?}", response),
+            "PingResponse { data: Some(Object {\"test\": String(\"data\")}) }"
+        );
+    }
+
+    #[test]
+    fn test_ping_response() {
+        let response = PingResponse::new();
+        // PingResponse is empty as per MCP 2025-06-18 specification
+        assert_eq!(format!("{:?}", response), "PingResponse { data: None }");
     }
 }

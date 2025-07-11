@@ -5,7 +5,140 @@ use serde_json::Value;
 pub type CreateMessageRequest = SamplingRequest;
 pub type CreateMessageResponse = SamplingResponse;
 
-/// Sampling request (server asking client to perform LLM sampling)
+/// Context inclusion options for sampling requests
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum IncludeContext {
+    None,
+    ThisServer,
+    AllServers,
+}
+
+/// Stop reason for sampling responses
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum StopReason {
+    EndTurn,
+    StopSequence,
+    MaxTokens,
+    Other,
+}
+
+/// Human-in-the-loop approval status
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ApprovalStatus {
+    Pending,
+    Approved,
+    Rejected,
+    Modified,
+}
+
+/// Context information for sampling requests
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SamplingContext {
+    /// Server information if context is included
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub server_info: Option<ServerContextInfo>,
+
+    /// Available tools if context is included
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub available_tools: Option<Vec<ToolContextInfo>>,
+
+    /// Available resources if context is included
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub available_resources: Option<Vec<ResourceContextInfo>>,
+
+    /// Conversation history if context is included
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub conversation_history: Option<Vec<SamplingMessage>>,
+
+    /// User preferences and settings
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub user_preferences: Option<UserPreferences>,
+}
+
+/// Server context information
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ServerContextInfo {
+    /// Server name
+    pub name: String,
+
+    /// Server version
+    pub version: String,
+
+    /// Server description
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+
+    /// Server capabilities
+    pub capabilities: Vec<String>,
+}
+
+/// Tool context information
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ToolContextInfo {
+    /// Tool name
+    pub name: String,
+
+    /// Tool description
+    pub description: String,
+
+    /// Tool input schema
+    pub input_schema: Value,
+
+    /// Tool annotations
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub annotations: Option<Value>,
+}
+
+/// Resource context information
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ResourceContextInfo {
+    /// Resource URI
+    pub uri: String,
+
+    /// Resource name
+    pub name: String,
+
+    /// Resource description
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+
+    /// Resource MIME type
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mime_type: Option<String>,
+}
+
+/// User preferences for sampling
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserPreferences {
+    /// Preferred model family
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub preferred_model_family: Option<String>,
+
+    /// Cost sensitivity (0-1, higher = more cost sensitive)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cost_sensitivity: Option<f64>,
+
+    /// Speed preference (0-1, higher = prefer faster)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub speed_preference: Option<f64>,
+
+    /// Quality preference (0-1, higher = prefer higher quality)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub quality_preference: Option<f64>,
+
+    /// Whether to require human approval
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub require_approval: Option<bool>,
+
+    /// Maximum cost per request (in cents)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_cost_per_request: Option<f64>,
+}
+
+/// Enhanced sampling request with context and human-in-the-loop support
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct SamplingRequest {
     /// Messages to send to the LLM
@@ -21,7 +154,7 @@ pub struct SamplingRequest {
 
     /// Whether to include context from the conversation
     #[serde(rename = "includeContext", skip_serializing_if = "Option::is_none")]
-    pub include_context: Option<bool>,
+    pub include_context: Option<IncludeContext>,
 
     /// Temperature for sampling
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -38,13 +171,255 @@ pub struct SamplingRequest {
     /// Additional metadata
     #[serde(skip_serializing_if = "Option::is_none")]
     pub metadata: Option<Value>,
+
+    /// Human-in-the-loop settings
+    #[serde(rename = "humanInTheLoop", skip_serializing_if = "Option::is_none")]
+    pub human_in_the_loop: Option<HumanInTheLoopSettings>,
+
+    /// Request ID for tracking
+    #[serde(rename = "requestId", skip_serializing_if = "Option::is_none")]
+    pub request_id: Option<String>,
+
+    /// Priority level (0-1, higher = higher priority)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub priority: Option<f64>,
+
+    /// Timeout in seconds
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub timeout_seconds: Option<u32>,
 }
 
-/// Sampling response from client
+/// Human-in-the-loop settings
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HumanInTheLoopSettings {
+    /// Whether to require prompt approval
+    #[serde(
+        rename = "requirePromptApproval",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub require_prompt_approval: Option<bool>,
+
+    /// Whether to require completion approval
+    #[serde(
+        rename = "requireCompletionApproval",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub require_completion_approval: Option<bool>,
+
+    /// Whether to allow prompt modification
+    #[serde(
+        rename = "allowPromptModification",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub allow_prompt_modification: Option<bool>,
+
+    /// Whether to allow completion modification
+    #[serde(
+        rename = "allowCompletionModification",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub allow_completion_modification: Option<bool>,
+
+    /// Approval timeout in seconds
+    #[serde(
+        rename = "approvalTimeoutSeconds",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub approval_timeout_seconds: Option<u32>,
+
+    /// Notification settings
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub notifications: Option<NotificationSettings>,
+}
+
+/// Notification settings for human-in-the-loop
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NotificationSettings {
+    /// Whether to show desktop notifications
+    #[serde(
+        rename = "desktopNotifications",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub desktop_notifications: Option<bool>,
+
+    /// Whether to show in-app notifications
+    #[serde(rename = "inAppNotifications", skip_serializing_if = "Option::is_none")]
+    pub in_app_notifications: Option<bool>,
+
+    /// Whether to send email notifications
+    #[serde(rename = "emailNotifications", skip_serializing_if = "Option::is_none")]
+    pub email_notifications: Option<bool>,
+
+    /// Custom notification message
+    #[serde(rename = "customMessage", skip_serializing_if = "Option::is_none")]
+    pub custom_message: Option<String>,
+}
+
+impl SamplingRequest {
+    /// Validate the sampling request
+    pub fn validate(&self) -> Result<(), String> {
+        // Validate messages
+        if self.messages.is_empty() {
+            return Err("At least one message is required".to_string());
+        }
+
+        // Validate temperature range
+        if let Some(temp) = self.temperature {
+            if !(0.0..=1.0).contains(&temp) {
+                return Err("Temperature must be between 0.0 and 1.0".to_string());
+            }
+        }
+
+        // Validate max tokens
+        if let Some(max_tokens) = self.max_tokens {
+            if max_tokens == 0 {
+                return Err("Max tokens must be greater than 0".to_string());
+            }
+            if max_tokens > 100000 {
+                return Err("Max tokens cannot exceed 100,000".to_string());
+            }
+        }
+
+        // Validate model preferences if present
+        if let Some(ref prefs) = self.model_preferences {
+            prefs.validate()?;
+        }
+
+        // Validate stop sequences
+        if let Some(ref sequences) = self.stop_sequences {
+            if sequences.is_empty() {
+                return Err("Stop sequences cannot be empty if provided".to_string());
+            }
+            for seq in sequences {
+                if seq.is_empty() {
+                    return Err("Stop sequences cannot contain empty strings".to_string());
+                }
+                if seq.len() > 1000 {
+                    return Err("Stop sequences cannot exceed 1000 characters".to_string());
+                }
+            }
+        }
+
+        // Validate priority
+        if let Some(priority) = self.priority {
+            if !(0.0..=1.0).contains(&priority) {
+                return Err("Priority must be between 0.0 and 1.0".to_string());
+            }
+        }
+
+        // Validate timeout
+        if let Some(timeout) = self.timeout_seconds {
+            if timeout == 0 {
+                return Err("Timeout must be greater than 0".to_string());
+            }
+            if timeout > 3600 {
+                return Err("Timeout cannot exceed 1 hour (3600 seconds)".to_string());
+            }
+        }
+
+        // Validate human-in-the-loop settings
+        if let Some(ref hitl) = self.human_in_the_loop {
+            if let Some(timeout) = hitl.approval_timeout_seconds {
+                if timeout == 0 {
+                    return Err("Approval timeout must be greater than 0".to_string());
+                }
+                if timeout > 3600 {
+                    return Err("Approval timeout cannot exceed 1 hour (3600 seconds)".to_string());
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Check if human approval is required
+    pub fn requires_human_approval(&self) -> bool {
+        self.human_in_the_loop
+            .as_ref()
+            .map(|hitl| {
+                hitl.require_prompt_approval.unwrap_or(false)
+                    || hitl.require_completion_approval.unwrap_or(false)
+            })
+            .unwrap_or(false)
+    }
+
+    /// Get the effective timeout for this request
+    pub fn get_effective_timeout(&self) -> u32 {
+        self.timeout_seconds
+            .or_else(|| {
+                self.human_in_the_loop
+                    .as_ref()
+                    .and_then(|hitl| hitl.approval_timeout_seconds)
+            })
+            .unwrap_or(300) // Default 5 minutes
+    }
+
+    /// Estimate the cost of this request (simplified version)
+    pub fn estimate_cost(&self) -> Result<f64, String> {
+        let input_tokens = self.estimate_input_tokens()?;
+        let output_tokens = self.max_tokens.unwrap_or(1000) as f64;
+
+        // Simple cost estimation: $0.002 per 1K input tokens, $0.012 per 1K output tokens
+        let input_cost = (input_tokens as f64 / 1000.0) * 0.002;
+        let output_cost = (output_tokens / 1000.0) * 0.012;
+
+        Ok(input_cost + output_cost)
+    }
+
+    /// Estimate input tokens for this request
+    pub fn estimate_input_tokens(&self) -> Result<u32, String> {
+        let mut total_tokens = 0;
+
+        // Count tokens in messages
+        for message in &self.messages {
+            total_tokens += match &message.content {
+                SamplingContent::Text { text } => {
+                    // Rough estimation: 1 token ≈ 4 characters
+                    (text.len() as f64 / 4.0).ceil() as u32
+                }
+                SamplingContent::Image { .. } => {
+                    // Images typically count as ~85 tokens
+                    85
+                }
+            };
+        }
+
+        // Add system prompt tokens
+        if let Some(ref system_prompt) = self.system_prompt {
+            total_tokens += (system_prompt.len() as f64 / 4.0).ceil() as u32;
+        }
+
+        // Add context tokens if included
+        if let Some(include_context) = &self.include_context {
+            match include_context {
+                IncludeContext::None => {}
+                IncludeContext::ThisServer => {
+                    // Estimate 500 tokens for server context
+                    total_tokens += 500;
+                }
+                IncludeContext::AllServers => {
+                    // Estimate 1000 tokens for all servers context
+                    total_tokens += 1000;
+                }
+            }
+        }
+
+        Ok(total_tokens)
+    }
+
+    /// Check if this request requires image modality
+    pub fn requires_image_modality(&self) -> bool {
+        self.messages
+            .iter()
+            .any(|message| matches!(message.content, SamplingContent::Image { .. }))
+    }
+}
+
+/// Enhanced sampling response with human-in-the-loop support
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SamplingResponse {
     /// Role of the response
-    pub role: String,
+    pub role: SamplingRole,
 
     /// Content of the response
     pub content: SamplingContent,
@@ -55,7 +430,86 @@ pub struct SamplingResponse {
 
     /// Reason why sampling stopped
     #[serde(rename = "stopReason", skip_serializing_if = "Option::is_none")]
-    pub stop_reason: Option<String>,
+    pub stop_reason: Option<StopReason>,
+
+    /// Human approval status
+    #[serde(rename = "approvalStatus", skip_serializing_if = "Option::is_none")]
+    pub approval_status: Option<ApprovalStatus>,
+
+    /// Request ID for tracking
+    #[serde(rename = "requestId", skip_serializing_if = "Option::is_none")]
+    pub request_id: Option<String>,
+
+    /// Processing time in milliseconds
+    #[serde(rename = "processingTimeMs", skip_serializing_if = "Option::is_none")]
+    pub processing_time_ms: Option<u64>,
+
+    /// Cost information
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cost_info: Option<CostInfo>,
+
+    /// Context that was included in the request
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub included_context: Option<SamplingContext>,
+
+    /// Human feedback or modifications
+    #[serde(rename = "humanFeedback", skip_serializing_if = "Option::is_none")]
+    pub human_feedback: Option<HumanFeedback>,
+
+    /// Warnings or considerations
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub warnings: Option<Vec<String>>,
+}
+
+/// Cost information for the sampling request
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CostInfo {
+    /// Total cost in cents
+    #[serde(rename = "totalCostCents")]
+    pub total_cost_cents: f64,
+
+    /// Input token cost in cents
+    #[serde(rename = "inputCostCents")]
+    pub input_cost_cents: f64,
+
+    /// Output token cost in cents
+    #[serde(rename = "outputCostCents")]
+    pub output_cost_cents: f64,
+
+    /// Input tokens used
+    #[serde(rename = "inputTokens")]
+    pub input_tokens: u32,
+
+    /// Output tokens generated
+    #[serde(rename = "outputTokens")]
+    pub output_tokens: u32,
+
+    /// Model used for cost calculation
+    pub model: String,
+}
+
+/// Human feedback for sampling requests
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HumanFeedback {
+    /// Whether the prompt was modified
+    #[serde(rename = "promptModified")]
+    pub prompt_modified: bool,
+
+    /// Whether the completion was modified
+    #[serde(rename = "completionModified")]
+    pub completion_modified: bool,
+
+    /// Reason for approval/rejection
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+
+    /// User comments
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub comments: Option<String>,
+
+    /// Approval timestamp
+    #[serde(rename = "approvalTimestamp", skip_serializing_if = "Option::is_none")]
+    pub approval_timestamp: Option<chrono::DateTime<chrono::Utc>>,
 }
 
 /// Sampling message
@@ -251,13 +705,13 @@ pub struct RequestContext {
     /// Whether streaming is preferred
     pub prefers_streaming: bool,
 
-    /// Task complexity level (1-10)
+    /// Task complexity level (0-1, higher = more complex)
     pub complexity_level: f64,
 
-    /// Response time sensitivity (1-10, higher = more time sensitive)
+    /// Response time sensitivity (0-1, higher = more time sensitive)
     pub time_sensitivity: f64,
 
-    /// Quality requirements (1-10, higher = higher quality needed)
+    /// Quality requirements (0-1, higher = higher quality needed)
     pub quality_requirements: f64,
 }
 
@@ -368,9 +822,9 @@ impl ModelPreferences {
     pub fn cost_optimized() -> Self {
         Self {
             hints: None,
-            cost_priority: Some(1.0),         // Highest priority
-            speed_priority: Some(7.0),        // Much lower priority
-            intelligence_priority: Some(9.0), // Lowest priority
+            cost_priority: Some(0.1),  // Highest priority (lowest number)
+            speed_priority: Some(0.7), // Much lower priority
+            intelligence_priority: Some(0.9), // Lowest priority
         }
     }
 
@@ -378,9 +832,9 @@ impl ModelPreferences {
     pub fn speed_optimized() -> Self {
         Self {
             hints: None,
-            cost_priority: Some(7.0),         // Much lower priority
-            speed_priority: Some(1.0),        // Highest priority
-            intelligence_priority: Some(9.0), // Lowest priority
+            cost_priority: Some(0.7),         // Much lower priority
+            speed_priority: Some(0.1),        // Highest priority (lowest number)
+            intelligence_priority: Some(0.9), // Lowest priority
         }
     }
 
@@ -388,9 +842,9 @@ impl ModelPreferences {
     pub fn intelligence_optimized() -> Self {
         Self {
             hints: None,
-            cost_priority: Some(9.0),         // Lowest priority
-            speed_priority: Some(7.0),        // Much lower priority
-            intelligence_priority: Some(1.0), // Highest priority
+            cost_priority: Some(0.9),         // Lowest priority
+            speed_priority: Some(0.7),        // Much lower priority
+            intelligence_priority: Some(0.1), // Highest priority (lowest number)
         }
     }
 
@@ -398,29 +852,29 @@ impl ModelPreferences {
     pub fn balanced() -> Self {
         Self {
             hints: None,
-            cost_priority: Some(3.0),
-            speed_priority: Some(3.0),
-            intelligence_priority: Some(3.0),
+            cost_priority: Some(0.33),
+            speed_priority: Some(0.33),
+            intelligence_priority: Some(0.34),
         }
     }
 
     /// Validate that priorities are within valid ranges
     pub fn validate(&self) -> Result<(), String> {
         if let Some(cost) = self.cost_priority {
-            if !(0.0..=10.0).contains(&cost) {
-                return Err("Cost priority must be between 0.0 and 10.0".to_string());
+            if !(0.0..=1.0).contains(&cost) {
+                return Err("Cost priority must be between 0.0 and 1.0".to_string());
             }
         }
 
         if let Some(speed) = self.speed_priority {
-            if !(0.0..=10.0).contains(&speed) {
-                return Err("Speed priority must be between 0.0 and 10.0".to_string());
+            if !(0.0..=1.0).contains(&speed) {
+                return Err("Speed priority must be between 0.0 and 1.0".to_string());
             }
         }
 
         if let Some(intelligence) = self.intelligence_priority {
-            if !(0.0..=10.0).contains(&intelligence) {
-                return Err("Intelligence priority must be between 0.0 and 10.0".to_string());
+            if !(0.0..=1.0).contains(&intelligence) {
+                return Err("Intelligence priority must be between 0.0 and 1.0".to_string());
             }
         }
 
@@ -429,14 +883,15 @@ impl ModelPreferences {
 
     /// Get normalized priority weights that sum to 1.0
     pub fn get_normalized_weights(&self) -> (f64, f64, f64) {
-        let cost = self.cost_priority.unwrap_or(5.0);
-        let speed = self.speed_priority.unwrap_or(5.0);
-        let intelligence = self.intelligence_priority.unwrap_or(5.0);
+        let cost = self.cost_priority.unwrap_or(0.5);
+        let speed = self.speed_priority.unwrap_or(0.5);
+        let intelligence = self.intelligence_priority.unwrap_or(0.5);
 
         // Convert priorities to weights (lower priority = higher weight)
-        let cost_weight = 11.0 - cost;
-        let speed_weight = 11.0 - speed;
-        let intelligence_weight = 11.0 - intelligence;
+        // Since priorities are now 0-1, we invert them: weight = 1 - priority
+        let cost_weight = 1.0 - cost;
+        let speed_weight = 1.0 - speed;
+        let intelligence_weight = 1.0 - intelligence;
 
         let total = cost_weight + speed_weight + intelligence_weight;
 
@@ -676,8 +1131,8 @@ impl ModelSelector {
         }
 
         // Major speed bonus for time-sensitive tasks - exponential scaling
-        if context.time_sensitivity > 7.0 {
-            let time_factor = (context.time_sensitivity - 7.0) / 3.0; // 0.0 to 1.0
+        if context.time_sensitivity > 0.7 {
+            let time_factor = (context.time_sensitivity - 0.7) / 0.3; // 0.0 to 1.0
             let speed_bonus = base_score.powf(2.0) * time_factor; // Exponential bonus
             score += speed_bonus;
         }
@@ -698,15 +1153,15 @@ impl ModelSelector {
         let mut score = base_score.powf(0.5); // Square root scaling
 
         // Adjust based on task complexity - exponential bonus for high intelligence on complex tasks
-        if context.complexity_level > 7.0 {
-            let complexity_factor = (context.complexity_level - 7.0) / 3.0; // 0.0 to 1.0
+        if context.complexity_level > 0.7 {
+            let complexity_factor = (context.complexity_level - 0.7) / 0.3; // 0.0 to 1.0
             let intelligence_bonus = base_score.powf(2.0) * complexity_factor; // Exponential bonus
             score += intelligence_bonus;
         }
 
         // Adjust based on quality requirements - similar exponential bonus
-        if context.quality_requirements > 8.0 {
-            let quality_factor = (context.quality_requirements - 8.0) / 2.0; // 0.0 to 1.0
+        if context.quality_requirements > 0.8 {
+            let quality_factor = (context.quality_requirements - 0.8) / 0.2; // 0.0 to 1.0
             let intelligence_bonus = base_score.powf(2.0) * quality_factor; // Exponential bonus
             score += intelligence_bonus;
         }
@@ -918,7 +1373,7 @@ impl ModelSelector {
         }
 
         // Warn about potential slow response
-        if selected_model.speed_score < 3.0 && context.request_context.time_sensitivity > 7.0 {
+        if selected_model.speed_score < 3.0 && context.request_context.time_sensitivity > 0.7 {
             warnings.push(
                 "Selected model may be slower than desired for time-sensitive request".to_string(),
             );
@@ -971,7 +1426,7 @@ mod tests {
         let mut prefs = ModelPreferences::balanced();
         assert!(prefs.validate().is_ok());
 
-        prefs.cost_priority = Some(15.0); // Invalid
+        prefs.cost_priority = Some(1.5); // Invalid - should be 0-1
         assert!(prefs.validate().is_err());
     }
 
@@ -979,9 +1434,9 @@ mod tests {
     fn test_normalized_weights() {
         let prefs = ModelPreferences {
             hints: None,
-            cost_priority: Some(2.0),         // High priority (low number)
-            speed_priority: Some(8.0),        // Low priority (high number)
-            intelligence_priority: Some(5.0), // Medium priority
+            cost_priority: Some(0.2),         // High priority (low number)
+            speed_priority: Some(0.8),        // Low priority (high number)
+            intelligence_priority: Some(0.5), // Medium priority
         };
 
         let (cost_weight, speed_weight, intelligence_weight) = prefs.get_normalized_weights();
@@ -1011,9 +1466,9 @@ mod tests {
                 required_modalities: vec![Modality::Text],
                 requires_function_calling: false,
                 prefers_streaming: false,
-                complexity_level: 5.0,
-                time_sensitivity: 5.0,
-                quality_requirements: 5.0,
+                complexity_level: 0.5,
+                time_sensitivity: 0.5,
+                quality_requirements: 0.5,
             },
             preferences: ModelPreferences::cost_optimized(),
             performance_history: None,
@@ -1047,9 +1502,9 @@ mod tests {
                 required_modalities: vec![Modality::Text],
                 requires_function_calling: false,
                 prefers_streaming: false,
-                complexity_level: 5.0,
-                time_sensitivity: 9.0, // High time sensitivity
-                quality_requirements: 5.0,
+                complexity_level: 0.5,
+                time_sensitivity: 0.9, // High time sensitivity
+                quality_requirements: 0.5,
             },
             preferences: ModelPreferences::speed_optimized(),
             performance_history: None,
@@ -1078,9 +1533,9 @@ mod tests {
                 required_modalities: vec![Modality::Text],
                 requires_function_calling: false,
                 prefers_streaming: false,
-                complexity_level: 9.0, // High complexity
-                time_sensitivity: 3.0,
-                quality_requirements: 9.5, // High quality requirements
+                complexity_level: 0.9, // High complexity
+                time_sensitivity: 0.3,
+                quality_requirements: 0.95, // High quality requirements
             },
             preferences: ModelPreferences::intelligence_optimized(),
             performance_history: None,
@@ -1122,9 +1577,9 @@ mod tests {
                 required_modalities: vec![Modality::Text],
                 requires_function_calling: true, // Limited model doesn't support this
                 prefers_streaming: false,
-                complexity_level: 5.0,
-                time_sensitivity: 5.0,
-                quality_requirements: 5.0,
+                complexity_level: 0.5,
+                time_sensitivity: 0.5,
+                quality_requirements: 0.5,
             },
             preferences: ModelPreferences::balanced(),
             performance_history: None,
@@ -1171,9 +1626,9 @@ mod tests {
                 required_modalities: vec![Modality::Text],
                 requires_function_calling: false,
                 prefers_streaming: false,
-                complexity_level: 5.0,
-                time_sensitivity: 5.0,
-                quality_requirements: 5.0,
+                complexity_level: 0.5,
+                time_sensitivity: 0.5,
+                quality_requirements: 0.5,
             },
             preferences: ModelPreferences::balanced(),
             performance_history: Some(performance_history),

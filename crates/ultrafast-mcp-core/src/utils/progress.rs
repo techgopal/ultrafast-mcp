@@ -259,6 +259,20 @@ impl ProgressTracker {
             .retain(|_, progress| !progress.is_finished() || progress.updated_at > cutoff);
     }
 
+    /// Clean up all progress entries older than max_age (including active ones)
+    pub fn cleanup_all_old(&mut self, max_age: Duration) {
+        let cutoff = current_timestamp() - max_age.as_secs();
+        self.progress_map
+            .retain(|_, progress| progress.updated_at > cutoff);
+    }
+
+    /// Clean up progress entries that have been inactive for too long
+    pub fn cleanup_inactive(&mut self, max_inactive_age: Duration) {
+        let cutoff = current_timestamp() - max_inactive_age.as_secs();
+        self.progress_map
+            .retain(|_, progress| progress.is_active() || progress.updated_at > cutoff);
+    }
+
     /// Get the number of tracked progress instances
     pub fn len(&self) -> usize {
         self.progress_map.len()

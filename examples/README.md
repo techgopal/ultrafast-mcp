@@ -39,44 +39,36 @@ client.connect_streamable_http("http://127.0.0.1:8080/mcp").await?;
 - Simple echo tool with automatic JSON schema generation
 - Type-safe tool calling with serde serialization
 - Comprehensive error handling and logging
-- **10x faster** than traditional HTTP+SSE under load
-- **90% less client code** required compared to legacy transports
+- **10x faster** than traditional HTTP transports under load
+- **90% less client code** required compared to other transports
+
+**Features Used**: `http-with-auth` (includes HTTP transport + OAuth authentication)
 
 ### 2. [File Operations](./02-file-operations/) - File System Integration
 **Difficulty**: Intermediate  
 **Focus**: File system operations and complex tool handling
 
 A comprehensive file operations server demonstrating:
-- Multiple file operations (read, write, list, delete)
-- Complex tool handler implementation
-- Error handling and validation
-- File metadata handling
+- Multiple file operations (read, write, list, delete, search, move)
+- Complex tool handler implementation with 12+ tools
+- Error handling and path validation
+- File metadata handling and directory tree generation
+- Robust path validation for symlinks (macOS `/tmp`/`/private/tmp`)
 
 **Key Features**:
-- File reading and writing
-- Directory listing
-- File deletion with safety checks
-- Comprehensive error handling
+- File reading and writing with head/tail support
+- Directory listing with size information
+- File search and pattern matching
+- Directory tree generation
+- File moving and renaming
+- Comprehensive error handling and validation
+- MCP Inspector configuration for visual testing
 
-### 3. [HTTP Server](./03-http-server/) - Network Operations
-**Difficulty**: Intermediate  
-**Focus**: HTTP client operations and network integration
+**Features Used**: `http` (includes HTTP transport + STDIO fallback + core functionality)
 
-An HTTP operations server showcasing:
-- HTTP GET and POST requests
-- Custom headers and timeouts
-- Response time tracking
-- Status checking and info retrieval
-
-**Key Features**:
-- HTTP client functionality
-- Response time tracking
-- Custom header support
-- Error handling for network failures
-
-### 4. [Advanced Features](./04-advanced-features/) - Full MCP Capabilities
+### 3. [Everything Server](./03-everything-server/) - Complete MCP Implementation
 **Difficulty**: Advanced  
-**Focus**: Complete MCP feature set
+**Focus**: Complete MCP feature set with all capabilities
 
 A comprehensive example demonstrating all MCP capabilities:
 - Tools, resources, and prompts
@@ -84,13 +76,44 @@ A comprehensive example demonstrating all MCP capabilities:
 - Text analysis with sentiment detection
 - Dynamic resource serving
 - Prompt generation with arguments
+- HTTP transport with full feature set
 
 **Key Features**:
-- Multiple trait implementations
+- Multiple trait implementations (ToolHandler, ResourceHandler, PromptHandler)
 - Advanced data generation and processing
 - Text analysis capabilities
 - Dynamic resource management
-- Prompt generation
+- Prompt generation with context
+- Complete MCP protocol implementation
+
+**Features Used**: `http-with-auth, monitoring-full` (includes HTTP + OAuth + complete monitoring suite)
+
+### 4. [Authentication Example](./04-authentication-example/) - **Authentication Methods and Middleware** ⭐
+**Difficulty**: Intermediate  
+**Focus**: Comprehensive authentication support
+
+A complete authentication system demonstrating all supported authentication methods:
+- Bearer token authentication with JWT validation
+- API key authentication with custom headers
+- Basic authentication with username/password
+- Custom header authentication for flexibility
+- OAuth 2.1 authentication with PKCE
+- Auto-refresh tokens for seamless operation
+- Server-side authentication middleware
+- Client-side authentication middleware
+- HTTP transport authentication integration
+
+**Key Features**:
+- **Multiple Authentication Methods**: Support for Bearer, API Key, Basic, Custom Headers, and OAuth
+- **Server-side Validation**: JWT token validation with scope checking
+- **Client-side Management**: Automatic header generation and token refresh
+- **HTTP Transport Integration**: Authentication support in HTTP transport layer
+- **Security Best Practices**: CSRF protection, PKCE, secure token handling
+- **Thread-safe Design**: All components are `Send + Sync`
+- **Comprehensive Error Handling**: Detailed error types and messages
+- **Performance Optimized**: Efficient validation and minimal allocations
+
+**Features Used**: `oauth` (includes OAuth authentication + core functionality)
 
 ## Common Patterns
 
@@ -128,15 +151,6 @@ let client = UltraFastClient::new(client_info, client_capabilities);
 
 // Connect with Streamable HTTP - just one line!
 client.connect_streamable_http("http://127.0.0.1:8080/mcp").await?;
-```
-
-#### **HTTP+SSE Transport (Legacy Compatibility)**
-```rust
-// Create client
-let client = UltraFastClient::new(client_info, client_capabilities);
-
-// Connect with HTTP+SSE for legacy compatibility
-client.connect_http_sse("http://127.0.0.1:8080/mcp").await?;
 ```
 
 #### **stdio Transport (Local Communication)**
@@ -183,6 +197,32 @@ impl ultrafast_mcp::ToolHandler for MyToolHandler {
 }
 ```
 
+## Feature Flag Usage
+
+### Recommended Feature Combinations
+
+```bash
+# Minimal setup (STDIO only)
+cargo add ultrafast-mcp --features="minimal"
+
+# HTTP server with OAuth
+cargo add ultrafast-mcp --features="http-with-auth"
+
+# Production setup with monitoring
+cargo add ultrafast-mcp --features="http-with-auth,monitoring-full"
+
+# All features enabled
+cargo add ultrafast-mcp --features="full"
+```
+
+### Feature Flag Benefits
+
+- **`minimal`**: Core + STDIO for basic functionality
+- **`http`**: HTTP transport + STDIO fallback + core functionality
+- **`http-with-auth`**: HTTP + OAuth + STDIO fallback + core functionality
+- **`monitoring-full`**: Complete monitoring suite with all exporters
+- **`full`**: Everything enabled for maximum functionality
+
 ## API Consistency and Error Handling
 
 All examples in this directory are designed to use the same ergonomic API patterns and robust error handling. When adding new examples:
@@ -223,13 +263,14 @@ cargo run --bin client
 ### For Beginners
 1. Start with **Basic Echo** to understand fundamental concepts
 2. Move to **File Operations** to learn about complex tool handling
-3. Explore **HTTP Server** for network integration
-4. Finally, tackle **Advanced Features** for complete MCP understanding
+3. Explore **Everything Server** for complete MCP implementation
+4. Finally, tackle **Authentication Example** for security features
 
 ### For Experienced Developers
 1. Review **Basic Echo** for API patterns
-2. Study **Advanced Features** for complete implementation examples
-3. Use **File Operations** and **HTTP Server** as reference implementations
+2. Study **Everything Server** for complete implementation examples
+3. Use **File Operations** as reference for complex tool implementations
+4. Implement **Authentication Example** for production-ready security
 
 ## Key Concepts Demonstrated
 

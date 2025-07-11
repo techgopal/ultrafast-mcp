@@ -87,6 +87,9 @@ pub enum PromptContent {
 
     #[serde(rename = "resource")]
     Resource { resource: EmbeddedResourceReference },
+
+    #[serde(rename = "resource_link")]
+    ResourceLink { name: String, uri: String },
 }
 
 /// Enhanced embedded resource reference for prompts
@@ -580,6 +583,10 @@ impl PromptContent {
                 options: None,
             },
         }
+    }
+
+    pub fn resource_link(name: String, uri: String) -> Self {
+        Self::ResourceLink { name, uri }
     }
 }
 

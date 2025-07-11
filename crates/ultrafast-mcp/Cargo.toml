@@ -20,12 +20,14 @@ targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
 # Internal dependencies
-ultrafast-mcp-core = { path = "../ultrafast-mcp-core", version = "202506018.1.0-rc.1.4" }
-ultrafast-mcp-server = { path = "../ultrafast-mcp-server", version = "202506018.1.0-rc.1.4" }
-ultrafast-mcp-transport = { path = "../ultrafast-mcp-transport", version = "202506018.1.0-rc.1.4" }
-ultrafast-mcp-auth = { path = "../ultrafast-mcp-auth", version = "202506018.1.0-rc.1.4", optional = true }
+ultrafast-mcp-core = { path = "../ultrafast-mcp-core", version = "=202506018.1.0-rc.2", optional = true }
+ultrafast-mcp-server = { path = "../ultrafast-mcp-server", version = "=202506018.1.0-rc.2", optional = true }
+ultrafast-mcp-client = { path = "../ultrafast-mcp-client", version = "=202506018.1.0-rc.2", optional = true }
+ultrafast-mcp-transport = { path = "../ultrafast-mcp-transport", version = "=202506018.1.0-rc.2", optional = true }
+ultrafast-mcp-auth = { path = "../ultrafast-mcp-auth", version = "=202506018.1.0-rc.2", optional = true }
+ultrafast-mcp-monitoring = { path = "../ultrafast-mcp-monitoring", version = "=202506018.1.0-rc.2", optional = true }
 
-# Runtime dependencies
+# Core runtime dependencies
 tokio = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -33,48 +35,59 @@ anyhow = { workspace = true }
 thiserror = { workspace = true }
 futures = { workspace = true }
 async-trait = { workspace = true }
-
-# HTTP transport
-axum = { workspace = true, optional = true }
-reqwest = { workspace = true, optional = true }
-tower = { workspace = true, optional = true }
-tower-http = { workspace = true, optional = true }
-
-# Authentication
-oauth2 = { workspace = true, optional = true }
-jsonwebtoken = { workspace = true, optional = true }
-base64 = { workspace = true, optional = true }
-url = { workspace = true, optional = true }
-rand = { workspace = true, optional = true }
-sha2 = { workspace = true, optional = true }
-
-# UUID generation
 uuid = { workspace = true }
-
-# Logging
 tracing = { workspace = true }
-
-# JSON Schema
 schemars = { workspace = true }
 
-# Monitoring and observability
-ultrafast-mcp-monitoring = { path = "../ultrafast-mcp-monitoring", version = "202506018.1.0-rc.1.4", optional = true }
-opentelemetry = { workspace = true, optional = true }
-opentelemetry_sdk = { workspace = true, optional = true }
-tracing-opentelemetry = { workspace = true, optional = true }
-metrics = { workspace = true, optional = true }
-sysinfo = { workspace = true, optional = true }
-chrono = { workspace = true, optional = true }
-
 [features]
+# No default features for minimal footprint
 default = []
-# Enables monitoring and metrics collection
-monitoring = ["ultrafast-mcp-monitoring"]
-# Enables HTTP transport support
-http = ["ultrafast-mcp-transport/http", "ultrafast-mcp-server/http", "axum", "reqwest", "tower", "tower-http"]
-# Enables OAuth authentication support
-oauth = ["ultrafast-mcp-auth/oauth", "oauth2", "jsonwebtoken", "base64", "url", "rand", "sha2"]
-# Enables all features
-full = ["monitoring", "http", "oauth"]
-# Minimal features for basic usage
-minimal = [] 
+
+# Core functionality (always available)
+core = [
+    "ultrafast-mcp-core",
+    "ultrafast-mcp-server/core", 
+    "ultrafast-mcp-client/core"
+]
+
+# Transport features
+stdio = [
+    "core",
+    "ultrafast-mcp-transport/stdio",
+    "ultrafast-mcp-server/core",
+    "ultrafast-mcp-client/core"
+]
+
+http = [
+    "core",
+    "ultrafast-mcp-transport/http", 
+    "ultrafast-mcp-transport/stdio",
+    "ultrafast-mcp-server/http", 
+    "ultrafast-mcp-client/http"
+]
+
+# Authentication features
+oauth = ["core", "ultrafast-mcp-auth/oauth"]
+
+# Monitoring and observability
+monitoring = ["core", "ultrafast-mcp-monitoring/core"]
+monitoring-http = ["core", "ultrafast-mcp-monitoring/http"]
+monitoring-jaeger = ["core", "ultrafast-mcp-monitoring/jaeger"]
+monitoring-otlp = ["core", "ultrafast-mcp-monitoring/otlp"]
+monitoring-console = ["core", "ultrafast-mcp-monitoring/console"]
+
+# Convenience combinations
+http-with-auth = ["core", "stdio", "http", "oauth"]
+monitoring-full = ["core", "ultrafast-mcp-monitoring/all"]
+
+# Minimal feature set (core + stdio for basic functionality)
+minimal = ["core", "stdio"]
+
+# All features enabled
+full = [
+    "core",
+    "stdio", 
+    "http",
+    "oauth",
+    "monitoring-full"
+] 

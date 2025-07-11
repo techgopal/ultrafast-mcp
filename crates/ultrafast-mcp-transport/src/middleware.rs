@@ -266,7 +266,8 @@ impl ValidationMiddleware {
                 "sampling/sample".to_string(),
                 "roots/list".to_string(),
                 "roots/read".to_string(),
-                "elicitation/request".to_string(),
+                "roots/set".to_string(),
+                "elicitation/create".to_string(),
                 "elicitation/respond".to_string(),
                 // Completion methods
                 "completion/list".to_string(),
@@ -305,7 +306,8 @@ impl ValidationMiddleware {
                 "sampling/sample".to_string(),
                 "roots/list".to_string(),
                 "roots/read".to_string(),
-                "elicitation/request".to_string(),
+                "roots/set".to_string(),
+                "elicitation/create".to_string(),
                 "elicitation/respond".to_string(),
                 // Completion methods
                 "completion/list".to_string(),
@@ -480,7 +482,10 @@ impl ValidationMiddleware {
                         // Validate protocol version
                         if let Some(version) = obj.get("protocolVersion") {
                             if let Some(version_str) = version.as_str() {
-                                if version_str != "2025-06-18" && version_str != "2024-11-05" {
+                                if version_str != "2025-06-18"
+                                    && version_str != "2025-03-26"
+                                    && version_str != "2024-11-05"
+                                {
                                     return Err(TransportError::ProtocolError {
                                         message: format!(
                                             "Unsupported protocol version: {}",

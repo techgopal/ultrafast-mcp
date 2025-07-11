@@ -116,7 +116,7 @@
 //!
 //! // Create a read response
 //! let read_response = ReadResourceResponse {
-//!     contents: vec![ResourceContent::text("Document content".to_string())],
+//!     contents: vec![ResourceContent::text("file:///path/to/document.txt".to_string(), "Document content".to_string())],
 //! };
 //! ```
 //!
@@ -240,7 +240,27 @@ pub mod tools;
 pub use client::*;
 pub use completion::*;
 pub use elicitation::*;
-pub use notifications::*;
+pub use notifications::{
+    CancelledNotification,
+    ClientCapabilityNotification,
+    ConnectionStatus,
+    ConnectionStatusNotification,
+    LogLevel,
+    LogLevelSetRequest,
+    LogLevelSetResponse,
+    LoggingMessageNotification,
+    PingRequest,
+    PingResponse,
+    ProgressNotification,
+    PromptsListChangedNotification,
+    RateLimitNotification,
+    RateLimitType,
+    RequestTimeoutNotification,
+    ResourcesListChangedNotification,
+    RootsListChangedNotification as _OldRootsListChangedNotification, // Hide old one
+    ServerCapabilityNotification,
+    ToolsListChangedNotification,
+};
 pub use prompts::*;
 pub use resources::*;
 pub use roots::*;

@@ -1,118 +1,65 @@
 //! Elicitation types for MCP
 //!
-//! Server-initiated user input collection
+//! Server-initiated user input collection according to MCP specification 2025-06-18
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-/// Server-initiated request for user input (multi-step support)
+/// Server-initiated request for user input
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ElicitationRequest {
-    /// Unique session ID for multi-step workflows
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub session_id: Option<String>,
-    /// Step number in the workflow
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub step: Option<u32>,
-    /// Prompt to show to the user
-    pub prompt: String,
-    /// Type of input expected (text, choice, etc.)
-    pub input_type: ElicitationInputType,
-    /// Optional validation rules
-    pub validation: Option<ElicitationValidation>,
+    /// Clear, human-readable explanation of what information is needed and why
+    pub message: String,
+
+    /// JSON Schema that defines the expected structure of the response
+    /// Limited to flat objects with primitive types to simplify client implementation
+    #[serde(rename = "requestedSchema")]
+    pub requested_schema: serde_json::Value,
 }
 
 impl Default for ElicitationRequest {
     fn default() -> Self {
         Self {
-            session_id: None,
-            step: None,
-            prompt: String::new(),
-            input_type: ElicitationInputType::Text {
-                placeholder: None,
-                sensitive: None,
-            },
-            validation: None,
+            message: String::new(),
+            requested_schema: serde_json::json!({
+                "type": "object",
+                "properties": {},
+                "required": []
+            }),
         }
     }
 }
 
-/// Type of input expected from user
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-#[serde(tag = "type")]
-pub enum ElicitationInputType {
-    /// Free text input
-    #[serde(rename = "text")]
-    Text {
-        /// Placeholder text
-        placeholder: Option<String>,
-        /// Whether input is sensitive (password-like)
-        sensitive: Option<bool>,
-    },
-    /// Choice from predefined options
-    #[serde(rename = "choice")]
-    Choice {
-        /// Available options
-        options: Vec<ElicitationChoice>,
-        /// Whether multiple choices are allowed
-        multiple: Option<bool>,
-    },
-    /// Confirmation (yes/no)
-    #[serde(rename = "confirmation")]
-    Confirmation {
-        /// Default value
-        default: Option<bool>,
-    },
-}
-
-/// A choice option for elicitation
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct ElicitationChoice {
-    /// Display label for the choice
-    pub label: String,
-    /// Value to return if selected
-    pub value: String,
-    /// Optional description
-    pub description: Option<String>,
-}
-
-/// Validation rules for elicitation input
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct ElicitationValidation {
-    /// Minimum length for text input
-    pub min_length: Option<u32>,
-    /// Maximum length for text input
-    pub max_length: Option<u32>,
-    /// Regex pattern for validation
-    pub pattern: Option<String>,
-    /// Whether input is required
-    pub required: Option<bool>,
-}
-
-/// State for multi-step elicitation workflows
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, Default)]
-pub struct MultiStepElicitationState {
-    /// Session ID
-    pub session_id: String,
-    /// Current step
-    pub current_step: u32,
-    /// Collected responses
-    pub responses: Vec<ElicitationResponse>,
-}
-
-/// Response to elicitation request (multi-step support)
+/// User response to elicitation request
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ElicitationResponse {
-    /// Unique session ID for multi-step workflows
+    /// The action taken by the user
+    pub action: ElicitationAction,
+
+    /// The content provided by the user (only present if action is "accept")
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub session_id: Option<String>,
-    /// Step number in the workflow
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub step: Option<u32>,
-    /// User's input/choice
-    pub value: serde_json::Value,
-    /// Whether the user cancelled
-    pub cancelled: Option<bool>,
+    pub content: Option<serde_json::Value>,
+}
+
+/// User response actions
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum ElicitationAction {
+    /// User accepts and provides the requested information
+    Accept,
+    /// User explicitly refuses to provide information
+    Decline,
+    /// User dismisses without making a choice (e.g., closes dialog)
+    Cancel,
+}
+
+impl Default for ElicitationResponse {
+    fn default() -> Self {
+        Self {
+            action: ElicitationAction::Cancel,
+            content: None,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -120,60 +67,124 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_single_step_elicitation() {
-        let req = ElicitationRequest {
-            session_id: None,
-            step: None,
-            prompt: "Enter your name".to_string(),
-            input_type: ElicitationInputType::Text {
-                placeholder: Some("Name".to_string()),
-                sensitive: None,
-            },
-            validation: None,
+    fn test_basic_elicitation_request() {
+        let request = ElicitationRequest {
+            message: "Please provide your GitHub username".to_string(),
+            requested_schema: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "username": {
+                        "type": "string",
+                        "title": "GitHub Username",
+                        "description": "Your GitHub username (e.g., octocat)"
+                    }
+                },
+                "required": ["username"]
+            }),
         };
-        assert_eq!(req.prompt, "Enter your name");
+
+        assert_eq!(request.message, "Please provide your GitHub username");
+        assert!(request.requested_schema.is_object());
     }
 
     #[test]
-    fn test_multi_step_elicitation_state() {
-        let mut state = MultiStepElicitationState {
-            session_id: "sess-123".to_string(),
-            current_step: 0,
-            responses: vec![],
+    fn test_elicitation_response_accept() {
+        let response = ElicitationResponse {
+            action: ElicitationAction::Accept,
+            content: Some(serde_json::json!({
+                "username": "octocat"
+            })),
         };
-        let resp1 = ElicitationResponse {
-            session_id: Some("sess-123".to_string()),
-            step: Some(1),
-            value: serde_json::json!("Alice"),
-            cancelled: None,
-        };
-        state.current_step = 1;
-        state.responses.push(resp1.clone());
-        assert_eq!(state.responses.len(), 1);
-        assert_eq!(state.responses[0].value, serde_json::json!("Alice"));
-        assert_eq!(state.session_id, "sess-123");
+
+        assert!(matches!(response.action, ElicitationAction::Accept));
+        assert!(response.content.is_some());
     }
 
     #[test]
-    fn test_multi_step_elicitation_request_response() {
-        let req = ElicitationRequest {
-            session_id: Some("sess-abc".to_string()),
-            step: Some(2),
-            prompt: "Enter your age".to_string(),
-            input_type: ElicitationInputType::Text {
-                placeholder: Some("Age".to_string()),
-                sensitive: None,
+    fn test_elicitation_response_decline() {
+        let response = ElicitationResponse {
+            action: ElicitationAction::Decline,
+            content: None,
+        };
+
+        assert!(matches!(response.action, ElicitationAction::Decline));
+        assert!(response.content.is_none());
+    }
+
+    #[test]
+    fn test_elicitation_response_cancel() {
+        let response = ElicitationResponse {
+            action: ElicitationAction::Cancel,
+            content: None,
+        };
+
+        assert!(matches!(response.action, ElicitationAction::Cancel));
+        assert!(response.content.is_none());
+    }
+
+    #[test]
+    fn test_supported_data_types() {
+        // Text input
+        let text_schema = serde_json::json!({
+            "type": "object",
+            "properties": {
+                "projectName": {
+                    "type": "string",
+                    "title": "Project Name",
+                    "description": "Name for your new project",
+                    "minLength": 3,
+                    "maxLength": 50
+                }
             },
-            validation: None,
-        };
-        let resp = ElicitationResponse {
-            session_id: Some("sess-abc".to_string()),
-            step: Some(2),
-            value: serde_json::json!(30),
-            cancelled: None,
-        };
-        assert_eq!(req.session_id, Some("sess-abc".to_string()));
-        assert_eq!(resp.step, Some(2));
-        assert_eq!(resp.value, serde_json::json!(30));
+            "required": ["projectName"]
+        });
+
+        // Number input
+        let number_schema = serde_json::json!({
+            "type": "object",
+            "properties": {
+                "portNumber": {
+                    "type": "number",
+                    "title": "Port Number",
+                    "description": "Port to run the server on",
+                    "minimum": 1024,
+                    "maximum": 65535
+                }
+            },
+            "required": ["portNumber"]
+        });
+
+        // Boolean input
+        let boolean_schema = serde_json::json!({
+            "type": "object",
+            "properties": {
+                "enableAnalytics": {
+                    "type": "boolean",
+                    "title": "Enable Analytics",
+                    "description": "Send anonymous usage statistics",
+                    "default": false
+                }
+            },
+            "required": ["enableAnalytics"]
+        });
+
+        // Selection list
+        let selection_schema = serde_json::json!({
+            "type": "object",
+            "properties": {
+                "environment": {
+                    "type": "string",
+                    "title": "Environment",
+                    "enum": ["development", "staging", "production"],
+                    "enumNames": ["Development", "Staging", "Production"]
+                }
+            },
+            "required": ["environment"]
+        });
+
+        assert!(text_schema.is_object());
+        assert!(number_schema.is_object());
+        assert!(boolean_schema.is_object());
+        assert!(selection_schema.is_object());
     }
 }

@@ -125,88 +125,22 @@ jobs:
         echo "All versions are available for publishing"
         echo "versions-exist=false" >> $GITHUB_OUTPUT
 
-  # Dry run validation
-  dry-run:
-    name: Dry Run Validation
+
+
+  # Publish to crates.io with dependency-based ordering
+  publish-leaf-crates:
+    name: Publish Leaf Crates
     runs-on: ubuntu-latest
     needs: [validate, check-versions]
     if: needs.check-versions.outputs.versions-exist == 'false'
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Install Rust toolchain
-      uses: dtolnay/rust-toolchain@stable
-
-    - name: Cache dependencies
-      uses: Swatinem/rust-cache@v2
-
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y pkg-config libssl-dev
-
-    - name: Login to crates.io
-      uses: actions-rs/cargo@v1
-      with:
-        command: login
-        args: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-
-    - name: Dry run publish validation
-      run: |
-        # Test dry run for each crate
-        for crate in crates/*/; do
-          if [ -f "$crate/Cargo.toml" ]; then
-            echo "Dry run validation for $crate"
-            cd "$crate"
-            cargo package --allow-dirty
-            cd ../..
-          fi
-        done
-        
-        # Test main crate
-        echo "Dry run validation for main crate"
-        cargo package --allow-dirty
-
-  # Publish to crates.io with rate limiting protection
-  publish:
-    name: Publish to Crates.io
-    runs-on: ubuntu-latest
-    needs: [validate, check-versions, dry-run]
-    if: needs.check-versions.outputs.versions-exist == 'false'
     strategy:
       matrix:
-        crate: [
-          'ultrafast-mcp-core',
-          'ultrafast-mcp-auth', 
-          'ultrafast-mcp-transport',
-          'ultrafast-mcp-monitoring',
-          'ultrafast-mcp-server',
-          'ultrafast-mcp-client',
-          'ultrafast-mcp-macros',
-          'ultrafast-mcp-cli',
-          'ultrafast-mcp'
-        ]
+        crate: ['ultrafast-mcp-core', 'ultrafast-mcp-monitoring']
         include:
           - crate: ultrafast-mcp-core
-            delay: 0
-          - crate: ultrafast-mcp-auth
-            delay: 120
-          - crate: ultrafast-mcp-transport
-            delay: 240
+            path: crates/ultrafast-mcp-core
           - crate: ultrafast-mcp-monitoring
-            delay: 360
-          - crate: ultrafast-mcp-server
-            delay: 480
-          - crate: ultrafast-mcp-client
-            delay: 600
-          - crate: ultrafast-mcp-macros
-            delay: 720
-          - crate: ultrafast-mcp-cli
-            delay: 840
-          - crate: ultrafast-mcp
-            delay: 960
+            path: crates/ultrafast-mcp-monitoring
 
     steps:
     - name: Checkout code
@@ -223,30 +157,21 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y pkg-config libssl-dev
 
-    - name: Wait for rate limiting delay
-      run: |
-        echo "Waiting ${{ matrix.delay }} seconds before publishing ${{ matrix.crate }}..."
-        sleep ${{ matrix.delay }}
-
     - name: Login to crates.io
       uses: actions-rs/cargo@v1
       with:
         command: login
         args: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
-    - name: Publish crate
+    - name: Publish leaf crate
       run: |
         echo "Publishing ${{ matrix.crate }}..."
-        if [ "${{ matrix.crate }}" = "ultrafast-mcp" ]; then
-          cd crates/ultrafast-mcp
-        else
-          cd crates/${{ matrix.crate }}
-        fi
+        cd ${{ matrix.path }}
         
         # Add retry logic with exponential backoff
         max_attempts=3
         attempt=1
-        base_delay=60
+        base_delay=30
         
         while [ $attempt -le $max_attempts ]; do
           echo "Attempt $attempt of $max_attempts"
@@ -267,11 +192,17 @@ jobs:
           fi
         done
 
-  # Deploy documentation
-  deploy-docs:
-    name: Deploy Documentation
+  publish-level-1:
+    name: Publish Level 1 Dependencies
     runs-on: ubuntu-latest
-    needs: [publish]
+    needs: [publish-leaf-crates]
+    if: always() && needs.publish-leaf-crates.result == 'success'
+    strategy:
+      matrix:
+        crate: ['ultrafast-mcp-auth']
+        include:
+          - crate: ultrafast-mcp-auth
+            path: crates/ultrafast-mcp-auth
 
     steps:
     - name: Checkout code
@@ -288,22 +219,310 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y pkg-config libssl-dev
 
-    - name: Build documentation
-      run: cargo doc --no-deps --all-features
+    - name: Wait for leaf crates
+      run: |
+        echo "Waiting for leaf crates to be available..."
+        sleep 60
 
-    - name: Deploy to GitHub Pages
-      uses: peaceiris/actions-gh-pages@v3
+    - name: Login to crates.io
+      uses: actions-rs/cargo@v1
       with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: ./target/doc
-        destination_dir: .
-        force_orphan: true
+        command: login
+        args: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+    - name: Publish level 1 crate
+      run: |
+        echo "Publishing ${{ matrix.crate }}..."
+        cd ${{ matrix.path }}
+        
+        max_attempts=3
+        attempt=1
+        base_delay=30
+        
+        while [ $attempt -le $max_attempts ]; do
+          echo "Attempt $attempt of $max_attempts"
+          
+          if cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }}; then
+            echo "Successfully published ${{ matrix.crate }}"
+            break
+          else
+            if [ $attempt -eq $max_attempts ]; then
+              echo "Failed to publish ${{ matrix.crate }} after $max_attempts attempts"
+              exit 1
+            fi
+            
+            delay=$((base_delay * attempt))
+            echo "Publish failed, waiting $delay seconds before retry..."
+            sleep $delay
+            attempt=$((attempt + 1))
+          fi
+        done
+
+  publish-level-2:
+    name: Publish Level 2 Dependencies
+    runs-on: ubuntu-latest
+    needs: [publish-level-1]
+    if: always() && needs.publish-level-1.result == 'success'
+    strategy:
+      matrix:
+        crate: ['ultrafast-mcp-transport']
+        include:
+          - crate: ultrafast-mcp-transport
+            path: crates/ultrafast-mcp-transport
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Cache dependencies
+      uses: Swatinem/rust-cache@v2
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y pkg-config libssl-dev
+
+    - name: Wait for level 1 crates
+      run: |
+        echo "Waiting for level 1 crates to be available..."
+        sleep 60
+
+    - name: Login to crates.io
+      uses: actions-rs/cargo@v1
+      with:
+        command: login
+        args: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+    - name: Publish level 2 crate
+      run: |
+        echo "Publishing ${{ matrix.crate }}..."
+        cd ${{ matrix.path }}
+        
+        max_attempts=3
+        attempt=1
+        base_delay=30
+        
+        while [ $attempt -le $max_attempts ]; do
+          echo "Attempt $attempt of $max_attempts"
+          
+          if cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }}; then
+            echo "Successfully published ${{ matrix.crate }}"
+            break
+          else
+            if [ $attempt -eq $max_attempts ]; then
+              echo "Failed to publish ${{ matrix.crate }} after $max_attempts attempts"
+              exit 1
+            fi
+            
+            delay=$((base_delay * attempt))
+            echo "Publish failed, waiting $delay seconds before retry..."
+            sleep $delay
+            attempt=$((attempt + 1))
+          fi
+        done
+
+  publish-level-3:
+    name: Publish Level 3 Dependencies
+    runs-on: ubuntu-latest
+    needs: [publish-level-2]
+    if: always() && needs.publish-level-2.result == 'success'
+    strategy:
+      matrix:
+        crate: ['ultrafast-mcp-server', 'ultrafast-mcp-client']
+        include:
+          - crate: ultrafast-mcp-server
+            path: crates/ultrafast-mcp-server
+          - crate: ultrafast-mcp-client
+            path: crates/ultrafast-mcp-client
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Cache dependencies
+      uses: Swatinem/rust-cache@v2
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y pkg-config libssl-dev
+
+    - name: Wait for level 2 crates
+      run: |
+        echo "Waiting for level 2 crates to be available..."
+        sleep 60
+
+    - name: Login to crates.io
+      uses: actions-rs/cargo@v1
+      with:
+        command: login
+        args: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+    - name: Publish level 3 crate
+      run: |
+        echo "Publishing ${{ matrix.crate }}..."
+        cd ${{ matrix.path }}
+        
+        max_attempts=3
+        attempt=1
+        base_delay=30
+        
+        while [ $attempt -le $max_attempts ]; do
+          echo "Attempt $attempt of $max_attempts"
+          
+          if cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }}; then
+            echo "Successfully published ${{ matrix.crate }}"
+            break
+          else
+            if [ $attempt -eq $max_attempts ]; then
+              echo "Failed to publish ${{ matrix.crate }} after $max_attempts attempts"
+              exit 1
+            fi
+            
+            delay=$((base_delay * attempt))
+            echo "Publish failed, waiting $delay seconds before retry..."
+            sleep $delay
+            attempt=$((attempt + 1))
+          fi
+        done
+
+  publish-level-4:
+    name: Publish Level 4 Dependencies
+    runs-on: ubuntu-latest
+    needs: [publish-level-3]
+    if: always() && needs.publish-level-3.result == 'success'
+    strategy:
+      matrix:
+        crate: ['ultrafast-mcp-cli']
+        include:
+          - crate: ultrafast-mcp-cli
+            path: crates/ultrafast-mcp-cli
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Cache dependencies
+      uses: Swatinem/rust-cache@v2
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y pkg-config libssl-dev
+
+    - name: Wait for level 3 crates
+      run: |
+        echo "Waiting for level 3 crates to be available..."
+        sleep 60
+
+    - name: Login to crates.io
+      uses: actions-rs/cargo@v1
+      with:
+        command: login
+        args: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+    - name: Publish level 4 crate
+      run: |
+        echo "Publishing ${{ matrix.crate }}..."
+        cd ${{ matrix.path }}
+        
+        max_attempts=3
+        attempt=1
+        base_delay=30
+        
+        while [ $attempt -le $max_attempts ]; do
+          echo "Attempt $attempt of $max_attempts"
+          
+          if cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }}; then
+            echo "Successfully published ${{ matrix.crate }}"
+            break
+          else
+            if [ $attempt -eq $max_attempts ]; then
+              echo "Failed to publish ${{ matrix.crate }} after $max_attempts attempts"
+              exit 1
+            fi
+            
+            delay=$((base_delay * attempt))
+            echo "Publish failed, waiting $delay seconds before retry..."
+            sleep $delay
+            attempt=$((attempt + 1))
+          fi
+        done
+
+  publish-top-level:
+    name: Publish Top-Level Crate
+    runs-on: ubuntu-latest
+    needs: [publish-level-4]
+    if: always() && needs.publish-level-4.result == 'success'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Cache dependencies
+      uses: Swatinem/rust-cache@v2
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y pkg-config libssl-dev
+
+    - name: Wait for level 4 crates
+      run: |
+        echo "Waiting for level 4 crates to be available..."
+        sleep 60
+
+    - name: Login to crates.io
+      uses: actions-rs/cargo@v1
+      with:
+        command: login
+        args: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+    - name: Publish top-level crate
+      run: |
+        echo "Publishing ultrafast-mcp..."
+        cd crates/ultrafast-mcp
+        
+        max_attempts=3
+        attempt=1
+        base_delay=30
+        
+        while [ $attempt -le $max_attempts ]; do
+          echo "Attempt $attempt of $max_attempts"
+          
+          if cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }}; then
+            echo "Successfully published ultrafast-mcp"
+            break
+          else
+            if [ $attempt -eq $max_attempts ]; then
+              echo "Failed to publish ultrafast-mcp after $max_attempts attempts"
+              exit 1
+            fi
+            
+            delay=$((base_delay * attempt))
+            echo "Publish failed, waiting $delay seconds before retry..."
+            sleep $delay
+            attempt=$((attempt + 1))
+          fi
+        done
 
   # Verify installation
   verify-installation:
     name: Verify Installation
     runs-on: ubuntu-latest
-    needs: [publish]
+    needs: [publish-top-level]
 
     steps:
     - name: Install Rust toolchain

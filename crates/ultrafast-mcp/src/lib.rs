@@ -200,7 +200,7 @@
 //!         let content = std::fs::read_to_string(&request.uri)?;
 //!         
 //!         Ok(ReadResourceResponse {
-//!             contents: vec![ResourceContent::text(content)],
+//!             contents: vec![ResourceContent::text(request.uri.clone(), content)],
 //!         })
 //!     }
 //!
@@ -378,52 +378,183 @@
 //! - Maintain backward compatibility
 //! - Update documentation for new features
 
-// Re-export core types
-#[cfg(not(doc))]
+// =========================
+// Core Protocol and Types
+// =========================
+// Re-export core protocol types, errors, schema, and utilities
+#[cfg(feature = "core")]
 pub use ultrafast_mcp_core::{
-    error::{MCPError, MCPResult},
-    protocol::capabilities::{
-        ClientCapabilities, ElicitationCapability, LoggingCapability, PromptsCapability,
-        ResourcesCapability, RootsCapability, SamplingCapability, ServerCapabilities,
-        ToolsCapability,
+    // Errors (re-export as McpCoreError to avoid conflicts)
+    error as McpCoreError,
+    // Protocol types
+    protocol,
+    // Schema
+    schema,
+    // Types
+    types,
+    // Utils
+    utils,
+    // Re-export specific error types
+    MCPError,
+    MCPResult,
+};
+
+// Re-export utility functions from core
+#[cfg(feature = "core")]
+pub use ultrafast_mcp_core::utils::identifiers::{generate_session_id, generate_state};
+
+// Prelude module for convenient imports
+pub mod prelude;
+
+// Re-export commonly used types directly for convenience
+#[cfg(feature = "core")]
+pub use ultrafast_mcp_core::types::{
+    // Client types
+    client::{ClientCapabilities, ClientInfo},
+    // Completion types
+    completion::{CompleteRequest, CompleteResponse, Completion, CompletionValue},
+    // Elicitation types
+    elicitation::{ElicitationRequest, ElicitationResponse},
+    // Notification types
+    notifications::{LogLevel, PingResponse},
+    // Prompt types
+    prompts::{
+        GetPromptRequest, GetPromptResponse, ListPromptsRequest, ListPromptsResponse, Prompt,
+        PromptArgument, PromptContent, PromptMessages, PromptRole,
     },
-    types::{
-        client::ClientInfo,
-        completion::{CompleteRequest, CompleteResponse},
-        elicitation::{ElicitationRequest, ElicitationResponse},
-        notifications::LogLevel,
-        prompts::{GetPromptRequest, GetPromptResponse, Prompt},
-        resources::{ReadResourceRequest, ReadResourceResponse, Resource, ResourceTemplate},
-        roots::Root,
-        sampling::{CreateMessageRequest, CreateMessageResponse},
-        server::ServerInfo,
-        tools::{
-            ListToolsRequest, ListToolsResponse, ResourceReference, Tool, ToolCall, ToolContent,
-            ToolResult,
-        },
+    // Resource types
+    resources::{
+        ListResourcesRequest, ListResourcesResponse, ReadResourceRequest, ReadResourceResponse,
+        Resource, ResourceContent, ResourceTemplate,
+    },
+    // Roots types
+    roots::Root,
+    // Sampling types
+    sampling::{
+        CreateMessageRequest, CreateMessageResponse, ModelPreferences, SamplingContent,
+        SamplingRequest, SamplingResponse,
+    },
+    // Server types
+    server::{ServerCapabilities, ServerInfo},
+    // Tool types
+    tools::{
+        ListToolsRequest, ListToolsResponse, Tool, ToolAnnotations, ToolCall, ToolContent,
+        ToolResult,
     },
 };
 
-// Re-export server types
-#[cfg(not(doc))]
-pub use ultrafast_mcp_server::{
-    CompletionHandler, Context, ElicitationHandler, PromptHandler, ResourceHandler,
-    ResourceSubscriptionHandler, RootsHandler, SamplingHandler, ToolHandler, UltraFastServer,
+// Re-export capability types from protocol
+#[cfg(feature = "core")]
+pub use ultrafast_mcp_core::protocol::capabilities::{
+    CompletionCapability, LoggingCapability, PromptsCapability, ResourcesCapability,
+    ToolsCapability,
 };
 
+// =========================
+// Server API
+// =========================
 // Use handler traits from server crate
+#[cfg(feature = "core")]
 #[cfg(not(doc))]
 pub use ultrafast_mcp_server::{
-    ElicitationHandler as ClientElicitationHandler, SamplingHandler as ClientSamplingHandler,
+    CompletionHandler, Context, ContextLogger, ElicitationHandler, LoggerConfig, PromptHandler,
+    ResourceHandler, ResourceSubscriptionHandler, RootsHandler, SamplingHandler,
+    ServerLoggingConfig, ServerState, ToolHandler, ToolRegistrationError, UltraFastServer,
 };
 
-// Re-export transport types
-#[cfg(not(doc))]
-pub use ultrafast_mcp_transport::{Transport, TransportConfig};
+// =========================
+// Client API
+// =========================
+#[cfg(feature = "core")]
+pub use ultrafast_mcp_client::{ClientElicitationHandler, UltraFastClient};
 
-// Re-export auth types
-#[cfg(all(feature = "oauth", not(doc)))]
-pub use ultrafast_mcp_auth::OAuthConfig;
+// =========================
+// Transport Layer
+// =========================
+#[cfg(feature = "stdio")]
+pub use ultrafast_mcp_transport::{
+    create_recovering_transport,
+    create_transport,
+    // Middleware
+    middleware::{
+        LoggingMiddleware, MiddlewareTransport, ProgressMiddleware, RateLimitMiddleware,
+        TransportMiddleware, ValidationMiddleware,
+    },
+    // STDIO
+    stdio::StdioTransport,
+    Transport,
+    TransportConfig,
+};
 
-#[cfg(all(feature = "monitoring", not(doc)))]
-pub use ultrafast_mcp_monitoring::{MonitoringConfig, MonitoringSystem};
+// Streamable HTTP (feature = "http")
+#[cfg(feature = "http")]
+pub use ultrafast_mcp_transport::streamable_http;
+
+// Streamable HTTP (feature = "http")
+#[cfg(feature = "http")]
+pub use ultrafast_mcp_transport::streamable_http::{
+    create_streamable_http_client_default, create_streamable_http_client_with_middleware,
+    create_streamable_http_server_default, create_streamable_http_server_with_middleware,
+    HttpTransportConfig, HttpTransportServer, HttpTransportState, StreamableHttpClient,
+    StreamableHttpClientConfig,
+};
+
+// =========================
+// Authentication (feature = "oauth")
+// =========================
+#[cfg(feature = "oauth")]
+pub use ultrafast_mcp_auth::{
+    // Re-export auth types (avoiding conflicts with core types)
+    error as McpAuthError,
+    extract_bearer_token,
+    generate_pkce_params,
+    oauth,
+    pkce,
+    types as AuthTypes,
+    validation,
+    ApiKeyAuth,
+    AuthContext,
+    AuthError,
+    AuthMethod,
+    AuthResult,
+    AuthorizationServerMetadata,
+    BasicAuth,
+    BearerAuth,
+    ClientAuthMiddleware,
+    ClientRegistrationRequest,
+    ClientRegistrationResponse,
+    CustomHeaderAuth,
+    OAuthClient,
+    // Re-export specific types
+    OAuthConfig,
+    // Re-export as AuthConfig for convenience
+    OAuthConfig as AuthConfig,
+    PkceParams,
+    ServerAuthMiddleware,
+    TokenClaims,
+    TokenResponse,
+    TokenValidator,
+};
+
+// =========================
+// Monitoring (feature = "monitoring")
+// =========================
+#[cfg(feature = "monitoring")]
+pub use ultrafast_mcp_monitoring::{
+    config::MonitoringConfig,
+    // Re-export specific modules
+    exporters,
+    // Re-export monitoring types explicitly for better discoverability
+    health::{HealthCheck, HealthCheckResult, HealthChecker, HealthStatus},
+    metrics::{MetricsCollector, RequestMetrics, RequestTimer, SystemMetrics, TransportMetrics},
+    middleware,
+    tracing,
+    MonitoringSystem,
+};
+
+// =========================
+// Macros - REMOVED
+// =========================
+// Macros have been removed as they provided no immediate benefit
+// and were only stub implementations. The current API is already
+// ergonomic and production-ready.

@@ -69,7 +69,7 @@ pub struct ToolsCapability {
 }
 
 /// Resources capability
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ResourcesCapability {
     /// Whether the server supports resource subscriptions
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -100,41 +100,80 @@ pub struct CompletionCapability {
     // Completion capability has no specific parameters in MCP 2025-06-18
 }
 
-/// Capability negotiation utilities
-pub struct CapabilityNegotiator;
-
-impl CapabilityNegotiator {
-    /// Negotiate capabilities between client and server
-    pub fn negotiate(
-        client_caps: &ClientCapabilities,
-        server_caps: &ServerCapabilities,
-    ) -> (ClientCapabilities, ServerCapabilities) {
-        // For Phase 1, we do simple capability passing
-        // In future phases, we can implement more sophisticated negotiation
-        (client_caps.clone(), server_caps.clone())
-    }
-
-    /// Check if a capability is supported
-    pub fn supports_capability(caps: &ServerCapabilities, capability: &str) -> bool {
+impl ServerCapabilities {
+    /// Check if server supports a specific capability
+    pub fn supports_capability(&self, capability: &str) -> bool {
         match capability {
-            "tools" => caps.tools.is_some(),
-            "resources" => caps.resources.is_some(),
-            "prompts" => caps.prompts.is_some(),
-            "logging" => caps.logging.is_some(),
-            "completion" => caps.completion.is_some(),
+            "tools" => self.tools.is_some(),
+            "resources" => self.resources.is_some(),
+            "prompts" => self.prompts.is_some(),
+            "logging" => self.logging.is_some(),
+            "completion" => self.completion.is_some(),
             _ => false,
         }
     }
 
-    /// Check if client supports a capability
-    pub fn client_supports_capability(caps: &ClientCapabilities, capability: &str) -> bool {
-        match capability {
-            "roots" => caps.roots.is_some(),
-            "sampling" => caps.sampling.is_some(),
-            "elicitation" => caps.elicitation.is_some(),
+    /// Check if server supports a specific feature within a capability
+    pub fn supports_feature(&self, capability: &str, feature: &str) -> bool {
+        match (capability, feature) {
+            ("tools", "list_changed") => self
+                .tools
+                .as_ref()
+                .and_then(|t| t.list_changed)
+                .unwrap_or(false),
+            ("resources", "subscribe") => self
+                .resources
+                .as_ref()
+                .and_then(|r| r.subscribe)
+                .unwrap_or(false),
+            ("resources", "list_changed") => self
+                .resources
+                .as_ref()
+                .and_then(|r| r.list_changed)
+                .unwrap_or(false),
+            ("prompts", "list_changed") => self
+                .prompts
+                .as_ref()
+                .and_then(|p| p.list_changed)
+                .unwrap_or(false),
             _ => false,
         }
     }
+}
+
+impl ClientCapabilities {
+    /// Check if client supports a specific capability
+    pub fn supports_capability(&self, capability: &str) -> bool {
+        match capability {
+            "roots" => self.roots.is_some(),
+            "sampling" => self.sampling.is_some(),
+            "elicitation" => self.elicitation.is_some(),
+            _ => false,
+        }
+    }
+}
+
+/// Validate compatibility between client and server capabilities
+pub fn validate_compatibility(
+    client_caps: &ClientCapabilities,
+    server_caps: &ServerCapabilities,
+) -> Result<(), String> {
+    // Check if client wants sampling but server doesn't support tools
+    if client_caps.sampling.is_some() && server_caps.tools.is_none() {
+        return Err(
+            "Client supports sampling but server does not provide tools capability".to_string(),
+        );
+    }
+
+    // Check if we have at least one compatible capability
+    if !server_caps.supports_capability("tools")
+        && !server_caps.supports_capability("resources")
+        && !server_caps.supports_capability("prompts")
+    {
+        return Err("No compatible capabilities found between client and server".to_string());
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]
@@ -143,41 +182,49 @@ mod tests {
 
     #[test]
     fn test_capability_negotiation() {
-        let client_caps = ClientCapabilities {
-            roots: Some(RootsCapability {
-                list_changed: Some(true),
-            }),
-            sampling: Some(SamplingCapability {}),
-            elicitation: None,
-        };
-
         let server_caps = ServerCapabilities {
             tools: Some(ToolsCapability {
                 list_changed: Some(true),
             }),
-            resources: Some(ResourcesCapability {
-                subscribe: Some(true),
-                list_changed: Some(true),
-            }),
-            prompts: None,
-            logging: Some(LoggingCapability {}),
-            completion: None,
+            ..Default::default()
+        };
+        let client_caps = ClientCapabilities {
+            sampling: Some(SamplingCapability {}),
+            ..Default::default()
         };
 
-        let (negotiated_client, negotiated_server) =
-            CapabilityNegotiator::negotiate(&client_caps, &server_caps);
+        // Client can use sampling if server supports tools
+        assert!(validate_compatibility(&client_caps, &server_caps).is_ok());
+    }
 
-        assert!(CapabilityNegotiator::client_supports_capability(
-            &negotiated_client,
-            "roots"
-        ));
-        assert!(CapabilityNegotiator::supports_capability(
-            &negotiated_server,
-            "tools"
-        ));
-        assert!(!CapabilityNegotiator::supports_capability(
-            &negotiated_server,
-            "prompts"
-        ));
+    #[test]
+    fn test_compatibility_validation() {
+        let server_caps = ServerCapabilities {
+            tools: Some(ToolsCapability {
+                list_changed: Some(true),
+            }),
+            ..Default::default()
+        };
+        let client_caps = ClientCapabilities::default();
+
+        // Valid compatibility
+        assert!(validate_compatibility(&client_caps, &server_caps).is_ok());
+
+        // Invalid: client wants sampling but server has no tools
+        let client_with_sampling = ClientCapabilities {
+            sampling: Some(SamplingCapability {}),
+            ..Default::default()
+        };
+        let server_without_tools = ServerCapabilities::default();
+        assert!(validate_compatibility(&client_with_sampling, &server_without_tools).is_err());
+    }
+
+    #[test]
+    fn test_no_overlap_error() {
+        let server_caps = ServerCapabilities::default();
+        let client_caps = ClientCapabilities::default();
+
+        // No compatible capabilities
+        assert!(validate_compatibility(&client_caps, &server_caps).is_err());
     }
 }

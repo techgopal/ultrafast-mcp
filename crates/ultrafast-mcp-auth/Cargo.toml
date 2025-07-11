@@ -20,7 +20,7 @@ targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
 # Internal dependencies
-ultrafast-mcp-core = { path = "../ultrafast-mcp-core", version = "202506018.1.0-rc.1.4" }
+ultrafast-mcp-core = { path = "../ultrafast-mcp-core", version = "=202506018.1.0-rc.2" }
 
 # Core runtime dependencies
 tokio = { workspace = true }
@@ -29,25 +29,30 @@ serde_json = { workspace = true }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
 async-trait = { workspace = true }
+tracing = { workspace = true }
 
-# OAuth 2.1 dependencies
+# OAuth 2.1 dependencies (required)
 oauth2 = { workspace = true }
 jsonwebtoken = { workspace = true }
 base64 = { workspace = true }
 url = { workspace = true }
 rand = { workspace = true }
 sha2 = { workspace = true }
-
-# HTTP client for token requests
 reqwest = { workspace = true }
-
-# Tracing
-tracing = { workspace = true }
 rand_distr = { workspace = true }
 
 [features]
-default = ["oauth"]
+# No default features for minimal footprint
+default = []
+
+# Core authentication functionality
+core = []
+
+# OAuth 2.1 authentication support
 oauth = []
+
+# All authentication methods
+full = ["core", "oauth"]
 
 [dev-dependencies]
 tokio-test = { workspace = true }

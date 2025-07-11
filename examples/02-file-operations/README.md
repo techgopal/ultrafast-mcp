@@ -1,270 +1,247 @@
-# File Operations Example
+# File Operations MCP Example
 
-This example demonstrates the new `UltraFastServer` and `UltraFastClient` APIs with comprehensive file system operations.
+This example demonstrates file system operations using the UltraFast MCP framework. It includes both a server that provides file operations as MCP tools and a client that connects to the server to perform file operations. **This implementation is aligned with the official [MCP filesystem server](https://github.com/modelcontextprotocol/servers/tree/main/src/filesystem) from the Model Context Protocol repository.**
 
-## Overview
+## Features
 
-The example consists of:
-- **Server**: An MCP server that provides file system operations (read, write, list, delete)
-- **Client**: A client that connects to the server and tests all file operations
+- **Complete MCP Filesystem Compliance**: Full alignment with the official MCP filesystem server implementation
+- **File Reading**: Read file contents with head/tail support
+- **File Writing**: Write content to files with overwrite protection
+- **File Editing**: Make line-based edits with diff output
+- **Directory Operations**: Create directories and list contents
+- **File Management**: Move, search, and get detailed file information
+- **Security**: Path validation and allowed directories
+- **Multiple Transports**: Support for both STDIO and HTTP transports
+- **Streamable HTTP**: High-performance HTTP transport with Server-Sent Events
 
-## Features Demonstrated
+## Tools Available (Official MCP Filesystem Server)
 
-- Creating an MCP server using `UltraFastServer` with multiple tools
-- Implementing complex tool handlers with the `ToolHandler` trait
-- File system operations: read, write, append, list, delete
-- Error handling for file operations
-- Creating an MCP client using `UltraFastClient`
-- Testing file operations end-to-end
-- Cleanup and verification
+1. **`read_file`**: Read a file from disk
+   - Parameters: `path` (string), `head` (optional number), `tail` (optional number)
+   - Returns: File content and path
 
-## Running the Example
+2. **`read_multiple_files`**: Read multiple files simultaneously
+   - Parameters: `paths` (array of strings)
+   - Returns: Array of file contents with paths
 
-### 1. Build the Example
+3. **`write_file`**: Write content to a file (overwrites existing)
+   - Parameters: `path` (string), `content` (string)
+   - Returns: Success status and message
+
+4. **`edit_file`**: Make line-based edits to a text file
+   - Parameters: `path` (string), `edits` (array of edit operations), `dry_run` (optional boolean)
+   - Returns: Success status, diff, and message
+
+5. **`create_directory`**: Create a new directory
+   - Parameters: `path` (string)
+   - Returns: Success status and message
+
+6. **`list_directory`**: List files and directories
+   - Parameters: `path` (string)
+   - Returns: Array of directory entries with metadata
+
+7. **`list_directory_with_sizes`**: List files with sizes and sorting
+   - Parameters: `path` (string), `sort_by` (optional: "name" or "size")
+   - Returns: Array of directory entries with sizes
+
+8. **`directory_tree`**: Get recursive tree view
+   - Parameters: `path` (string)
+   - Returns: JSON tree structure
+
+9. **`move_file`**: Move or rename files
+   - Parameters: `source` (string), `destination` (string)
+   - Returns: Success status and message
+
+10. **`search_files`**: Search for files by pattern
+    - Parameters: `path` (string), `pattern` (string), `exclude_patterns` (optional array)
+    - Returns: Array of matching file paths
+
+11. **`get_file_info`**: Get detailed file metadata
+    - Parameters: `path` (string)
+    - Returns: File size, timestamps, permissions, and type
+
+12. **`list_allowed_directories`**: List accessible directories
+    - Parameters: None
+    - Returns: Array of allowed directory paths
+
+## Security Features
+
+- **Path Validation**: All file operations validate paths against allowed directories
+- **Allowed Directories**: Server only operates within specified directory boundaries
+- **Symlink Protection**: Handles symlinks safely to prevent directory traversal attacks
+- **Atomic Operations**: File writes use atomic operations to prevent race conditions
+
+## Transport Options
+
+### STDIO Transport (Subprocess Mode)
+- Local communication between client and server
+- Minimal overhead
+- Suitable for local development and testing
+
+### HTTP Transport (Network Mode)
+- Network-based communication
+- Support for remote connections
+- Streamable HTTP with Server-Sent Events
+- CORS enabled for web applications
+
+## Usage
+
+### Building
 
 ```bash
-cd examples/02-file-operations
-cargo build
+cargo build --release
 ```
 
-### 2. Run the Server
+### Running the Server
 
-In one terminal:
+#### STDIO Transport
+```bash
+# Use current directory as allowed directory
+./target/release/file-ops-server stdio
+
+# Specify allowed directories
+./target/release/file-ops-server stdio --allowed-directories /tmp /home/user/documents
+```
+
+#### HTTP Transport
+```bash
+# Default host and port (127.0.0.1:8080)
+./target/release/file-ops-server http
+
+# Custom host and port
+./target/release/file-ops-server http --host 0.0.0.0 --port 9000
+
+# With allowed directories
+./target/release/file-ops-server http --allowed-directories /tmp /var/log
+```
+
+### Running the Client
+
+#### STDIO Transport
+```bash
+./target/release/file-ops-client stdio
+```
+
+#### HTTP Transport
+```bash
+# Default server URL
+./target/release/file-ops-client http
+
+# Custom server URL
+./target/release/file-ops-client http --server-url http://localhost:9000
+```
+
+### Testing with MCP Inspector
+
+1. Start the server in HTTP mode:
+   ```bash
+   ./target/release/file-ops-server http
+   ```
+
+2. Open [MCP Inspector](https://www.npmjs.com/package/@modelcontextprotocol/inspector)
+
+3. Load the `mcp-inspector-config.json` file
+
+4. Test all the available tools interactively
+
+### Automated Testing
+
+Run the automated test script:
 
 ```bash
-cargo run --bin server
+./test_http.sh
 ```
 
-The server will start and wait for connections on stdio.
+This script will:
+- Build the project
+- Start the server in HTTP mode
+- Run the client to test all operations
+- Clean up test files
 
-### 3. Run the Client
+## Example Operations
 
-In another terminal:
+### Basic File Operations
+```bash
+# Create a directory
+./target/release/file-ops-client http --server-url http://localhost:8080
+
+# The client will automatically test:
+# - Creating directories
+# - Writing files
+# - Reading files (full content, head, tail)
+# - Listing directories
+# - Getting file information
+# - Searching files
+# - Editing files
+# - Moving files
+```
+
+### Using MCP Inspector
+1. Start the server: `./target/release/file-ops-server http`
+2. Open MCP Inspector and load the config
+3. Try these operations:
+   - **Read a file**: Use `read_file` with a file path
+   - **Create a directory**: Use `create_directory` with a path
+   - **List contents**: Use `list_directory` with a directory path
+   - **Search files**: Use `search_files` with a pattern
+   - **Get file info**: Use `get_file_info` with a file path
+
+## Configuration
+
+### Allowed Directories
+The server restricts all file operations to specified directories for security:
 
 ```bash
-cargo run --bin client
+# Allow access to multiple directories
+./target/release/file-ops-server http --allowed-directories /tmp /home/user /var/log
+
+# Default: current directory (.)
 ```
 
-The client will connect to the server and perform a series of file operations.
+### HTTP Configuration
+```bash
+# Custom host and port
+./target/release/file-ops-server http --host 0.0.0.0 --port 9000
 
-## Expected Output
-
-### Server Output
-```
-🚀 Starting File Operations Server
-✅ Server created successfully
-📡 Starting server on stdio transport
-📨 Received tool call: write_file
-📨 Received tool call: read_file
-📨 Received tool call: write_file
-📨 Received tool call: list_files
-📨 Received tool call: delete_file
+# Default: 127.0.0.1:8080
 ```
 
-### Client Output
-```
-🚀 Starting File Operations Client
-✅ Client created successfully
-🔗 Connected to file operations server
-📋 Listing available tools...
-🔧 Tool: read_file - Read the contents of a file
-🔧 Tool: write_file - Write content to a file
-🔧 Tool: list_files - List files in a directory
-🔧 Tool: delete_file - Delete a file or directory
-📝 Testing write_file tool...
-📥 Write response received:
-📄 Response: {"path":"test_files/test.txt","size":45,"written":true}
-📖 Testing read_file tool...
-📥 Read response received:
-📄 Response: {"content":"Hello from UltraFastClient!\nThis is a test file.\n","size":45,"modified":"2024-01-01T12:00:00Z","path":"test_files/test.txt"}
-📝 Testing append to file...
-📥 Append response received:
-📄 Response: {"path":"test_files/test.txt","size":67,"written":true}
-📁 Testing list_files tool...
-📥 List files response received:
-📄 Response: {"files":[{"name":"test.txt","path":"test_files/test.txt","is_dir":false,"size":67,"modified":"2024-01-01T12:00:01Z"}],"total_count":1,"path":"test_files"}
-🗑️ Testing delete_file tool...
-📥 Delete response received:
-📄 Response: {"path":"test_files/test.txt","deleted":true,"message":"Successfully deleted"}
-🔍 Verifying file was deleted...
-✅ File successfully deleted (expected error): File not found: test_files/test.txt
-🧹 Cleaning up test directory...
-📥 Cleanup response received:
-📄 Response: {"path":"test_files","deleted":true,"message":"Successfully deleted"}
-🔍 Testing error handling with non-existent file...
-✅ Expected error for non-existent file: File not found: non_existent_file.txt
-✅ All file operations tests completed successfully!
-```
+## Differences from Official MCP Filesystem Server
 
-## Code Structure
+This implementation provides the same API as the official MCP filesystem server but with these UltraFast MCP-specific features:
 
-### Server (`src/server.rs`)
-
-The server demonstrates:
-- Creating an `UltraFastServer` with file operation capabilities
-- Implementing a comprehensive `ToolHandler` with multiple tools
-- File system operations with proper error handling
-- Structured request/response handling
-- File metadata handling
-
-### Client (`src/client.rs`)
-
-The client demonstrates:
-- Creating an `UltraFastClient` with stdio transport
-- Testing all file operations systematically
-- Error handling and verification
-- Cleanup operations
-- End-to-end testing workflow
-
-## Available Tools
-
-### 1. `read_file`
-Reads the contents of a file.
-
-**Parameters:**
-- `path` (string, required): Path to the file to read
-
-**Response:**
-```json
-{
-  "content": "file contents",
-  "size": 1234,
-  "modified": "2024-01-01T12:00:00Z",
-  "path": "/path/to/file"
-}
-```
-
-### 2. `write_file`
-Writes content to a file.
-
-**Parameters:**
-- `path` (string, required): Path to the file to write
-- `content` (string, required): Content to write to the file
-- `append` (boolean, optional): Whether to append to existing file (default: false)
-
-**Response:**
-```json
-{
-  "path": "/path/to/file",
-  "size": 1234,
-  "written": true
-}
-```
-
-### 3. `list_files`
-Lists files in a directory.
-
-**Parameters:**
-- `path` (string, required): Path to the directory to list
-- `recursive` (boolean, optional): Whether to list recursively (default: false)
-
-**Response:**
-```json
-{
-  "files": [
-    {
-      "name": "file.txt",
-      "path": "/path/to/file.txt",
-      "is_dir": false,
-      "size": 1234,
-      "modified": "2024-01-01T12:00:00Z"
-    }
-  ],
-  "total_count": 1,
-  "path": "/path/to/directory"
-}
-```
-
-### 4. `delete_file`
-Deletes a file or directory.
-
-**Parameters:**
-- `path` (string, required): Path to the file or directory to delete
-- `recursive` (boolean, optional): Whether to delete directories recursively (default: false)
-
-**Response:**
-```json
-{
-  "path": "/path/to/file",
-  "deleted": true,
-  "message": "Successfully deleted"
-}
-```
-
-## Key API Usage
-
-### Server Creation with Multiple Tools
-```rust
-let server = UltraFastServer::new(
-    ServerInfo { /* ... */ },
-    ServerCapabilities {
-        tools: Some(ToolsCapability { list_changed: Some(true) }),
-        resources: Some(ResourcesCapability { /* ... */ }),
-        ..Default::default()
-    }
-)
-.with_tool_handler(Arc::new(FileOperationsHandler))
-.build()?;
-```
-
-### Tool Handler Implementation
-```rust
-#[async_trait::async_trait]
-impl ultrafast_mcp::ToolHandler for FileOperationsHandler {
-    async fn handle_tool_call(&self, call: ultrafast_mcp::ToolCall) -> ultrafast_mcp::McpResult<ultrafast_mcp::ToolResult> {
-        match call.name.as_str() {
-            "read_file" => self.handle_read_file(request).await,
-            "write_file" => self.handle_write_file(request).await,
-            "list_files" => self.handle_list_files(request).await,
-            "delete_file" => self.handle_delete_file(request).await,
-            _ => Err(ultrafast_mcp::McpError::method_not_found(format!("Unknown tool: {}", call.name))),
-        }
-    }
-}
-```
-
-### Client File Operations
-```rust
-// Write a file
-let write_result = client.call_tool("write_file", json!({
-    "path": "test.txt",
-    "content": "Hello World!",
-    "append": false
-})).await?;
-
-// Read a file
-let read_result = client.call_tool("read_file", json!({
-    "path": "test.txt"
-})).await?;
-
-// List files
-let list_result = client.call_tool("list_files", json!({
-    "path": ".",
-    "recursive": false
-})).await?;
-
-// Delete a file
-let delete_result = client.call_tool("delete_file", json!({
-    "path": "test.txt",
-    "recursive": false
-})).await?;
-```
-
-## Error Handling
-
-The example demonstrates comprehensive error handling:
-- File not found errors
-- Permission errors
-- Invalid path errors
-- Directory not empty errors
-- Network/connection errors
+- **Rust Implementation**: Native Rust performance and safety
+- **UltraFast MCP Framework**: Built on the UltraFast MCP framework
+- **HTTP Transport**: Additional HTTP transport support
+- **Enhanced Error Handling**: Comprehensive error handling and logging
+- **Type Safety**: Strong typing with Rust's type system
 
 ## Security Considerations
 
-The file operations server includes basic safety measures:
-- Path validation
-- Directory traversal protection
-- Recursive deletion confirmation
-- Error message sanitization
+- **Path Validation**: All paths are validated against allowed directories
+- **No Recursive Operations**: Directory operations are non-recursive by default
+- **Atomic Writes**: File writes use atomic operations
+- **Symlink Protection**: Handles symlinks safely
+- **Input Validation**: All inputs are validated before processing
 
-This example provides a comprehensive demonstration of building a production-ready MCP server with file system operations using the new ergonomic APIs. 
+## Troubleshooting
+
+### Common Issues
+
+1. **Permission Denied**: Check that the server has access to the allowed directories
+2. **File Not Found**: Verify the file path is within allowed directories
+3. **Connection Refused**: Ensure the server is running and the port is correct
+4. **CORS Errors**: The HTTP server includes CORS headers for web applications
+
+### Debug Mode
+
+Enable debug logging:
+
+```bash
+RUST_LOG=debug ./target/release/file-ops-server http
+RUST_LOG=debug ./target/release/file-ops-client http
+```
+
+## Contributing
+
+This example demonstrates how to implement a production-ready MCP server using the UltraFast MCP framework. The implementation follows the official MCP filesystem server specification while leveraging UltraFast MCP's performance and developer experience features. 

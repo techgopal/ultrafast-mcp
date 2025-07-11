@@ -2,8 +2,126 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 /// Type aliases for consistency
+///
+/// NOTE: These aliases are provided for backward compatibility and ergonomics.
+/// ToolCall is an alias for ToolCallRequest - use ToolCallRequest for clarity in new code.
+/// ToolResult is an alias for ToolCallResponse - use ToolCallResponse for clarity in new code.
+///
+/// # Examples
+/// ```
+/// use ultrafast_mcp_core::types::{ToolCall, ToolResult};
+/// use ultrafast_mcp_core::types::tools::{ToolCallRequest, ToolCallResponse};
+///
+/// // Preferred: Use the full type names
+/// let request = ToolCallRequest { name: "my_tool".to_string(), arguments: None };
+/// let response = ToolCallResponse { content: vec![], is_error: None };
+///
+/// // Legacy: Using aliases (still works but less clear)
+/// let request: ToolCall = ToolCallRequest { name: "my_tool".to_string(), arguments: None };
+/// let response: ToolResult = ToolCallResponse { content: vec![], is_error: None };
+/// ```
 pub type ToolCall = ToolCallRequest;
 pub type ToolResult = ToolCallResponse;
+
+/// Tool annotations provide metadata about tool behavior
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ToolAnnotations {
+    /// Human-readable title for the tool, useful for UI display
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+
+    /// If true, indicates the tool does not modify its environment
+    #[serde(rename = "readOnlyHint", skip_serializing_if = "Option::is_none")]
+    pub read_only_hint: Option<bool>,
+
+    /// If true, the tool may perform destructive updates (only meaningful when readOnlyHint is false)
+    #[serde(rename = "destructiveHint", skip_serializing_if = "Option::is_none")]
+    pub destructive_hint: Option<bool>,
+
+    /// If true, calling the tool repeatedly with the same arguments has no additional effect (only meaningful when readOnlyHint is false)
+    #[serde(rename = "idempotentHint", skip_serializing_if = "Option::is_none")]
+    pub idempotent_hint: Option<bool>,
+
+    /// If true, the tool may interact with an "open world" of external entities
+    #[serde(rename = "openWorldHint", skip_serializing_if = "Option::is_none")]
+    pub open_world_hint: Option<bool>,
+}
+
+impl ToolAnnotations {
+    /// Create a new read-only tool annotation
+    pub fn read_only() -> Self {
+        Self {
+            title: None,
+            read_only_hint: Some(true),
+            destructive_hint: None,
+            idempotent_hint: None,
+            open_world_hint: None,
+        }
+    }
+
+    /// Create a new destructive tool annotation
+    pub fn destructive() -> Self {
+        Self {
+            title: None,
+            read_only_hint: Some(false),
+            destructive_hint: Some(true),
+            idempotent_hint: None,
+            open_world_hint: None,
+        }
+    }
+
+    /// Create a new idempotent tool annotation
+    pub fn idempotent() -> Self {
+        Self {
+            title: None,
+            read_only_hint: Some(false),
+            destructive_hint: None,
+            idempotent_hint: Some(true),
+            open_world_hint: None,
+        }
+    }
+
+    /// Create a new open-world tool annotation
+    pub fn open_world() -> Self {
+        Self {
+            title: None,
+            read_only_hint: None,
+            destructive_hint: None,
+            idempotent_hint: None,
+            open_world_hint: Some(true),
+        }
+    }
+
+    /// Set the title
+    pub fn with_title(mut self, title: String) -> Self {
+        self.title = Some(title);
+        self
+    }
+
+    /// Set read-only hint
+    pub fn with_read_only_hint(mut self, read_only: bool) -> Self {
+        self.read_only_hint = Some(read_only);
+        self
+    }
+
+    /// Set destructive hint
+    pub fn with_destructive_hint(mut self, destructive: bool) -> Self {
+        self.destructive_hint = Some(destructive);
+        self
+    }
+
+    /// Set idempotent hint
+    pub fn with_idempotent_hint(mut self, idempotent: bool) -> Self {
+        self.idempotent_hint = Some(idempotent);
+        self
+    }
+
+    /// Set open-world hint
+    pub fn with_open_world_hint(mut self, open_world: bool) -> Self {
+        self.open_world_hint = Some(open_world);
+        self
+    }
+}
 
 /// Tool definition
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -21,6 +139,10 @@ pub struct Tool {
     /// Optional JSON Schema for output
     #[serde(rename = "outputSchema", skip_serializing_if = "Option::is_none")]
     pub output_schema: Option<Value>,
+
+    /// Optional tool annotations for behavior hints
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub annotations: Option<ToolAnnotations>,
 }
 
 /// Tool call request
@@ -100,11 +222,37 @@ impl Tool {
             description,
             input_schema,
             output_schema: None,
+            annotations: None,
         }
     }
 
     pub fn with_output_schema(mut self, schema: Value) -> Self {
         self.output_schema = Some(schema);
+        self
+    }
+
+    pub fn with_annotations(mut self, annotations: ToolAnnotations) -> Self {
+        self.annotations = Some(annotations);
+        self
+    }
+
+    pub fn with_read_only_annotation(mut self) -> Self {
+        self.annotations = Some(ToolAnnotations::read_only());
+        self
+    }
+
+    pub fn with_destructive_annotation(mut self) -> Self {
+        self.annotations = Some(ToolAnnotations::destructive());
+        self
+    }
+
+    pub fn with_idempotent_annotation(mut self) -> Self {
+        self.annotations = Some(ToolAnnotations::idempotent());
+        self
+    }
+
+    pub fn with_open_world_annotation(mut self) -> Self {
+        self.annotations = Some(ToolAnnotations::open_world());
         self
     }
 
@@ -297,5 +445,79 @@ mod tests {
             "age": "not a number"
         });
         assert!(tool.validate_arguments(&wrong_type_args).is_err());
+    }
+
+    #[test]
+    fn test_tool_annotations() {
+        let tool = Tool::new(
+            "read_only_tool".to_string(),
+            "A read-only tool".to_string(),
+            serde_json::json!({
+                "type": "object",
+                "properties": {}
+            }),
+        )
+        .with_read_only_annotation()
+        .with_annotations(ToolAnnotations::read_only().with_title("Read Only Tool".to_string()));
+
+        assert!(tool.annotations.is_some());
+        let annotations = tool.annotations.unwrap();
+        assert_eq!(annotations.title, Some("Read Only Tool".to_string()));
+        assert_eq!(annotations.read_only_hint, Some(true));
+    }
+
+    #[test]
+    fn test_destructive_tool_annotations() {
+        let tool = Tool::new(
+            "delete_file".to_string(),
+            "Delete a file".to_string(),
+            serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "path": {"type": "string"}
+                },
+                "required": ["path"]
+            }),
+        )
+        .with_destructive_annotation()
+        .with_annotations(
+            ToolAnnotations::destructive()
+                .with_title("Delete File".to_string())
+                .with_idempotent_hint(true),
+        );
+
+        assert!(tool.annotations.is_some());
+        let annotations = tool.annotations.unwrap();
+        assert_eq!(annotations.title, Some("Delete File".to_string()));
+        assert_eq!(annotations.read_only_hint, Some(false));
+        assert_eq!(annotations.destructive_hint, Some(true));
+        assert_eq!(annotations.idempotent_hint, Some(true));
+    }
+
+    #[test]
+    fn test_open_world_tool_annotations() {
+        let tool = Tool::new(
+            "web_search".to_string(),
+            "Search the web".to_string(),
+            serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string"}
+                },
+                "required": ["query"]
+            }),
+        )
+        .with_open_world_annotation()
+        .with_annotations(
+            ToolAnnotations::open_world()
+                .with_title("Web Search".to_string())
+                .with_read_only_hint(true),
+        );
+
+        assert!(tool.annotations.is_some());
+        let annotations = tool.annotations.unwrap();
+        assert_eq!(annotations.title, Some("Web Search".to_string()));
+        assert_eq!(annotations.read_only_hint, Some(true));
+        assert_eq!(annotations.open_world_hint, Some(true));
     }
 }
