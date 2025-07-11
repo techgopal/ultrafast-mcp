@@ -1,12 +1,12 @@
 # Everything MCP Server Example (Streamable HTTP)
 
-This example demonstrates a complete MCP server implementation using Streamable HTTP transport that implements all handler traits and provides comprehensive MCP 2025-06-18 features including progress notifications, cancellation support, and resource subscriptions.
+This example demonstrates a complete MCP server implementation using Streamable HTTP transport that implements all handler traits and provides comprehensive MCP 2025-06-18 features. This server is aligned with the official MCP everything server implementation from the Model Context Protocol repository.
 
 ## Features
 
 ### Core MCP Implementation
 - **Complete Handler Implementation**: Implements all MCP handler traits
-- **Tool Handler**: Provides 11 different tools demonstrating various MCP capabilities
+- **Tool Handler**: Provides 12 different tools demonstrating various MCP capabilities
 - **Resource Handler**: Provides 100 test resources with pagination support
 - **Prompt Handler**: Provides 3 different prompts including resource-embedded prompts
 - **Streamable HTTP Transport**: Uses HTTP with Server-Sent Events (SSE)
@@ -42,6 +42,7 @@ This example demonstrates a complete MCP server implementation using Streamable 
 9. **annotatedMessage** - Demonstrates message annotations and metadata
 10. **getResourceReference** - Returns resource references for client usage
 11. **getResourceLinks** - Returns multiple resource links with descriptions
+12. **startElicitation** - Initiates elicitation (interaction) within the MCP client
 
 ## Available Resources
 
@@ -49,6 +50,7 @@ This example demonstrates a complete MCP server implementation using Streamable 
 - **Pagination Support**: Resources are returned with cursor-based pagination
 - **Resource Templates**: Dynamic resource discovery with `test://static/resource/{id}`
 - **Content Variety**: Mix of text and binary content types
+- **Auto-updates**: Subscribed resources update every 5 seconds
 
 ## Available Prompts
 
@@ -63,7 +65,7 @@ This example demonstrates a complete MCP server implementation using Streamable 
 cargo build --release
 
 # Run the server (will start on 0.0.0.0:8080)
-./target/release/server
+./target/release/everything-server-streamable-http
 ```
 
 The server will start on:
@@ -97,95 +99,36 @@ npx @modelcontextprotocol/inspector --config mcp-inspector-config.json --server 
 
 ### Testing Progress and Cancellation
 
-1. **Progress Tracking**:
-   - Use the `longRunningOperation` tool with custom duration and steps
-   - Monitor progress messages in the server console
-   - Observe real-time progress updates
+The server provides several tools for testing MCP features:
 
-2. **Cancellation Support**:
-   - Use the `cancellableOperation` tool with long duration
-   - Send cancellation requests during execution
-   - See how the operation handles cancellation gracefully
+1. **Long Running Operations**: Use `longRunningOperation` to test progress notifications
+2. **Cancellable Operations**: Use `cancellableOperation` to test cancellation support
+3. **Resource Subscriptions**: Subscribe to resources and watch for updates
+4. **Elicitation**: Use `startElicitation` to test client interaction
 
-3. **Notification Demo**:
-   - Use the `notificationDemo` tool with different notification types
-   - Observe how various MCP notifications would be sent
-   - Test resource subscription and update notifications
+## Alignment with Official MCP Everything Server
 
-## Testing with curl
+This implementation is aligned with the official MCP everything server from the Model Context Protocol repository:
 
-You can test the server directly with curl for HTTP requests:
+### Tool Compatibility
+- All tools from the official server are implemented
+- Same tool names and parameter schemas
+- Consistent behavior and return values
 
-```bash
-# Initialize a session
-curl -X POST http://127.0.0.1:8080 \
-  -H "Content-Type: application/json" \
-  -H "X-MCP-Session-ID: test-session" \
-  -d '{
-    "jsonrpc": "2.0",
-    "method": "initialize",
-    "params": {
-      "capabilities": {},
-      "clientInfo": {"name": "test-client", "version": "1.0.0"},
-      "protocolVersion": "2025-06-18"
-    },
-    "id": 1
-  }'
+### Resource Compatibility
+- Same resource URI patterns (`test://static/resource/{id}`)
+- Same pagination behavior
+- Same content types and formats
 
-# List tools
-curl -X POST http://127.0.0.1:8080 \
-  -H "Content-Type: application/json" \
-  -H "X-MCP-Session-ID: test-session" \
-  -d '{
-    "jsonrpc": "2.0",
-    "method": "tools/list",
-    "params": {},
-    "id": 2
-  }'
+### Prompt Compatibility
+- Same prompt names and arguments
+- Same prompt content structure
+- Same resource embedding capabilities
 
-# Call echo tool
-curl -X POST http://127.0.0.1:8080 \
-  -H "Content-Type: application/json" \
-  -H "X-MCP-Session-ID: test-session" \
-  -d '{
-    "jsonrpc": "2.0",
-    "method": "tools/call",
-    "params": {
-      "name": "echo",
-      "arguments": {"message": "Hello from curl!"}
-    },
-    "id": 3
-  }'
-```
-
-## Handler Types Implemented
-
-1. **ToolHandler**: `EchoToolHandler` - Provides an echo tool
-2. **ResourceHandler**: `DummyResourceHandler` - Provides dummy resources
-3. **PromptHandler**: `DummyPromptHandler` - Provides hello prompts
-4. **SamplingHandler**: `DummySamplingHandler` - Stub implementation
-5. **CompletionHandler**: `DummyCompletionHandler` - Stub implementation
-6. **RootsHandler**: `DummyRootsHandler` - Stub implementation
-7. **ElicitationHandler**: `DummyElicitationHandler` - Stub implementation
-8. **ResourceSubscriptionHandler**: `DummySubscriptionHandler` - Stub implementation
-
-## Available Tools
-
-- **echo**: Returns the input message (takes a `message` parameter)
-
-## Available Resources
-
-- **file:///dummy.txt**: A dummy text resource
-
-## Available Prompts
-
-- **hello-prompt**: A simple hello prompt
-
-## HTTP Endpoints
-
-- **POST /**: JSON-RPC messages (direct calls)
-- **GET /**: Server-Sent Events (SSE) for streaming
-- **DELETE /**: Session termination
+### Protocol Compliance
+- Full MCP 2025-06-18 specification support
+- Same capability negotiation
+- Same error handling patterns
 
 ## Architecture
 

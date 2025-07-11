@@ -282,6 +282,29 @@ impl ToolHandler for EverythingToolHandler {
                     is_error: Some(false),
                 })
             }
+            "startElicitation" => {
+                let args = call.arguments.unwrap_or_default();
+                let color = args
+                    .get("color")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("blue");
+                let number = args
+                    .get("number")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(42);
+                let pets = args
+                    .get("pets")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("dogs");
+
+                Ok(ToolResult {
+                    content: vec![ToolContent::text(format!(
+                        "Elicitation demo completed! Your selections:\n- Favorite color: {}\n- Favorite number: {}\n- Favorite pets: {}",
+                        color, number, pets
+                    ))],
+                    is_error: Some(false),
+                })
+            }
             _ => Ok(ToolResult {
                 content: vec![ToolContent::text(format!("Unknown tool: {}", call.name))],
                 is_error: Some(true),
@@ -427,6 +450,30 @@ impl ToolHandler for EverythingToolHandler {
                                 "maximum": 10,
                                 "default": 3,
                                 "description": "Number of resource links to return (1-10)"
+                            }
+                        }
+                    })
+                ),
+                Tool::new(
+                    "startElicitation".to_string(),
+                    "Initiates an elicitation (interaction) within the MCP client".to_string(),
+                    serde_json::json!({
+                        "type": "object",
+                        "properties": {
+                            "color": {
+                                "type": "string",
+                                "description": "Favorite color"
+                            },
+                            "number": {
+                                "type": "number",
+                                "minimum": 1,
+                                "maximum": 100,
+                                "description": "Favorite number (1-100)"
+                            },
+                            "pets": {
+                                "type": "string",
+                                "enum": ["dogs", "cats", "birds", "fish", "other"],
+                                "description": "Favorite pet"
                             }
                         }
                     })
@@ -902,13 +949,13 @@ async fn main() -> anyhow::Result<()> {
         name: "example-servers/everything".to_string(),
         version: "1.0.0".to_string(),
         description: Some(
-            "Everything MCP Server - Comprehensive example implementing all MCP features"
+            "Everything MCP Server - Comprehensive example implementing all MCP features. This server attempts to exercise all the features of the MCP protocol and is intended as a test server for builders of MCP clients."
                 .to_string(),
         ),
-        authors: None,
-        homepage: None,
-        license: None,
-        repository: None,
+        authors: Some(vec!["ULTRAFAST_MCP Team".to_string()]),
+        homepage: Some("https://github.com/ultrafast-mcp/ultrafast-mcp".to_string()),
+        license: Some("MIT OR Apache-2.0".to_string()),
+        repository: Some("https://github.com/ultrafast-mcp/ultrafast-mcp".to_string()),
     };
 
     let capabilities = ServerCapabilities {
@@ -960,6 +1007,7 @@ async fn main() -> anyhow::Result<()> {
     println!("  • annotatedMessage - Demonstrates message annotations");
     println!("  • getResourceReference - Returns resource references");
     println!("  • getResourceLinks - Returns multiple resource links");
+    println!("  • startElicitation - Initiates elicitation within MCP client");
     println!("📁 Available resources: 100 test resources (test://static/resource/1-100)");
     println!("💬 Available prompts: simple_prompt, complex_prompt, resource_prompt");
     println!("🔧 New MCP 2025-06-18 features:");
