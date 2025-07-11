@@ -16,7 +16,7 @@ struct Args {
     /// Transport type to use
     #[arg(value_enum)]
     transport: TransportType,
-    
+
     /// Server URL for HTTP transport (default: http://127.0.0.1:8080)
     #[arg(long, default_value = "http://127.0.0.1:8080")]
     server_url: String,
@@ -230,7 +230,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let client_info = ClientInfo {
         name: "file-operations-client".to_string(),
         version: "1.0.0".to_string(),
-        description: Some(format!("A file operations client demonstrating UltraFastClient with {:?} transport", args.transport)),
+        description: Some(format!(
+            "A file operations client demonstrating UltraFastClient with {:?} transport",
+            args.transport
+        )),
         authors: Some(vec!["ULTRAFAST_MCP Team".to_string()]),
         homepage: Some("https://github.com/ultrafast-mcp/ultrafast-mcp".to_string()),
         license: Some("MIT OR Apache-2.0".to_string()),
@@ -305,7 +308,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             ToolContent::Text { text } => {
                 info!("Create directory result: {}", text);
                 let response: CreateDirectoryResponse = serde_json::from_str(&text)?;
-                println!("Directory created: {} ({})", response.path, response.message);
+                println!(
+                    "Directory created: {} ({})",
+                    response.path, response.message
+                );
             }
             _ => {
                 info!("Received non-text content: {:?}", content);
@@ -414,13 +420,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             ToolContent::Text { text } => {
                 info!("List result: {}", text);
                 let response: ListDirectoryResponse = serde_json::from_str(&text)?;
-                println!("Found {} entries in {}", response.entries.len(), response.path);
+                println!(
+                    "Found {} entries in {}",
+                    response.entries.len(),
+                    response.path
+                );
                 for entry in response.entries {
-                    println!(
-                        "  {} ({})",
-                        entry.name,
-                        entry.entry_type
-                    );
+                    println!("  {} ({})", entry.name, entry.entry_type);
                 }
             }
             _ => {
@@ -448,15 +454,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             ToolContent::Text { text } => {
                 info!("List with sizes result: {}", text);
                 let response: ListDirectoryWithSizesResponse = serde_json::from_str(&text)?;
-                println!("Found {} entries in {} (sorted by {})", response.entries.len(), response.path, response.sort_by);
+                println!(
+                    "Found {} entries in {} (sorted by {})",
+                    response.entries.len(),
+                    response.path,
+                    response.sort_by
+                );
                 for entry in response.entries {
-                    let size_str = entry.size.map(|s| format!("{} bytes", s)).unwrap_or_else(|| "N/A".to_string());
-                    println!(
-                        "  {} ({}) - {}",
-                        entry.name,
-                        entry.entry_type,
-                        size_str
-                    );
+                    let size_str = entry
+                        .size
+                        .map(|s| format!("{} bytes", s))
+                        .unwrap_or_else(|| "N/A".to_string());
+                    println!("  {} ({}) - {}", entry.name, entry.entry_type, size_str);
                 }
             }
             _ => {
@@ -485,7 +494,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let response: GetFileInfoResponse = serde_json::from_str(&text)?;
                 println!("File info for {}:", response.path);
                 println!("  Size: {} bytes", response.size);
-                println!("  Type: {}", if response.is_file { "file" } else { "directory" });
+                println!(
+                    "  Type: {}",
+                    if response.is_file {
+                        "file"
+                    } else {
+                        "directory"
+                    }
+                );
                 println!("  Created: {}", response.created);
                 println!("  Modified: {}", response.modified);
                 println!("  Permissions: {}", response.permissions);
@@ -516,7 +532,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             ToolContent::Text { text } => {
                 info!("Search result: {}", text);
                 let response: SearchFilesResponse = serde_json::from_str(&text)?;
-                println!("Found {} files matching '{}' in {}", response.results.len(), response.pattern, response.path);
+                println!(
+                    "Found {} files matching '{}' in {}",
+                    response.results.len(),
+                    response.pattern,
+                    response.path
+                );
                 for result_path in response.results {
                     println!("  {}", result_path);
                 }
@@ -530,12 +551,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Edit the file
     let edit_request = EditFileRequest {
         path: test_file.clone(),
-        edits: vec![
-            EditOperation {
-                old_text: "Hello, UltraFast MCP!".to_string(),
-                new_text: "Hello, Updated UltraFast MCP!".to_string(),
-            },
-        ],
+        edits: vec![EditOperation {
+            old_text: "Hello, UltraFast MCP!".to_string(),
+            new_text: "Hello, Updated UltraFast MCP!".to_string(),
+        }],
         dry_run: false,
     };
 
@@ -611,7 +630,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             ToolContent::Text { text } => {
                 info!("Move result: {}", text);
                 let response: MoveFileResponse = serde_json::from_str(&text)?;
-                println!("File moved: {} ({})", response.destination, response.message);
+                println!(
+                    "File moved: {} ({})",
+                    response.destination, response.message
+                );
             }
             _ => {
                 info!("Received non-text content: {:?}", content);
@@ -637,13 +659,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             ToolContent::Text { text } => {
                 info!("List after move result: {}", text);
                 let response: ListDirectoryResponse = serde_json::from_str(&text)?;
-                println!("Found {} entries in {} after move", response.entries.len(), response.path);
+                println!(
+                    "Found {} entries in {} after move",
+                    response.entries.len(),
+                    response.path
+                );
                 for entry in response.entries {
-                    println!(
-                        "  {} ({})",
-                        entry.name,
-                        entry.entry_type
-                    );
+                    println!("  {} ({})", entry.name, entry.entry_type);
                 }
             }
             _ => {

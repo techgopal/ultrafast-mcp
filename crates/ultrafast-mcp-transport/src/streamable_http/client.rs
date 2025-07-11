@@ -58,8 +58,8 @@ impl StreamableHttpClientConfig {
 
     /// Set API key authentication with custom header name
     pub fn with_api_key_auth_custom(mut self, api_key: String, header_name: String) -> Self {
-        let api_key_auth = ultrafast_mcp_auth::ApiKeyAuth::new(api_key)
-            .with_header_name(header_name);
+        let api_key_auth =
+            ultrafast_mcp_auth::ApiKeyAuth::new(api_key).with_header_name(header_name);
         let auth_method = ultrafast_mcp_auth::AuthMethod::ApiKey(api_key_auth);
         self.auth_method = Some(auth_method);
         self
@@ -190,7 +190,7 @@ impl StreamableHttpClient {
                     message: format!("Failed to get auth headers: {}", e),
                 }
             })?;
-            
+
             headers.extend(auth_headers.into_iter());
         } else {
             // Fallback to legacy OAuth token handling
@@ -269,9 +269,13 @@ impl StreamableHttpClient {
         }
 
         // Parse the response - it should be a single JSON-RPC message
-        let response_message: JsonRpcMessage = response.json().await.map_err(|e| TransportError::SerializationError {
-            message: format!("Failed to parse response: {}", e),
-        })?;
+        let response_message: JsonRpcMessage =
+            response
+                .json()
+                .await
+                .map_err(|e| TransportError::SerializationError {
+                    message: format!("Failed to parse response: {}", e),
+                })?;
 
         Ok(response_message)
     }
@@ -513,5 +517,4 @@ impl Transport for StreamableHttpClient {
     async fn reset(&mut self) -> Result<()> {
         self.reset().await
     }
-
 }

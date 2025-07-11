@@ -11,9 +11,9 @@ use std::sync::Arc;
 use tokio::fs;
 use tracing::info;
 use ultrafast_mcp::{
-    ListToolsRequest, ListToolsResponse, MCPError, MCPResult, ServerCapabilities, ServerInfo, Tool,
-    ToolCall, ToolContent, ToolHandler, ToolResult, ToolsCapability, UltraFastServer,
-    HttpTransportConfig,
+    HttpTransportConfig, ListToolsRequest, ListToolsResponse, MCPError, MCPResult,
+    ServerCapabilities, ServerInfo, Tool, ToolCall, ToolContent, ToolHandler, ToolResult,
+    ToolsCapability, UltraFastServer,
 };
 
 #[derive(Parser)]
@@ -23,15 +23,15 @@ struct Args {
     /// Transport type to use
     #[arg(value_enum)]
     transport: TransportType,
-    
+
     /// Host for HTTP transport (default: 127.0.0.1)
     #[arg(long, default_value = "127.0.0.1")]
     host: String,
-    
+
     /// Port for HTTP transport (default: 8080)
     #[arg(long, default_value = "8080")]
     port: u16,
-    
+
     /// Allowed directories (default: current directory)
     #[arg(long, default_value = ".")]
     allowed_directories: Vec<String>,
@@ -233,7 +233,9 @@ struct FileOperationsHandler {
 
 impl FileOperationsHandler {
     fn new(allowed_directories: Vec<String>) -> Self {
-        Self { allowed_directories }
+        Self {
+            allowed_directories,
+        }
     }
 
     fn validate_path(&self, requested_path: &str) -> Result<String, MCPError> {
@@ -242,7 +244,9 @@ impl FileOperationsHandler {
             path.to_path_buf()
         } else {
             std::env::current_dir()
-                .map_err(|e| MCPError::internal_error(format!("Failed to get current directory: {}", e)))?
+                .map_err(|e| {
+                    MCPError::internal_error(format!("Failed to get current directory: {}", e))
+                })?
                 .join(path)
         };
 
@@ -262,7 +266,11 @@ impl FileOperationsHandler {
             }
         };
 
-        info!("Validating path: {} -> normalized: {}", requested_path, normalized.display());
+        info!(
+            "Validating path: {} -> normalized: {}",
+            requested_path,
+            normalized.display()
+        );
 
         // Check if path is within allowed directories
         for allowed_dir in &self.allowed_directories {
@@ -271,16 +279,28 @@ impl FileOperationsHandler {
                 allowed_path.to_path_buf()
             } else {
                 std::env::current_dir()
-                    .map_err(|e| MCPError::internal_error(format!("Failed to get current directory: {}", e)))?
+                    .map_err(|e| {
+                        MCPError::internal_error(format!("Failed to get current directory: {}", e))
+                    })?
                     .join(allowed_path)
             };
 
-            let allowed_normalized = allowed_absolute.canonicalize()
+            let allowed_normalized = allowed_absolute
+                .canonicalize()
                 .map_err(|_| allowed_absolute.clone())
                 .unwrap_or(allowed_absolute);
 
-            info!("Checking against allowed dir: {} -> normalized: {}", allowed_dir, allowed_normalized.display());
-            info!("Starts with check: {} starts_with {} = {}", normalized.display(), allowed_normalized.display(), normalized.starts_with(&allowed_normalized));
+            info!(
+                "Checking against allowed dir: {} -> normalized: {}",
+                allowed_dir,
+                allowed_normalized.display()
+            );
+            info!(
+                "Starts with check: {} starts_with {} = {}",
+                normalized.display(),
+                allowed_normalized.display(),
+                normalized.starts_with(&allowed_normalized)
+            );
 
             if normalized.starts_with(&allowed_normalized) {
                 info!("Path validation successful for: {}", requested_path);
@@ -360,9 +380,7 @@ impl ToolHandler for FileOperationsHandler {
                     .map_err(|e| MCPError::serialization_error(e.to_string()))?;
                 self.handle_get_file_info(request).await
             }
-            "list_allowed_directories" => {
-                self.handle_list_allowed_directories().await
-            }
+            "list_allowed_directories" => self.handle_list_allowed_directories().await,
             _ => Err(MCPError::method_not_found(format!(
                 "Unknown tool: {}",
                 call.name
@@ -571,12 +589,16 @@ impl FileOperationsHandler {
             )));
         }
 
-        let mut content = fs::read_to_string(&path).await.map_err(|e| {
-            MCPError::internal_error(format!("Failed to read file: {}", e))
-        })?;
+        let mut content = fs::read_to_string(&path)
+            .await
+            .map_err(|e| MCPError::internal_error(format!("Failed to read file: {}", e)))?;
 
         if let Some(head) = request.head {
-            content = content.lines().take(head as usize).collect::<Vec<_>>().join("\n");
+            content = content
+                .lines()
+                .take(head as usize)
+                .collect::<Vec<_>>()
+                .join("\n");
         }
         if let Some(tail) = request.tail {
             let lines: Vec<_> = content.lines().collect();
@@ -602,19 +624,28 @@ impl FileOperationsHandler {
         })
     }
 
-    async fn handle_read_multiple_files(&self, request: ReadMultipleFilesRequest) -> MCPResult<ToolResult> {
+    async fn handle_read_multiple_files(
+        &self,
+        request: ReadMultipleFilesRequest,
+    ) -> MCPResult<ToolResult> {
         let mut results = Vec::new();
         for path in request.paths {
             let validated_path = self.validate_path(&path)?;
             let path = Path::new(&validated_path);
 
             if !path.exists() {
-                results.push(format!("{}: Error - File not found", path.to_string_lossy()));
+                results.push(format!(
+                    "{}: Error - File not found",
+                    path.to_string_lossy()
+                ));
                 continue;
             }
 
             if !path.is_file() {
-                results.push(format!("{}: Error - Path is not a file", path.to_string_lossy()));
+                results.push(format!(
+                    "{}: Error - Path is not a file",
+                    path.to_string_lossy()
+                ));
                 continue;
             }
 
@@ -646,17 +677,14 @@ impl FileOperationsHandler {
         if let Some(parent) = path.parent() {
             if !parent.exists() {
                 fs::create_dir_all(parent).await.map_err(|e| {
-                    MCPError::internal_error(format!(
-                        "Failed to create directory: {}",
-                        e
-                    ))
+                    MCPError::internal_error(format!("Failed to create directory: {}", e))
                 })?;
             }
         }
 
-        fs::write(&path, &request.content).await.map_err(|e| {
-            MCPError::internal_error(format!("Failed to write file: {}", e))
-        })?;
+        fs::write(&path, &request.content)
+            .await
+            .map_err(|e| MCPError::internal_error(format!("Failed to write file: {}", e)))?;
 
         let path_clone = request.path.clone();
         let response = WriteFileResponse {
@@ -692,9 +720,9 @@ impl FileOperationsHandler {
             )));
         }
 
-        let mut content = fs::read_to_string(&path).await.map_err(|e| {
-            MCPError::internal_error(format!("Failed to read file: {}", e))
-        })?;
+        let mut content = fs::read_to_string(&path)
+            .await
+            .map_err(|e| MCPError::internal_error(format!("Failed to read file: {}", e)))?;
 
         let mut diff_lines = Vec::new();
 
@@ -733,7 +761,10 @@ impl FileOperationsHandler {
                 path: request.path,
                 success: true,
                 diff: Some(diff_text),
-                message: format!("Dry run successful. Would apply {} changes.", diff_lines.len()),
+                message: format!(
+                    "Dry run successful. Would apply {} changes.",
+                    diff_lines.len()
+                ),
             };
             let response_text = serde_json::to_string_pretty(&response)
                 .map_err(|e| MCPError::serialization_error(e.to_string()))?;
@@ -776,7 +807,10 @@ impl FileOperationsHandler {
         })
     }
 
-    async fn handle_create_directory(&self, request: CreateDirectoryRequest) -> MCPResult<ToolResult> {
+    async fn handle_create_directory(
+        &self,
+        request: CreateDirectoryRequest,
+    ) -> MCPResult<ToolResult> {
         let path = self.validate_path(&request.path)?;
         let path = Path::new(&path);
 
@@ -795,12 +829,9 @@ impl FileOperationsHandler {
             });
         }
 
-        fs::create_dir_all(&path).await.map_err(|e| {
-            MCPError::internal_error(format!(
-                "Failed to create directory: {}",
-                e
-            ))
-        })?;
+        fs::create_dir_all(&path)
+            .await
+            .map_err(|e| MCPError::internal_error(format!("Failed to create directory: {}", e)))?;
 
         let path_clone = request.path.clone();
         let response = CreateDirectoryResponse {
@@ -837,21 +868,15 @@ impl FileOperationsHandler {
         }
 
         let mut entries = Vec::new();
-        let mut entries_iter = fs::read_dir(&path).await.map_err(|e| {
-            MCPError::internal_error(format!("Failed to read directory: {}", e))
-        })?;
+        let mut entries_iter = fs::read_dir(&path)
+            .await
+            .map_err(|e| MCPError::internal_error(format!("Failed to read directory: {}", e)))?;
 
         while let Some(entry) = entries_iter.next_entry().await.map_err(|e| {
-            MCPError::internal_error(format!(
-                "Failed to read directory entry: {}",
-                e
-            ))
+            MCPError::internal_error(format!("Failed to read directory entry: {}", e))
         })? {
             let metadata = entry.metadata().await.map_err(|e| {
-                MCPError::internal_error(format!(
-                    "Failed to get file metadata: {}",
-                    e
-                ))
+                MCPError::internal_error(format!("Failed to get file metadata: {}", e))
             })?;
 
             let entry_type = if metadata.is_dir() {
@@ -895,7 +920,10 @@ impl FileOperationsHandler {
         })
     }
 
-    async fn handle_list_directory_with_sizes(&self, request: ListDirectoryWithSizesRequest) -> MCPResult<ToolResult> {
+    async fn handle_list_directory_with_sizes(
+        &self,
+        request: ListDirectoryWithSizesRequest,
+    ) -> MCPResult<ToolResult> {
         let path = self.validate_path(&request.path)?;
         let path = Path::new(&path);
 
@@ -914,21 +942,15 @@ impl FileOperationsHandler {
         }
 
         let mut entries = Vec::new();
-        let mut entries_iter = fs::read_dir(&path).await.map_err(|e| {
-            MCPError::internal_error(format!("Failed to read directory: {}", e))
-        })?;
+        let mut entries_iter = fs::read_dir(&path)
+            .await
+            .map_err(|e| MCPError::internal_error(format!("Failed to read directory: {}", e)))?;
 
         while let Some(entry) = entries_iter.next_entry().await.map_err(|e| {
-            MCPError::internal_error(format!(
-                "Failed to read directory entry: {}",
-                e
-            ))
+            MCPError::internal_error(format!("Failed to read directory entry: {}", e))
         })? {
             let metadata = entry.metadata().await.map_err(|e| {
-                MCPError::internal_error(format!(
-                    "Failed to get file metadata: {}",
-                    e
-                ))
+                MCPError::internal_error(format!("Failed to get file metadata: {}", e))
             })?;
 
             let entry_type = if metadata.is_dir() {
@@ -1003,21 +1025,15 @@ impl FileOperationsHandler {
         }
 
         let mut children = Vec::new();
-        let mut entries_iter = fs::read_dir(&path).await.map_err(|e| {
-            MCPError::internal_error(format!("Failed to read directory: {}", e))
-        })?;
+        let mut entries_iter = fs::read_dir(&path)
+            .await
+            .map_err(|e| MCPError::internal_error(format!("Failed to read directory: {}", e)))?;
 
         while let Some(entry) = entries_iter.next_entry().await.map_err(|e| {
-            MCPError::internal_error(format!(
-                "Failed to read directory entry: {}",
-                e
-            ))
+            MCPError::internal_error(format!("Failed to read directory entry: {}", e))
         })? {
             let metadata = entry.metadata().await.map_err(|e| {
-                MCPError::internal_error(format!(
-                    "Failed to get file metadata: {}",
-                    e
-                ))
+                MCPError::internal_error(format!("Failed to get file metadata: {}", e))
             })?;
 
             let node_type = if metadata.is_dir() {
@@ -1042,8 +1058,9 @@ impl FileOperationsHandler {
         let response = DirectoryTreeResponse {
             path: request.path,
             tree: DirectoryTreeNode {
-                name: path.file_name()
-                    .unwrap_or_else(|| path.as_os_str())
+                name: path
+                    .file_name()
+                    .unwrap_or(path.as_os_str())
                     .to_string_lossy()
                     .to_string(),
                 node_type: "directory".to_string(),
@@ -1087,9 +1104,9 @@ impl FileOperationsHandler {
             )));
         }
 
-        fs::rename(&source_path, &destination_path).await.map_err(|e| {
-            MCPError::internal_error(format!("Failed to move file: {}", e))
-        })?;
+        fs::rename(&source_path, &destination_path)
+            .await
+            .map_err(|e| MCPError::internal_error(format!("Failed to move file: {}", e)))?;
 
         let source_clone = request.source.clone();
         let dest_clone = request.destination.clone();
@@ -1097,7 +1114,10 @@ impl FileOperationsHandler {
             source: request.source,
             destination: request.destination,
             success: true,
-            message: format!("Successfully moved file from {} to {}", source_clone, dest_clone),
+            message: format!(
+                "Successfully moved file from {} to {}",
+                source_clone, dest_clone
+            ),
         };
 
         let response_text = serde_json::to_string_pretty(&response)
@@ -1128,28 +1148,26 @@ impl FileOperationsHandler {
         }
 
         let mut results = Vec::new();
-        let mut entries_iter = fs::read_dir(&path).await.map_err(|e| {
-            MCPError::internal_error(format!("Failed to read directory: {}", e))
-        })?;
+        let mut entries_iter = fs::read_dir(&path)
+            .await
+            .map_err(|e| MCPError::internal_error(format!("Failed to read directory: {}", e)))?;
 
         while let Some(entry) = entries_iter.next_entry().await.map_err(|e| {
-            MCPError::internal_error(format!(
-                "Failed to read directory entry: {}",
-                e
-            ))
+            MCPError::internal_error(format!("Failed to read directory entry: {}", e))
         })? {
             let _metadata = entry.metadata().await.map_err(|e| {
-                MCPError::internal_error(format!(
-                    "Failed to get file metadata: {}",
-                    e
-                ))
+                MCPError::internal_error(format!("Failed to get file metadata: {}", e))
             })?;
 
             let entry_path = entry.path().to_string_lossy().to_string();
             let entry_name = entry.file_name().to_string_lossy().to_string();
 
             if request.pattern.is_empty() {
-                if !request.exclude_patterns.iter().any(|p| entry_name.to_lowercase().contains(p.to_lowercase().as_str())) {
+                if !request.exclude_patterns.iter().any(|p| {
+                    entry_name
+                        .to_lowercase()
+                        .contains(p.to_lowercase().as_str())
+                }) {
                     results.push(entry_path);
                 }
             } else {
@@ -1157,7 +1175,12 @@ impl FileOperationsHandler {
                 let entry_name_lower = entry_name.to_lowercase();
                 let _entry_path_lower = entry_path.to_lowercase();
 
-                if entry_name_lower.contains(&pattern_lower) && !request.exclude_patterns.iter().any(|p| entry_name_lower.contains(p.to_lowercase().as_str())) {
+                if entry_name_lower.contains(&pattern_lower)
+                    && !request
+                        .exclude_patterns
+                        .iter()
+                        .any(|p| entry_name_lower.contains(p.to_lowercase().as_str()))
+                {
                     results.push(entry_path);
                 }
             }
@@ -1189,9 +1212,9 @@ impl FileOperationsHandler {
             )));
         }
 
-        let metadata = fs::metadata(&path).await.map_err(|e| {
-            MCPError::internal_error(format!("Failed to get file metadata: {}", e))
-        })?;
+        let metadata = fs::metadata(&path)
+            .await
+            .map_err(|e| MCPError::internal_error(format!("Failed to get file metadata: {}", e)))?;
 
         let is_directory = metadata.is_dir();
         let is_file = metadata.is_file();
@@ -1292,7 +1315,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let server_info = ServerInfo {
         name: "file-operations-server".to_string(),
         version: "1.0.0".to_string(),
-        description: Some(format!("A file operations server demonstrating UltraFastServer with {:?} transport", args.transport)),
+        description: Some(format!(
+            "A file operations server demonstrating UltraFastServer with {:?} transport",
+            args.transport
+        )),
         authors: Some(vec!["ULTRAFAST_MCP Team".to_string()]),
         homepage: Some("https://github.com/ultrafast-mcp/ultrafast-mcp".to_string()),
         license: Some("MIT OR Apache-2.0".to_string()),
@@ -1300,8 +1326,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     // Create server with tool handler
-    let server = UltraFastServer::new(server_info, capabilities)
-        .with_tool_handler(Arc::new(FileOperationsHandler::new(args.allowed_directories)));
+    let server = UltraFastServer::new(server_info, capabilities).with_tool_handler(Arc::new(
+        FileOperationsHandler::new(args.allowed_directories),
+    ));
 
     // Run the server with the chosen transport
     match args.transport {

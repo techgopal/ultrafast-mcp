@@ -8,10 +8,6 @@ license = "MIT OR Apache-2.0"
 
 [dependencies]
 ultrafast-mcp = { path = "../../crates/ultrafast-mcp", features = ["oauth"] }
-ultrafast-mcp-client = { path = "../../crates/ultrafast-mcp-client" }
-ultrafast-mcp-server = { path = "../../crates/ultrafast-mcp-server" }
-ultrafast-mcp-transport = { path = "../../crates/ultrafast-mcp-transport" }
-ultrafast-mcp-auth = { path = "../../crates/ultrafast-mcp-auth" }
 tokio = { version = "1.46", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
@@ -22,3 +18,7 @@ tracing-subscriber = "0.3"
 [[bin]]
 name = "authentication-example"
 path = "src/main.rs" 
+
+[features]
+http = ["ultrafast-mcp/http"]
+oauth = ["ultrafast-mcp/oauth"] 

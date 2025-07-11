@@ -20,10 +20,10 @@ targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
 # Internal dependencies
-ultrafast-mcp-core = { path = "../ultrafast-mcp-core", version = "=202506018.1.0-rc.2" }
-ultrafast-mcp-server = { path = "../ultrafast-mcp-server", version = "=202506018.1.0-rc.2" }
-ultrafast-mcp-client = { path = "../ultrafast-mcp-client", version = "=202506018.1.0-rc.2" }
-ultrafast-mcp-transport = { path = "../ultrafast-mcp-transport", version = "=202506018.1.0-rc.2" }
+ultrafast-mcp-core = { path = "../ultrafast-mcp-core", version = "=202506018.1.0-rc.2", optional = true }
+ultrafast-mcp-server = { path = "../ultrafast-mcp-server", version = "=202506018.1.0-rc.2", optional = true }
+ultrafast-mcp-client = { path = "../ultrafast-mcp-client", version = "=202506018.1.0-rc.2", optional = true }
+ultrafast-mcp-transport = { path = "../ultrafast-mcp-transport", version = "=202506018.1.0-rc.2", optional = true }
 ultrafast-mcp-auth = { path = "../ultrafast-mcp-auth", version = "=202506018.1.0-rc.2", optional = true }
 ultrafast-mcp-monitoring = { path = "../ultrafast-mcp-monitoring", version = "=202506018.1.0-rc.2", optional = true }
 
@@ -44,27 +44,43 @@ schemars = { workspace = true }
 default = []
 
 # Core functionality (always available)
-core = []
+core = [
+    "ultrafast-mcp-core",
+    "ultrafast-mcp-server/core", 
+    "ultrafast-mcp-client/core"
+]
 
 # Transport features
-stdio = ["ultrafast-mcp-transport/stdio"]
-http = ["ultrafast-mcp-transport/http", "ultrafast-mcp-server/http", "ultrafast-mcp-client/http"]
+stdio = [
+    "core",
+    "ultrafast-mcp-transport/stdio",
+    "ultrafast-mcp-server/core",
+    "ultrafast-mcp-client/core"
+]
+
+http = [
+    "core",
+    "ultrafast-mcp-transport/http", 
+    "ultrafast-mcp-transport/stdio",
+    "ultrafast-mcp-server/http", 
+    "ultrafast-mcp-client/http"
+]
 
 # Authentication features
-oauth = ["ultrafast-mcp-auth"]
+oauth = ["core", "ultrafast-mcp-auth/oauth"]
 
 # Monitoring and observability
-monitoring = ["ultrafast-mcp-monitoring"]
-monitoring-http = ["ultrafast-mcp-monitoring/http"]
-monitoring-jaeger = ["ultrafast-mcp-monitoring/jaeger"]
-monitoring-otlp = ["ultrafast-mcp-monitoring/otlp"]
-monitoring-console = ["ultrafast-mcp-monitoring/console"]
+monitoring = ["core", "ultrafast-mcp-monitoring/core"]
+monitoring-http = ["core", "ultrafast-mcp-monitoring/http"]
+monitoring-jaeger = ["core", "ultrafast-mcp-monitoring/jaeger"]
+monitoring-otlp = ["core", "ultrafast-mcp-monitoring/otlp"]
+monitoring-console = ["core", "ultrafast-mcp-monitoring/console"]
 
 # Convenience combinations
-http-with-auth = ["http", "oauth"]
-monitoring-full = ["ultrafast-mcp-monitoring/all"]
+http-with-auth = ["core", "stdio", "http", "oauth"]
+monitoring-full = ["core", "ultrafast-mcp-monitoring/all"]
 
-# Minimal feature set
+# Minimal feature set (core + stdio for basic functionality)
 minimal = ["core", "stdio"]
 
 # All features enabled

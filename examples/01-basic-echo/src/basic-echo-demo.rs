@@ -14,9 +14,9 @@ use std::process::Stdio;
 use tokio::process::Command;
 use tracing::{info, warn};
 use ultrafast_mcp::{
-    ClientCapabilities, ClientInfo, ListToolsRequest, ToolCall, ToolContent,
-    UltraFastServer, UltraFastClient, ServerCapabilities, ServerInfo, Tool, ToolHandler, ToolResult as ServerToolResult,
-    ToolsCapability, MCPError, MCPResult, HttpTransportConfig,
+    ClientCapabilities, ClientInfo, HttpTransportConfig, ListToolsRequest, MCPError, MCPResult,
+    ServerCapabilities, ServerInfo, Tool, ToolCall, ToolContent, ToolHandler,
+    ToolResult as ServerToolResult, ToolsCapability, UltraFastClient, UltraFastServer,
 };
 
 #[derive(Parser)]
@@ -26,11 +26,11 @@ struct Args {
     /// Transport type to demo (default: both)
     #[arg(value_enum)]
     transport: Option<TransportType>,
-    
+
     /// Host for HTTP transport (default: 127.0.0.1)
     #[arg(long, default_value = "127.0.0.1")]
     host: String,
-    
+
     /// Port for HTTP transport (default: 8080)
     #[arg(long, default_value = "8080")]
     port: u16,
@@ -63,7 +63,10 @@ impl DemoEchoHandler {
 impl ToolHandler for DemoEchoHandler {
     async fn handle_tool_call(&self, call: ToolCall) -> MCPResult<ServerToolResult> {
         if call.name != "echo" {
-            return Err(MCPError::method_not_found(format!("Unknown tool: {}", call.name)));
+            return Err(MCPError::method_not_found(format!(
+                "Unknown tool: {}",
+                call.name
+            )));
         }
 
         let message = if let Some(args) = call.arguments {
@@ -88,7 +91,10 @@ impl ToolHandler for DemoEchoHandler {
         })
     }
 
-    async fn list_tools(&self, _request: ListToolsRequest) -> MCPResult<ultrafast_mcp::ListToolsResponse> {
+    async fn list_tools(
+        &self,
+        _request: ListToolsRequest,
+    ) -> MCPResult<ultrafast_mcp::ListToolsResponse> {
         Ok(ultrafast_mcp::ListToolsResponse {
             tools: vec![Tool {
                 name: "echo".to_string(),
@@ -113,7 +119,7 @@ impl ToolHandler for DemoEchoHandler {
 
 async fn run_stdio_demo() -> anyhow::Result<()> {
     info!("🚀 Starting STDIO Transport Demo");
-    
+
     // Create client
     let client = UltraFastClient::new(
         ClientInfo {
@@ -131,7 +137,14 @@ async fn run_stdio_demo() -> anyhow::Result<()> {
     // Spawn server process
     info!("🔧 Spawning STDIO server...");
     let mut server_process = Command::new("cargo")
-        .args(&["run", "--release", "--bin", "basic-echo-server", "--", "stdio"])
+        .args([
+            "run",
+            "--release",
+            "--bin",
+            "basic-echo-server",
+            "--",
+            "stdio",
+        ])
         .current_dir(".")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -143,17 +156,23 @@ async fn run_stdio_demo() -> anyhow::Result<()> {
     tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
 
     // Connect via STDIO
-    client.connect_stdio().await
+    client
+        .connect_stdio()
+        .await
         .map_err(|e| anyhow::anyhow!("Failed to connect: {}", e))?;
-    
-    client.initialize().await
+
+    client
+        .initialize()
+        .await
         .map_err(|e| anyhow::anyhow!("Failed to initialize: {}", e))?;
 
     // Test echo
-    let result = client.call_tool(ToolCall {
-        name: "echo".to_string(),
-        arguments: Some(json!({ "message": "Hello from STDIO demo!" })),
-    }).await?;
+    let result = client
+        .call_tool(ToolCall {
+            name: "echo".to_string(),
+            arguments: Some(json!({ "message": "Hello from STDIO demo!" })),
+        })
+        .await?;
 
     if let Some(ToolContent::Text { text }) = result.content.first() {
         println!("📤 STDIO Response: {}", text);
@@ -172,7 +191,7 @@ async fn run_stdio_demo() -> anyhow::Result<()> {
 
 async fn run_http_demo(host: &str, port: u16) -> anyhow::Result<()> {
     info!("🚀 Starting HTTP Transport Demo");
-    
+
     // Create client
     let client = UltraFastClient::new(
         ClientInfo {
@@ -190,7 +209,18 @@ async fn run_http_demo(host: &str, port: u16) -> anyhow::Result<()> {
     // Start server in background
     info!("🔧 Starting HTTP server on {}:{}...", host, port);
     let mut server_process = Command::new("cargo")
-        .args(&["run", "--release", "--bin", "basic-echo-server", "--", "http", "--host", host, "--port", &port.to_string()])
+        .args([
+            "run",
+            "--release",
+            "--bin",
+            "basic-echo-server",
+            "--",
+            "http",
+            "--host",
+            host,
+            "--port",
+            &port.to_string(),
+        ])
         .current_dir(".")
         .spawn()
         .map_err(|e| anyhow::anyhow!("Failed to spawn server: {}", e))?;
@@ -200,17 +230,23 @@ async fn run_http_demo(host: &str, port: u16) -> anyhow::Result<()> {
 
     // Connect via HTTP
     let url = format!("http://{}:{}", host, port);
-    client.connect_streamable_http(&url).await
+    client
+        .connect_streamable_http(&url)
+        .await
         .map_err(|e| anyhow::anyhow!("Failed to connect: {}", e))?;
-    
-    client.initialize().await
+
+    client
+        .initialize()
+        .await
         .map_err(|e| anyhow::anyhow!("Failed to initialize: {}", e))?;
 
     // Test echo
-    let result = client.call_tool(ToolCall {
-        name: "echo".to_string(),
-        arguments: Some(json!({ "message": "Hello from HTTP demo!" })),
-    }).await?;
+    let result = client
+        .call_tool(ToolCall {
+            name: "echo".to_string(),
+            arguments: Some(json!({ "message": "Hello from HTTP demo!" })),
+        })
+        .await?;
 
     if let Some(ToolContent::Text { text }) = result.content.first() {
         println!("📤 HTTP Response: {}", text);
@@ -229,9 +265,9 @@ async fn run_http_demo(host: &str, port: u16) -> anyhow::Result<()> {
 
 async fn run_integrated_demo(host: &str, port: u16) -> anyhow::Result<()> {
     info!("🚀 Starting Integrated Demo (HTTP Server + STDIO Client)");
-    
+
     let host_clone = host.to_string();
-    
+
     // Create server
     let server = UltraFastServer::new(
         ServerInfo {
@@ -244,10 +280,13 @@ async fn run_integrated_demo(host: &str, port: u16) -> anyhow::Result<()> {
             repository: None,
         },
         ServerCapabilities {
-            tools: Some(ToolsCapability { list_changed: Some(true) }),
+            tools: Some(ToolsCapability {
+                list_changed: Some(true),
+            }),
             ..Default::default()
         },
-    ).with_tool_handler(std::sync::Arc::new(DemoEchoHandler::new("integrated")));
+    )
+    .with_tool_handler(std::sync::Arc::new(DemoEchoHandler::new("integrated")));
 
     // Start server in background
     let server_handle = tokio::spawn(async move {
@@ -281,17 +320,23 @@ async fn run_integrated_demo(host: &str, port: u16) -> anyhow::Result<()> {
 
     // Connect via HTTP
     let url = format!("http://{}:{}", host, port);
-    client.connect_streamable_http(&url).await
+    client
+        .connect_streamable_http(&url)
+        .await
         .map_err(|e| anyhow::anyhow!("Failed to connect: {}", e))?;
-    
-    client.initialize().await
+
+    client
+        .initialize()
+        .await
         .map_err(|e| anyhow::anyhow!("Failed to initialize: {}", e))?;
 
     // Test echo
-    let result = client.call_tool(ToolCall {
-        name: "echo".to_string(),
-        arguments: Some(json!({ "message": "Hello from integrated demo!" })),
-    }).await?;
+    let result = client
+        .call_tool(ToolCall {
+            name: "echo".to_string(),
+            arguments: Some(json!({ "message": "Hello from integrated demo!" })),
+        })
+        .await?;
 
     if let Some(ToolContent::Text { text }) = result.content.first() {
         println!("📤 Integrated Response: {}", text);
@@ -331,15 +376,15 @@ async fn main() -> anyhow::Result<()> {
         TransportType::Both => {
             println!("📡 Demo: Both Transports");
             println!();
-            
+
             println!("1️⃣ STDIO Transport Demo");
             run_stdio_demo().await?;
             println!();
-            
+
             println!("2️⃣ HTTP Transport Demo");
             run_http_demo(&args.host, args.port).await?;
             println!();
-            
+
             println!("3️⃣ Integrated Demo (HTTP Server + Client)");
             run_integrated_demo(&args.host, args.port + 1).await?;
         }
@@ -357,4 +402,4 @@ async fn main() -> anyhow::Result<()> {
     println!("   cargo run --bin basic-echo-client -- http --url http://127.0.0.1:8080");
 
     Ok(())
-} 
+}

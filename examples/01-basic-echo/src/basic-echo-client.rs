@@ -25,11 +25,11 @@ struct Args {
     /// Transport type to use
     #[arg(value_enum)]
     transport: TransportType,
-    
+
     /// URL for HTTP transport (default: http://127.0.0.1:8080)
     #[arg(long, default_value = "http://127.0.0.1:8080")]
     url: String,
-    
+
     /// Spawn server as subprocess (only for STDIO transport)
     #[arg(long)]
     spawn_server: bool,
@@ -58,7 +58,10 @@ async fn main() -> anyhow::Result<()> {
     let client_info = ClientInfo {
         name: "basic-echo-client".to_string(),
         version: "1.0.0".to_string(),
-        description: Some(format!("Basic echo client for MCP with {:?} transport", args.transport)),
+        description: Some(format!(
+            "Basic echo client for MCP with {:?} transport",
+            args.transport
+        )),
         authors: None,
         homepage: None,
         license: None,
@@ -74,9 +77,16 @@ async fn main() -> anyhow::Result<()> {
     // Handle server spawning for STDIO transport
     let server_process = if args.transport == TransportType::Stdio && args.spawn_server {
         info!("🔧 Spawning echo server as subprocess...");
-        
+
         let process = Command::new("cargo")
-            .args(&["run", "--release", "--bin", "basic-echo-server", "--", "stdio"])
+            .args([
+                "run",
+                "--release",
+                "--bin",
+                "basic-echo-server",
+                "--",
+                "stdio",
+            ])
             .current_dir(".")
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
@@ -85,10 +95,10 @@ async fn main() -> anyhow::Result<()> {
             .map_err(|e| anyhow::anyhow!("Failed to spawn server: {}", e))?;
 
         info!("✅ Server process spawned (PID: {:?})", process.id());
-        
+
         // Wait a moment for the server to start
         tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
-        
+
         Some(process)
     } else {
         None
@@ -98,27 +108,34 @@ async fn main() -> anyhow::Result<()> {
     match args.transport {
         TransportType::Stdio => {
             info!("🔌 Connecting via STDIO transport...");
-            
+
             if args.spawn_server {
                 // Use the convenience method for STDIO
-                client.connect_stdio().await
+                client
+                    .connect_stdio()
+                    .await
                     .map_err(|e| anyhow::anyhow!("Failed to connect via STDIO: {}", e))?;
             } else {
                 // For manual subprocess management, use the transport directly
                 use ultrafast_mcp::StdioTransport;
-                
-                let transport = StdioTransport::new().await
+
+                let transport = StdioTransport::new()
+                    .await
                     .map_err(|e| anyhow::anyhow!("Failed to create STDIO transport: {}", e))?;
-                
-                client.connect(Box::new(transport)).await
+
+                client
+                    .connect(Box::new(transport))
+                    .await
                     .map_err(|e| anyhow::anyhow!("Failed to connect to server: {}", e))?;
             }
         }
         TransportType::Http => {
             info!("🔌 Connecting via HTTP transport to {}...", args.url);
-            
+
             // Use the convenience method for Streamable HTTP
-            client.connect_streamable_http(&args.url).await
+            client
+                .connect_streamable_http(&args.url)
+                .await
                 .map_err(|e| anyhow::anyhow!("Failed to connect via HTTP: {}", e))?;
         }
     }
@@ -127,14 +144,18 @@ async fn main() -> anyhow::Result<()> {
 
     // Initialize the connection
     info!("🔧 Initializing MCP connection...");
-    client.initialize().await
+    client
+        .initialize()
+        .await
         .map_err(|e| anyhow::anyhow!("Failed to initialize connection: {}", e))?;
 
     info!("✅ Connection initialized");
 
     // List available tools
     info!("📋 Listing available tools...");
-    let tools_response = client.list_tools(ListToolsRequest { cursor: None }).await
+    let tools_response = client
+        .list_tools(ListToolsRequest { cursor: None })
+        .await
         .map_err(|e| anyhow::anyhow!("Failed to list tools: {}", e))?;
 
     println!("Found {} tools:", tools_response.tools.len());
@@ -153,7 +174,9 @@ async fn main() -> anyhow::Result<()> {
             })),
         };
 
-        let result: ToolResult = client.call_tool(tool_call).await
+        let result: ToolResult = client
+            .call_tool(tool_call)
+            .await
             .map_err(|e| anyhow::anyhow!("Failed to call echo tool: {}", e))?;
 
         // Extract and display the text content
@@ -182,7 +205,9 @@ async fn main() -> anyhow::Result<()> {
         arguments: None,
     };
 
-    let result: ToolResult = client.call_tool(tool_call).await
+    let result: ToolResult = client
+        .call_tool(tool_call)
+        .await
         .map_err(|e| anyhow::anyhow!("Failed to call echo tool with default: {}", e))?;
 
     if let Some(content) = result.content.first() {
@@ -210,13 +235,15 @@ async fn main() -> anyhow::Result<()> {
     // Clean up server process if we spawned one
     if let Some(mut process) = server_process {
         info!("🛑 Terminating server process...");
-        
+
         if let Err(e) = process.kill().await {
             warn!("Failed to kill server process: {}", e);
         }
 
         // Wait for server process to exit
-        let exit_status = process.wait().await
+        let exit_status = process
+            .wait()
+            .await
             .map_err(|e| anyhow::anyhow!("Failed to wait for server: {}", e))?;
 
         info!("✅ Server process exited with status: {}", exit_status);
@@ -229,6 +256,6 @@ async fn main() -> anyhow::Result<()> {
     if args.transport == TransportType::Http {
         println!("  - Server URL: {}", args.url);
     }
-    
+
     Ok(())
-} 
+}

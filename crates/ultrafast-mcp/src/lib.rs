@@ -382,6 +382,7 @@
 // Core Protocol and Types
 // =========================
 // Re-export core protocol types, errors, schema, and utilities
+#[cfg(feature = "core")]
 pub use ultrafast_mcp_core::{
     // Errors (re-export as McpCoreError to avoid conflicts)
     error as McpCoreError,
@@ -399,12 +400,14 @@ pub use ultrafast_mcp_core::{
 };
 
 // Re-export utility functions from core
+#[cfg(feature = "core")]
 pub use ultrafast_mcp_core::utils::identifiers::{generate_session_id, generate_state};
 
 // Prelude module for convenient imports
 pub mod prelude;
 
 // Re-export commonly used types directly for convenience
+#[cfg(feature = "core")]
 pub use ultrafast_mcp_core::types::{
     // Client types
     client::{ClientCapabilities, ClientInfo},
@@ -441,6 +444,7 @@ pub use ultrafast_mcp_core::types::{
 };
 
 // Re-export capability types from protocol
+#[cfg(feature = "core")]
 pub use ultrafast_mcp_core::protocol::capabilities::{
     CompletionCapability, LoggingCapability, PromptsCapability, ResourcesCapability,
     ToolsCapability,
@@ -450,6 +454,7 @@ pub use ultrafast_mcp_core::protocol::capabilities::{
 // Server API
 // =========================
 // Use handler traits from server crate
+#[cfg(feature = "core")]
 #[cfg(not(doc))]
 pub use ultrafast_mcp_server::{
     CompletionHandler, Context, ContextLogger, ElicitationHandler, LoggerConfig, PromptHandler,
@@ -460,11 +465,13 @@ pub use ultrafast_mcp_server::{
 // =========================
 // Client API
 // =========================
+#[cfg(feature = "core")]
 pub use ultrafast_mcp_client::{ClientElicitationHandler, UltraFastClient};
 
 // =========================
 // Transport Layer
 // =========================
+#[cfg(feature = "stdio")]
 pub use ultrafast_mcp_transport::{
     create_recovering_transport,
     create_transport,
@@ -478,6 +485,10 @@ pub use ultrafast_mcp_transport::{
     Transport,
     TransportConfig,
 };
+
+// Streamable HTTP (feature = "http")
+#[cfg(feature = "http")]
+pub use ultrafast_mcp_transport::streamable_http;
 
 // Streamable HTTP (feature = "http")
 #[cfg(feature = "http")]
@@ -501,26 +512,25 @@ pub use ultrafast_mcp_auth::{
     pkce,
     types as AuthTypes,
     validation,
-    middleware,
+    ApiKeyAuth,
+    AuthContext,
     AuthError,
+    AuthMethod,
     AuthResult,
     AuthorizationServerMetadata,
-    BearerAuth,
-    ApiKeyAuth,
     BasicAuth,
-    CustomHeaderAuth,
-    AuthMethod,
-    AuthContext,
-    ServerAuthMiddleware,
+    BearerAuth,
     ClientAuthMiddleware,
     ClientRegistrationRequest,
     ClientRegistrationResponse,
+    CustomHeaderAuth,
     OAuthClient,
     // Re-export specific types
     OAuthConfig,
     // Re-export as AuthConfig for convenience
     OAuthConfig as AuthConfig,
     PkceParams,
+    ServerAuthMiddleware,
     TokenClaims,
     TokenResponse,
     TokenValidator,
@@ -532,16 +542,14 @@ pub use ultrafast_mcp_auth::{
 #[cfg(feature = "monitoring")]
 pub use ultrafast_mcp_monitoring::{
     config::MonitoringConfig,
+    // Re-export specific modules
+    exporters,
     // Re-export monitoring types explicitly for better discoverability
     health::{HealthCheck, HealthCheckResult, HealthChecker, HealthStatus},
-    metrics::RequestTimer,
-    MetricsCollector,
+    metrics::{MetricsCollector, RequestMetrics, RequestTimer, SystemMetrics, TransportMetrics},
+    middleware,
+    tracing,
     MonitoringSystem,
-    RequestMetrics,
-    SystemMetrics,
-    TransportMetrics,
-    // Also export everything else
-    *,
 };
 
 // =========================

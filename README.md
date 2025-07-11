@@ -108,43 +108,48 @@ ultrafast-mcp = { version = "20250618.1.0-rc.2", features = [
 
 #### **Core Features**
 - `core` - Basic MCP functionality (types, traits, utilities)
-- `stdio` - STDIO transport support
-- `http` - HTTP/HTTPS transport support
+- `stdio` - STDIO transport support (includes core functionality)
+- `http` - HTTP/HTTPS transport support (includes stdio fallback + core functionality)
 
 #### **Authentication**
-- `oauth` - OAuth 2.1 authentication with PKCE
+- `oauth` - OAuth 2.1 authentication with PKCE (includes core functionality)
 
 #### **Monitoring (Granular)**
-- `monitoring` - Basic monitoring capabilities
+- `monitoring` - Basic monitoring capabilities (includes core functionality)
 - `monitoring-http` - HTTP metrics endpoints
 - `monitoring-jaeger` - Jaeger tracing support
 - `monitoring-otlp` - OTLP tracing support
 - `monitoring-console` - Console tracing output
 
 #### **Convenience Combinations**
-- `http-with-auth` - HTTP transport + OAuth authentication
+- `http-with-auth` - HTTP transport + OAuth authentication (includes stdio fallback + core)
 - `monitoring-full` - All monitoring features
 - `minimal` - Core + STDIO (minimal working setup)
 - `full` - Everything enabled
 
-### Convenience Features
+### Recommended Usage Patterns
 
 ```bash
 # Minimal setup (STDIO only)
 cargo add ultrafast-mcp --features="minimal"
 
-# HTTP server
-cargo add ultrafast-mcp --features="http"
-
 # HTTP server with OAuth
 cargo add ultrafast-mcp --features="http-with-auth"
 
 # Production setup with monitoring
-cargo add ultrafast-mcp --features="http,oauth,monitoring-full"
+cargo add ultrafast-mcp --features="http-with-auth,monitoring-full"
 
 # All features enabled
 cargo add ultrafast-mcp --features="full"
 ```
+
+### Feature Benefits
+
+- **`minimal`**: Core + STDIO for basic functionality
+- **`http`**: HTTP transport + STDIO fallback + core functionality
+- **`http-with-auth`**: HTTP + OAuth + STDIO fallback + core functionality
+- **`monitoring-full`**: Complete monitoring suite with all exporters
+- **`full`**: Everything enabled for maximum functionality
 
 ## 🚀 Quick Start
 

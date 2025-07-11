@@ -3,12 +3,12 @@
 //! This example showcases the new convenience methods for different authentication types.
 
 use std::sync::Arc;
-use ultrafast_mcp::{
-    ClientCapabilities, ClientInfo, ListPromptsRequest, ListResourcesRequest, ListToolsRequest,
-    StreamableHttpClientConfig, ToolCall, ToolContent, UltraFastClient,
-    ClientElicitationHandler, ElicitationRequest, ElicitationResponse,
-};
 use ultrafast_mcp::types::ElicitationAction;
+use ultrafast_mcp::{
+    ClientCapabilities, ClientElicitationHandler, ClientInfo, ElicitationRequest,
+    ElicitationResponse, ListPromptsRequest, ListResourcesRequest, ListToolsRequest,
+    StreamableHttpClientConfig, ToolCall, ToolContent, UltraFastClient,
+};
 
 /// Simple elicitation handler for demonstration
 struct DemoElicitationHandler;
@@ -21,7 +21,7 @@ impl ClientElicitationHandler for DemoElicitationHandler {
     ) -> ultrafast_mcp::MCPResult<ElicitationResponse> {
         println!("🎯 Received elicitation request: {}", request.message);
         println!("   Schema: {:?}", request.requested_schema);
-        
+
         // For demo purposes, we'll accept the elicitation with some sample content
         println!("   Responding with Accept action and sample content");
         Ok(ElicitationResponse {
@@ -38,7 +38,9 @@ impl ClientElicitationHandler for DemoElicitationHandler {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     println!("🚀 Starting Everything MCP Client (Streamable HTTP)");
-    println!("📚 This example demonstrates various connection methods including new convenience APIs");
+    println!(
+        "📚 This example demonstrates various connection methods including new convenience APIs"
+    );
 
     // Create client info
     let client_info = ClientInfo {
@@ -56,32 +58,35 @@ async fn main() -> anyhow::Result<()> {
 
     // Demonstrate different connection methods
     let url = "http://127.0.0.1:8080";
-    
+
     println!("\n🔗 Connection Method 1: Simple Streamable HTTP (recommended)");
     println!("   Using: client.connect_streamable_http(url).await?");
-    
+
     // Create the client
     let client = UltraFastClient::new(client_info.clone(), capabilities.clone());
-    
+
     // Method 1: Simple connection (new convenience method)
     client.connect_streamable_http(url).await?;
     println!("✅ Connected successfully using simple method");
 
     // Test the connection with a quick tool call
     test_connection(&client, "Simple Connection").await?;
-    
+
     // Disconnect for next demo
     client.disconnect().await?;
-    
+
     println!("\n🔗 Connection Method 2: With Bearer Token Authentication");
     println!("   Using: client.connect_streamable_http_with_bearer(url, token).await?");
-    
+
     // Method 2: Bearer token authentication
     #[cfg(all(feature = "http", feature = "oauth"))]
     {
         let client2 = UltraFastClient::new(client_info.clone(), capabilities.clone());
         let mock_token = "demo-bearer-token-12345";
-        match client2.connect_streamable_http_with_bearer(url, mock_token.to_string()).await {
+        match client2
+            .connect_streamable_http_with_bearer(url, mock_token.to_string())
+            .await
+        {
             Ok(_) => {
                 println!("✅ Connected with Bearer token (server may not require auth)");
                 test_connection(&client2, "Bearer Token").await?;
@@ -105,14 +110,20 @@ async fn main() -> anyhow::Result<()> {
     {
         let client3 = UltraFastClient::new(client_info.clone(), capabilities.clone());
         let mock_api_key = "demo-api-key-67890";
-        match client3.connect_streamable_http_with_api_key(url, mock_api_key.to_string()).await {
+        match client3
+            .connect_streamable_http_with_api_key(url, mock_api_key.to_string())
+            .await
+        {
             Ok(_) => {
                 println!("✅ Connected with API key (server may not require auth)");
                 test_connection(&client3, "API Key").await?;
                 client3.disconnect().await?;
             }
             Err(e) => {
-                println!("⚠️  API key connection failed (expected if server doesn't support auth): {}", e);
+                println!(
+                    "⚠️  API key connection failed (expected if server doesn't support auth): {}",
+                    e
+                );
             }
         }
     }
@@ -128,7 +139,14 @@ async fn main() -> anyhow::Result<()> {
     #[cfg(all(feature = "http", feature = "oauth"))]
     {
         let client4 = UltraFastClient::new(client_info.clone(), capabilities.clone());
-        match client4.connect_streamable_http_with_basic(url, "demo_user".to_string(), "demo_pass".to_string()).await {
+        match client4
+            .connect_streamable_http_with_basic(
+                url,
+                "demo_user".to_string(),
+                "demo_pass".to_string(),
+            )
+            .await
+        {
             Ok(_) => {
                 println!("✅ Connected with Basic auth (server may not require auth)");
                 test_connection(&client4, "Basic Auth").await?;
@@ -143,16 +161,16 @@ async fn main() -> anyhow::Result<()> {
     {
         println!("⚠️  Basic authentication not available (requires http+oauth features)");
     }
-    
+
     println!("\n�� Connection Method 5: Client-Level Authentication Integration");
     println!("   Using: client.with_bearer_auth(token).connect_streamable_http(url).await?");
-    
+
     // Method 5: Client-level auth that integrates automatically (new feature)
     #[cfg(feature = "oauth")]
     {
         let client5 = UltraFastClient::new(client_info.clone(), capabilities.clone())
             .with_bearer_auth("client-level-token-123".to_string());
-        
+
         match client5.connect_streamable_http(url).await {
             Ok(_) => {
                 println!("✅ Connected with client-level auth integration");
@@ -168,14 +186,14 @@ async fn main() -> anyhow::Result<()> {
     {
         println!("⚠️  OAuth feature not enabled - skipping client-level auth demo");
     }
-    
+
     println!("\n🔗 Connection Method 6: Custom Configuration (advanced)");
     println!("   Using: client.connect_streamable_http_with_config(custom_config).await?");
-    
+
     // Method 6: Custom configuration (for advanced use cases)
     let client6 = UltraFastClient::new(client_info.clone(), capabilities.clone())
         .with_elicitation_handler(Arc::new(DemoElicitationHandler));
-    
+
     let custom_config = StreamableHttpClientConfig {
         base_url: url.to_string(),
         session_id: Some("custom-session-id".to_string()),
@@ -186,20 +204,22 @@ async fn main() -> anyhow::Result<()> {
         oauth_config: None,
         auth_method: None,
     };
-    
-    client6.connect_streamable_http_with_config(custom_config).await?;
+
+    client6
+        .connect_streamable_http_with_config(custom_config)
+        .await?;
     println!("✅ Connected with custom configuration");
-    
+
     // Run the main demo with the custom configured client
     run_full_demo(&client6).await?;
-    
+
     println!("\n🎉 All connection methods demonstrated successfully!");
     println!("💡 Key takeaways:");
     println!("   • Use connect_streamable_http() for simple connections");
     println!("   • Use connect_streamable_http_with_*() for specific auth types");
     println!("   • Use client.with_*_auth() for client-level auth integration");
     println!("   • Use connect_streamable_http_with_config() for advanced scenarios");
-    
+
     Ok(())
 }
 
@@ -208,7 +228,11 @@ async fn test_connection(client: &UltraFastClient, method_name: &str) -> anyhow:
     // Quick test - just list tools to verify connection works
     match client.list_tools(ListToolsRequest { cursor: None }).await {
         Ok(response) => {
-            println!("   ✅ {} connection verified - found {} tools", method_name, response.tools.len());
+            println!(
+                "   ✅ {} connection verified - found {} tools",
+                method_name,
+                response.tools.len()
+            );
             // Show available tools for verification
             for tool in &response.tools {
                 println!("     - {}: {}", tool.name, tool.description);
@@ -267,7 +291,8 @@ async fn run_full_demo(client: &UltraFastClient) -> anyhow::Result<()> {
         .list_resources(ListResourcesRequest { cursor: None })
         .await?;
     println!("Found {} resources:", resources_response.resources.len());
-    for resource in resources_response.resources.iter().take(3) {  // Show first 3 only
+    for resource in resources_response.resources.iter().take(3) {
+        // Show first 3 only
         println!(
             "  - {}: {}",
             resource.name,
@@ -275,7 +300,10 @@ async fn run_full_demo(client: &UltraFastClient) -> anyhow::Result<()> {
         );
     }
     if resources_response.resources.len() > 3 {
-        println!("  ... and {} more resources", resources_response.resources.len() - 3);
+        println!(
+            "  ... and {} more resources",
+            resources_response.resources.len() - 3
+        );
     }
 
     // List available prompts

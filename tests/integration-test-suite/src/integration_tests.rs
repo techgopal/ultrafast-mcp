@@ -4,8 +4,7 @@ mod tests {
     use serde::{Deserialize, Serialize};
     use tokio::time::Duration;
     use ultrafast_mcp_core::{
-        protocol::capabilities::ClientCapabilities,
-        types::client::ClientInfo,
+        protocol::capabilities::ClientCapabilities, types::client::ClientInfo,
     };
     use ultrafast_mcp_test_utils::create_test_server_with_name;
 

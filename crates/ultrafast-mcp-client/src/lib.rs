@@ -229,73 +229,115 @@ impl UltraFastClient {
 
     /// Set authentication method
     #[cfg(feature = "oauth")]
-    pub fn with_auth(mut self, auth_method: ultrafast_mcp_auth::AuthMethod) -> Self {
-        let auth_middleware = ultrafast_mcp_auth::ClientAuthMiddleware::new(auth_method);
-        let mut auth = self.auth_middleware.write().blocking_lock();
-        *auth = Some(auth_middleware);
+    pub fn with_auth(self, auth_method: ultrafast_mcp_auth::AuthMethod) -> Self {
+        #[cfg(feature = "oauth")]
+        {
+            let mut auth = self.auth_middleware.blocking_write();
+            *auth = Some(ultrafast_mcp_auth::ClientAuthMiddleware::new(auth_method));
+        }
         self
     }
 
     /// Set Bearer token authentication
     #[cfg(feature = "oauth")]
-    pub fn with_bearer_auth(mut self, token: String) -> Self {
-        let auth_method = ultrafast_mcp_auth::AuthMethod::bearer(token);
-        self.with_auth(auth_method)
+    pub fn with_bearer_auth(self, token: String) -> Self {
+        #[cfg(feature = "oauth")]
+        {
+            let auth_method = ultrafast_mcp_auth::AuthMethod::bearer(token);
+            let mut auth = self.auth_middleware.blocking_write();
+            *auth = Some(ultrafast_mcp_auth::ClientAuthMiddleware::new(auth_method));
+        }
+        self
     }
 
     /// Set Bearer token authentication with auto-refresh
     #[cfg(feature = "oauth")]
-    pub fn with_bearer_auth_refresh<F, Fut>(mut self, token: String, refresh_fn: F) -> Self 
-    where 
+    pub fn with_bearer_auth_refresh<F, Fut>(self, token: String, refresh_fn: F) -> Self
+    where
         F: Fn() -> Fut + Send + Sync + 'static,
-        Fut: std::future::Future<Output = Result<String, ultrafast_mcp_auth::AuthError>> + Send + 'static,
+        Fut: std::future::Future<Output = Result<String, ultrafast_mcp_auth::AuthError>>
+            + Send
+            + 'static,
     {
-        let auth_method = ultrafast_mcp_auth::AuthMethod::bearer(token)
-            .with_auto_refresh(refresh_fn);
-        self.with_auth(auth_method)
+        #[cfg(feature = "oauth")]
+        {
+            let bearer_auth =
+                ultrafast_mcp_auth::BearerAuth::new(token).with_auto_refresh(refresh_fn);
+            let auth_method = ultrafast_mcp_auth::AuthMethod::Bearer(bearer_auth);
+            let mut auth = self.auth_middleware.blocking_write();
+            *auth = Some(ultrafast_mcp_auth::ClientAuthMiddleware::new(auth_method));
+        }
+        self
     }
 
     /// Set OAuth authentication
     #[cfg(feature = "oauth")]
-    pub fn with_oauth_auth(mut self, config: ultrafast_mcp_auth::OAuthConfig) -> Self {
-        let auth_method = ultrafast_mcp_auth::AuthMethod::oauth(config);
-        self.with_auth(auth_method)
+    pub fn with_oauth_auth(self, config: ultrafast_mcp_auth::OAuthConfig) -> Self {
+        #[cfg(feature = "oauth")]
+        {
+            let auth_method = ultrafast_mcp_auth::AuthMethod::oauth(config);
+            let mut auth = self.auth_middleware.blocking_write();
+            *auth = Some(ultrafast_mcp_auth::ClientAuthMiddleware::new(auth_method));
+        }
+        self
     }
 
     /// Set API key authentication
     #[cfg(feature = "oauth")]
-    pub fn with_api_key_auth(mut self, api_key: String) -> Self {
-        let auth_method = ultrafast_mcp_auth::AuthMethod::api_key(api_key);
-        self.with_auth(auth_method)
+    pub fn with_api_key_auth(self, api_key: String) -> Self {
+        #[cfg(feature = "oauth")]
+        {
+            let auth_method = ultrafast_mcp_auth::AuthMethod::api_key(api_key);
+            let mut auth = self.auth_middleware.blocking_write();
+            *auth = Some(ultrafast_mcp_auth::ClientAuthMiddleware::new(auth_method));
+        }
+        self
     }
 
     /// Set API key authentication with custom header name
     #[cfg(feature = "oauth")]
-    pub fn with_api_key_auth_custom(mut self, api_key: String, header_name: String) -> Self {
-        let api_key_auth = ultrafast_mcp_auth::ApiKeyAuth::new(api_key)
-            .with_header_name(header_name);
-        let auth_method = ultrafast_mcp_auth::AuthMethod::ApiKey(api_key_auth);
-        self.with_auth(auth_method)
+    pub fn with_api_key_auth_custom(self, api_key: String, header_name: String) -> Self {
+        #[cfg(feature = "oauth")]
+        {
+            let api_key_auth =
+                ultrafast_mcp_auth::ApiKeyAuth::new(api_key).with_header_name(header_name);
+            let auth_method = ultrafast_mcp_auth::AuthMethod::ApiKey(api_key_auth);
+            let mut auth = self.auth_middleware.blocking_write();
+            *auth = Some(ultrafast_mcp_auth::ClientAuthMiddleware::new(auth_method));
+        }
+        self
     }
 
     /// Set Basic authentication
     #[cfg(feature = "oauth")]
-    pub fn with_basic_auth(mut self, username: String, password: String) -> Self {
-        let auth_method = ultrafast_mcp_auth::AuthMethod::basic(username, password);
-        self.with_auth(auth_method)
+    pub fn with_basic_auth(self, username: String, password: String) -> Self {
+        #[cfg(feature = "oauth")]
+        {
+            let auth_method = ultrafast_mcp_auth::AuthMethod::basic(username, password);
+            let mut auth = self.auth_middleware.blocking_write();
+            *auth = Some(ultrafast_mcp_auth::ClientAuthMiddleware::new(auth_method));
+        }
+        self
     }
 
     /// Set custom header authentication
     #[cfg(feature = "oauth")]
-    pub fn with_custom_auth(mut self) -> Self {
-        let auth_method = ultrafast_mcp_auth::AuthMethod::custom();
-        self.with_auth(auth_method)
+    pub fn with_custom_auth(self) -> Self {
+        #[cfg(feature = "oauth")]
+        {
+            let auth_method = ultrafast_mcp_auth::AuthMethod::custom();
+            let mut auth = self.auth_middleware.blocking_write();
+            *auth = Some(ultrafast_mcp_auth::ClientAuthMiddleware::new(auth_method));
+        }
+        self
     }
 
     /// Get authentication headers for requests
     #[cfg(feature = "oauth")]
-    pub async fn get_auth_headers(&self) -> Result<std::collections::HashMap<String, String>, ultrafast_mcp_auth::AuthError> {
-        if let Some(auth) = self.auth_middleware.read().await.as_ref() {
+    pub async fn get_auth_headers(
+        &self,
+    ) -> Result<std::collections::HashMap<String, String>, ultrafast_mcp_auth::AuthError> {
+        if let Some(auth) = self.auth_middleware.write().await.as_mut() {
             auth.get_headers().await
         } else {
             Ok(std::collections::HashMap::new())
@@ -495,9 +537,11 @@ impl UltraFastClient {
     /// This method will automatically use any client-level authentication configured
     #[cfg(feature = "http")]
     pub async fn connect_streamable_http(&self, url: &str) -> MCPResult<()> {
-        use ultrafast_mcp_transport::streamable_http::client::{StreamableHttpClient, StreamableHttpClientConfig};
-        
-        let config = StreamableHttpClientConfig {
+        use ultrafast_mcp_transport::streamable_http::client::{
+            StreamableHttpClient, StreamableHttpClientConfig,
+        };
+
+        let mut config = StreamableHttpClientConfig {
             base_url: url.to_string(),
             session_id: None,
             protocol_version: "2025-06-18".to_string(),
@@ -515,22 +559,26 @@ impl UltraFastClient {
                 config.auth_method = Some(auth.get_auth_method().clone());
             }
         }
-        
+
         let mut http_transport = StreamableHttpClient::new(config)
             .map_err(|e| MCPError::Transport(TransportError::ConnectionFailed(e.to_string())))?;
-        
+
         // Connect the transport first
-        http_transport.connect().await
+        http_transport
+            .connect()
+            .await
             .map_err(|e| MCPError::Transport(TransportError::ConnectionFailed(e.to_string())))?;
-        
+
         self.connect(Box::new(http_transport)).await
     }
 
     /// Connect to a server using HTTP transport with authentication
     #[cfg(feature = "http")]
     pub async fn connect_http_with_auth(&self, url: &str, auth_token: String) -> MCPResult<()> {
-        use ultrafast_mcp_transport::streamable_http::client::{StreamableHttpClient, StreamableHttpClientConfig};
-        
+        use ultrafast_mcp_transport::streamable_http::client::{
+            StreamableHttpClient, StreamableHttpClientConfig,
+        };
+
         let config = StreamableHttpClientConfig {
             base_url: url.to_string(),
             session_id: None,
@@ -541,22 +589,30 @@ impl UltraFastClient {
             oauth_config: None,
             auth_method: None,
         };
-        
+
         let mut http_transport = StreamableHttpClient::new(config)
             .map_err(|e| MCPError::Transport(TransportError::ConnectionFailed(e.to_string())))?;
-        
+
         // Connect the transport first
-        http_transport.connect().await
+        http_transport
+            .connect()
+            .await
             .map_err(|e| MCPError::Transport(TransportError::ConnectionFailed(e.to_string())))?;
-        
+
         self.connect(Box::new(http_transport)).await
     }
 
     /// Connect to a server using Streamable HTTP transport with Bearer token authentication
     #[cfg(all(feature = "http", feature = "oauth"))]
-    pub async fn connect_streamable_http_with_bearer(&self, url: &str, token: String) -> MCPResult<()> {
-        use ultrafast_mcp_transport::streamable_http::client::{StreamableHttpClient, StreamableHttpClientConfig};
-        
+    pub async fn connect_streamable_http_with_bearer(
+        &self,
+        url: &str,
+        token: String,
+    ) -> MCPResult<()> {
+        use ultrafast_mcp_transport::streamable_http::client::{
+            StreamableHttpClient, StreamableHttpClientConfig,
+        };
+
         let config = StreamableHttpClientConfig {
             base_url: url.to_string(),
             session_id: None,
@@ -567,22 +623,30 @@ impl UltraFastClient {
             oauth_config: None,
             auth_method: Some(ultrafast_mcp_auth::AuthMethod::bearer(token)),
         };
-        
+
         let mut http_transport = StreamableHttpClient::new(config)
             .map_err(|e| MCPError::Transport(TransportError::ConnectionFailed(e.to_string())))?;
-        
+
         // Connect the transport first
-        http_transport.connect().await
+        http_transport
+            .connect()
+            .await
             .map_err(|e| MCPError::Transport(TransportError::ConnectionFailed(e.to_string())))?;
-        
+
         self.connect(Box::new(http_transport)).await
     }
 
     /// Connect to a server using Streamable HTTP transport with OAuth 2.1 authentication
     #[cfg(all(feature = "http", feature = "oauth"))]
-    pub async fn connect_streamable_http_with_oauth(&self, url: &str, oauth_config: ultrafast_mcp_auth::OAuthConfig) -> MCPResult<()> {
-        use ultrafast_mcp_transport::streamable_http::client::{StreamableHttpClient, StreamableHttpClientConfig};
-        
+    pub async fn connect_streamable_http_with_oauth(
+        &self,
+        url: &str,
+        oauth_config: ultrafast_mcp_auth::OAuthConfig,
+    ) -> MCPResult<()> {
+        use ultrafast_mcp_transport::streamable_http::client::{
+            StreamableHttpClient, StreamableHttpClientConfig,
+        };
+
         let config = StreamableHttpClientConfig {
             base_url: url.to_string(),
             session_id: None,
@@ -593,22 +657,30 @@ impl UltraFastClient {
             oauth_config: Some(oauth_config.clone()),
             auth_method: Some(ultrafast_mcp_auth::AuthMethod::oauth(oauth_config)),
         };
-        
+
         let mut http_transport = StreamableHttpClient::new(config)
             .map_err(|e| MCPError::Transport(TransportError::ConnectionFailed(e.to_string())))?;
-        
+
         // Connect the transport first
-        http_transport.connect().await
+        http_transport
+            .connect()
+            .await
             .map_err(|e| MCPError::Transport(TransportError::ConnectionFailed(e.to_string())))?;
-        
+
         self.connect(Box::new(http_transport)).await
     }
 
     /// Connect to a server using Streamable HTTP transport with API key authentication
     #[cfg(all(feature = "http", feature = "oauth"))]
-    pub async fn connect_streamable_http_with_api_key(&self, url: &str, api_key: String) -> MCPResult<()> {
-        use ultrafast_mcp_transport::streamable_http::client::{StreamableHttpClient, StreamableHttpClientConfig};
-        
+    pub async fn connect_streamable_http_with_api_key(
+        &self,
+        url: &str,
+        api_key: String,
+    ) -> MCPResult<()> {
+        use ultrafast_mcp_transport::streamable_http::client::{
+            StreamableHttpClient, StreamableHttpClientConfig,
+        };
+
         let config = StreamableHttpClientConfig {
             base_url: url.to_string(),
             session_id: None,
@@ -619,26 +691,35 @@ impl UltraFastClient {
             oauth_config: None,
             auth_method: Some(ultrafast_mcp_auth::AuthMethod::api_key(api_key)),
         };
-        
+
         let mut http_transport = StreamableHttpClient::new(config)
             .map_err(|e| MCPError::Transport(TransportError::ConnectionFailed(e.to_string())))?;
-        
+
         // Connect the transport first
-        http_transport.connect().await
+        http_transport
+            .connect()
+            .await
             .map_err(|e| MCPError::Transport(TransportError::ConnectionFailed(e.to_string())))?;
-        
+
         self.connect(Box::new(http_transport)).await
     }
 
     /// Connect to a server using Streamable HTTP transport with API key authentication (custom header)
     #[cfg(all(feature = "http", feature = "oauth"))]
-    pub async fn connect_streamable_http_with_api_key_custom(&self, url: &str, api_key: String, header_name: String) -> MCPResult<()> {
-        use ultrafast_mcp_transport::streamable_http::client::{StreamableHttpClient, StreamableHttpClientConfig};
-        
-        let api_key_auth = ultrafast_mcp_auth::ApiKeyAuth::new(api_key)
-            .with_header_name(header_name);
+    pub async fn connect_streamable_http_with_api_key_custom(
+        &self,
+        url: &str,
+        api_key: String,
+        header_name: String,
+    ) -> MCPResult<()> {
+        use ultrafast_mcp_transport::streamable_http::client::{
+            StreamableHttpClient, StreamableHttpClientConfig,
+        };
+
+        let api_key_auth =
+            ultrafast_mcp_auth::ApiKeyAuth::new(api_key).with_header_name(header_name);
         let auth_method = ultrafast_mcp_auth::AuthMethod::ApiKey(api_key_auth);
-        
+
         let config = StreamableHttpClientConfig {
             base_url: url.to_string(),
             session_id: None,
@@ -649,22 +730,31 @@ impl UltraFastClient {
             oauth_config: None,
             auth_method: Some(auth_method),
         };
-        
+
         let mut http_transport = StreamableHttpClient::new(config)
             .map_err(|e| MCPError::Transport(TransportError::ConnectionFailed(e.to_string())))?;
-        
+
         // Connect the transport first
-        http_transport.connect().await
+        http_transport
+            .connect()
+            .await
             .map_err(|e| MCPError::Transport(TransportError::ConnectionFailed(e.to_string())))?;
-        
+
         self.connect(Box::new(http_transport)).await
     }
 
     /// Connect to a server using Streamable HTTP transport with Basic authentication
     #[cfg(all(feature = "http", feature = "oauth"))]
-    pub async fn connect_streamable_http_with_basic(&self, url: &str, username: String, password: String) -> MCPResult<()> {
-        use ultrafast_mcp_transport::streamable_http::client::{StreamableHttpClient, StreamableHttpClientConfig};
-        
+    pub async fn connect_streamable_http_with_basic(
+        &self,
+        url: &str,
+        username: String,
+        password: String,
+    ) -> MCPResult<()> {
+        use ultrafast_mcp_transport::streamable_http::client::{
+            StreamableHttpClient, StreamableHttpClientConfig,
+        };
+
         let config = StreamableHttpClientConfig {
             base_url: url.to_string(),
             session_id: None,
@@ -675,29 +765,36 @@ impl UltraFastClient {
             oauth_config: None,
             auth_method: Some(ultrafast_mcp_auth::AuthMethod::basic(username, password)),
         };
-        
+
         let mut http_transport = StreamableHttpClient::new(config)
             .map_err(|e| MCPError::Transport(TransportError::ConnectionFailed(e.to_string())))?;
-        
+
         // Connect the transport first
-        http_transport.connect().await
+        http_transport
+            .connect()
+            .await
             .map_err(|e| MCPError::Transport(TransportError::ConnectionFailed(e.to_string())))?;
-        
+
         self.connect(Box::new(http_transport)).await
     }
 
     /// Connect to a server using Streamable HTTP transport with custom configuration
     #[cfg(feature = "http")]
-    pub async fn connect_streamable_http_with_config(&self, config: ultrafast_mcp_transport::streamable_http::client::StreamableHttpClientConfig) -> MCPResult<()> {
+    pub async fn connect_streamable_http_with_config(
+        &self,
+        config: ultrafast_mcp_transport::streamable_http::client::StreamableHttpClientConfig,
+    ) -> MCPResult<()> {
         use ultrafast_mcp_transport::streamable_http::client::StreamableHttpClient;
-        
+
         let mut http_transport = StreamableHttpClient::new(config)
             .map_err(|e| MCPError::Transport(TransportError::ConnectionFailed(e.to_string())))?;
-        
+
         // Connect the transport first
-        http_transport.connect().await
+        http_transport
+            .connect()
+            .await
             .map_err(|e| MCPError::Transport(TransportError::ConnectionFailed(e.to_string())))?;
-        
+
         self.connect(Box::new(http_transport)).await
     }
 
@@ -744,14 +841,18 @@ impl UltraFastClient {
         // Send initialized notification (skip for HTTP transport)
         // Note: HTTP transport doesn't require initialized notification
         let init_notification = InitializedNotification {};
-        if let Err(e) = self.send_notification(
-            "initialized",
-            Some(serde_json::to_value(init_notification)?),
-        )
-        .await
+        if let Err(e) = self
+            .send_notification(
+                "initialized",
+                Some(serde_json::to_value(init_notification)?),
+            )
+            .await
         {
             // For HTTP transport, ignore errors on initialized notification
-            warn!("Failed to send initialized notification (this is normal for HTTP transport): {}", e);
+            warn!(
+                "Failed to send initialized notification (this is normal for HTTP transport): {}",
+                e
+            );
         }
 
         {
@@ -782,10 +883,16 @@ impl UltraFastClient {
         // Try to send shutdown request, but don't fail if it doesn't work
         let shutdown_request = ShutdownRequest { reason };
         if let Err(e) = self
-            .send_request::<serde_json::Value>("shutdown", Some(serde_json::to_value(shutdown_request)?))
+            .send_request::<serde_json::Value>(
+                "shutdown",
+                Some(serde_json::to_value(shutdown_request)?),
+            )
             .await
         {
-            warn!("Failed to send shutdown request (this is normal for some transports): {}", e);
+            warn!(
+                "Failed to send shutdown request (this is normal for some transports): {}",
+                e
+            );
         }
 
         {
@@ -1062,9 +1169,10 @@ impl UltraFastClient {
     async fn ensure_operational(&self) -> MCPResult<()> {
         let state = self.get_state().await;
         if !state.can_operate() {
-            return Err(MCPError::Protocol(ProtocolError::InternalError(
-                format!("Client is not in operating state (current state: {:?})", state),
-            )));
+            return Err(MCPError::Protocol(ProtocolError::InternalError(format!(
+                "Client is not in operating state (current state: {:?})",
+                state
+            ))));
         }
         Ok(())
     }

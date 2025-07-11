@@ -199,8 +199,6 @@ pub trait Transport: Send + Sync {
         }
     }
 
-
-
     /// Check if transport is ready for operations
     fn is_ready(&self) -> bool {
         matches!(self.get_state(), ConnectionState::Connected)
@@ -433,7 +431,6 @@ impl Transport for RecoveringTransport {
         self.last_error = None;
         self.inner.reset().await
     }
-
 }
 
 /// Transport configuration

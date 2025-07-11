@@ -13,9 +13,9 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tracing::{error, info};
 use ultrafast_mcp::{
-    ListToolsRequest, ListToolsResponse, MCPError, MCPResult, ServerCapabilities, ServerInfo, Tool,
-    ToolCall, ToolContent, ToolHandler, ToolResult, ToolsCapability, UltraFastServer,
-    HttpTransportConfig,
+    HttpTransportConfig, ListToolsRequest, ListToolsResponse, MCPError, MCPResult,
+    ServerCapabilities, ServerInfo, Tool, ToolCall, ToolContent, ToolHandler, ToolResult,
+    ToolsCapability, UltraFastServer,
 };
 
 #[derive(Parser)]
@@ -25,11 +25,11 @@ struct Args {
     /// Transport type to use
     #[arg(value_enum)]
     transport: TransportType,
-    
+
     /// Host for HTTP transport (default: 127.0.0.1)
     #[arg(long, default_value = "127.0.0.1")]
     host: String,
-    
+
     /// Port for HTTP transport (default: 8080)
     #[arg(long, default_value = "8080")]
     port: u16,
@@ -79,7 +79,10 @@ impl EchoToolHandler {
 #[async_trait::async_trait]
 impl ToolHandler for EchoToolHandler {
     async fn handle_tool_call(&self, call: ToolCall) -> MCPResult<ToolResult> {
-        info!("Handling tool call: {} (transport: {})", call.name, self.transport_type);
+        info!(
+            "Handling tool call: {} (transport: {})",
+            call.name, self.transport_type
+        );
 
         // Validate tool name
         if call.name != "echo" {
@@ -113,7 +116,10 @@ impl ToolHandler for EchoToolHandler {
         }
 
         // Increment echo counter
-        let echo_count = self.echo_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
+        let echo_count = self
+            .echo_count
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+            + 1;
 
         // Process the request
         let response = EchoResponse {
@@ -129,7 +135,10 @@ impl ToolHandler for EchoToolHandler {
             MCPError::serialization_error(e.to_string())
         })?;
 
-        info!("Echo tool completed successfully (count: {}, transport: {})", echo_count, self.transport_type);
+        info!(
+            "Echo tool completed successfully (count: {}, transport: {})",
+            echo_count, self.transport_type
+        );
         Ok(ToolResult {
             content: vec![ToolContent::text(response_text)],
             is_error: None,
@@ -137,11 +146,17 @@ impl ToolHandler for EchoToolHandler {
     }
 
     async fn list_tools(&self, _request: ListToolsRequest) -> MCPResult<ListToolsResponse> {
-        info!("Listing available tools (transport: {})", self.transport_type);
+        info!(
+            "Listing available tools (transport: {})",
+            self.transport_type
+        );
         Ok(ListToolsResponse {
             tools: vec![Tool {
                 name: "echo".to_string(),
-                description: format!("Echo back a message with timestamp and metadata (transport: {})", self.transport_type),
+                description: format!(
+                    "Echo back a message with timestamp and metadata (transport: {})",
+                    self.transport_type
+                ),
                 input_schema: serde_json::json!({
                     "type": "object",
                     "properties": {
@@ -199,7 +214,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let server_info = ServerInfo {
         name: "basic-echo-server".to_string(),
         version: "1.0.0".to_string(),
-        description: Some(format!("A simple echo server for MCP with {:?} transport", args.transport)),
+        description: Some(format!(
+            "A simple echo server for MCP with {:?} transport",
+            args.transport
+        )),
         authors: Some(vec!["ULTRAFAST_MCP Team".to_string()]),
         homepage: Some("https://github.com/ultrafast-mcp/ultrafast-mcp".to_string()),
         license: Some("MIT OR Apache-2.0".to_string()),

@@ -42,6 +42,8 @@ client.connect_streamable_http("http://127.0.0.1:8080/mcp").await?;
 - **10x faster** than traditional HTTP transports under load
 - **90% less client code** required compared to other transports
 
+**Features Used**: `http-with-auth` (includes HTTP transport + OAuth authentication)
+
 ### 2. [File Operations](./02-file-operations/) - File System Integration
 **Difficulty**: Intermediate  
 **Focus**: File system operations and complex tool handling
@@ -62,6 +64,8 @@ A comprehensive file operations server demonstrating:
 - Comprehensive error handling and validation
 - MCP Inspector configuration for visual testing
 
+**Features Used**: `http` (includes HTTP transport + STDIO fallback + core functionality)
+
 ### 3. [Everything Server](./03-everything-server/) - Complete MCP Implementation
 **Difficulty**: Advanced  
 **Focus**: Complete MCP feature set with all capabilities
@@ -81,6 +85,8 @@ A comprehensive example demonstrating all MCP capabilities:
 - Dynamic resource management
 - Prompt generation with context
 - Complete MCP protocol implementation
+
+**Features Used**: `http-with-auth, monitoring-full` (includes HTTP + OAuth + complete monitoring suite)
 
 ### 4. [Authentication Example](./04-authentication-example/) - **Authentication Methods and Middleware** ⭐
 **Difficulty**: Intermediate  
@@ -106,6 +112,8 @@ A complete authentication system demonstrating all supported authentication meth
 - **Thread-safe Design**: All components are `Send + Sync`
 - **Comprehensive Error Handling**: Detailed error types and messages
 - **Performance Optimized**: Efficient validation and minimal allocations
+
+**Features Used**: `oauth` (includes OAuth authentication + core functionality)
 
 ## Common Patterns
 
@@ -188,6 +196,32 @@ impl ultrafast_mcp::ToolHandler for MyToolHandler {
     }
 }
 ```
+
+## Feature Flag Usage
+
+### Recommended Feature Combinations
+
+```bash
+# Minimal setup (STDIO only)
+cargo add ultrafast-mcp --features="minimal"
+
+# HTTP server with OAuth
+cargo add ultrafast-mcp --features="http-with-auth"
+
+# Production setup with monitoring
+cargo add ultrafast-mcp --features="http-with-auth,monitoring-full"
+
+# All features enabled
+cargo add ultrafast-mcp --features="full"
+```
+
+### Feature Flag Benefits
+
+- **`minimal`**: Core + STDIO for basic functionality
+- **`http`**: HTTP transport + STDIO fallback + core functionality
+- **`http-with-auth`**: HTTP + OAuth + STDIO fallback + core functionality
+- **`monitoring-full`**: Complete monitoring suite with all exporters
+- **`full`**: Everything enabled for maximum functionality
 
 ## API Consistency and Error Handling
 

@@ -140,7 +140,6 @@ pub struct UltraFastServer {
 
     // Timeout configuration (MCP 2025-06-18 compliance)
     timeout_config: Arc<TimeoutConfig>,
-
     // Authentication middleware (removed oauth feature)
 }
 
@@ -426,11 +425,7 @@ impl UltraFastServer {
     }
 
     /// Enable authentication with custom configuration (feature removed)
-    pub fn with_authentication(
-        self,
-        _token_validator: (),
-        _required_scopes: Vec<String>,
-    ) -> Self {
+    pub fn with_authentication(self, _token_validator: (), _required_scopes: Vec<String>) -> Self {
         warn!("Authentication feature has been removed. Use ultrafast-mcp-auth crate directly.");
         self
     }
@@ -824,7 +819,10 @@ impl UltraFastServer {
     /// Run the server with custom Streamable HTTP transport configuration
     /// This provides clearer naming for advanced Streamable HTTP configuration
     #[cfg(feature = "http")]
-    pub async fn run_streamable_http_with_config(&self, config: HttpTransportConfig) -> MCPResult<()> {
+    pub async fn run_streamable_http_with_config(
+        &self,
+        config: HttpTransportConfig,
+    ) -> MCPResult<()> {
         self.run_http(config).await
     }
 
@@ -850,7 +848,10 @@ impl UltraFastServer {
                     let response = self.handle_request(request).await;
                     let response_message = JsonRpcMessage::Response(response);
 
-                    info!("Sending response for session {}: {:?}", session_id, response_message);
+                    info!(
+                        "Sending response for session {}: {:?}",
+                        session_id, response_message
+                    );
 
                     // Send the response back through the response sender
                     if let Err(e) = response_sender.send((session_id_clone, response_message)) {

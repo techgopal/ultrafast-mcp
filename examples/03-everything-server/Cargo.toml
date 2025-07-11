@@ -12,8 +12,12 @@ categories.workspace = true
 readme.workspace = true
 description.workspace = true
 
+[features]
+http = ["ultrafast-mcp/http"]
+oauth = ["ultrafast-mcp/oauth"]
+
 [dependencies]
-ultrafast-mcp = { path = "../../crates/ultrafast-mcp", features = ["http", "oauth", "monitoring-full"] }
+ultrafast-mcp = { path = "../../crates/ultrafast-mcp", features = ["http-with-auth", "monitoring-full"] }
 tokio = { workspace = true, features = ["full"] }
 anyhow = { workspace = true }
 async-trait = { workspace = true }

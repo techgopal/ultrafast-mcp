@@ -1,9 +1,9 @@
-use crate::{error::AuthError, types::TokenClaims, TokenValidator, AuthMethod};
+use crate::{error::AuthError, types::TokenClaims, AuthMethod, TokenValidator};
+use base64::Engine;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::{debug, warn};
-use base64::Engine;
 
 /// Authentication context for requests
 #[derive(Debug, Clone)]
@@ -99,7 +99,10 @@ impl ServerAuthMiddleware {
     }
 
     /// Validate authentication headers and return auth context
-    pub async fn validate_request(&self, headers: &HashMap<String, String>) -> Result<AuthContext, AuthError> {
+    pub async fn validate_request(
+        &self,
+        headers: &HashMap<String, String>,
+    ) -> Result<AuthContext, AuthError> {
         if !self.auth_enabled {
             return Ok(AuthContext::new().authenticated());
         }
@@ -132,20 +135,23 @@ impl ServerAuthMiddleware {
         } else if auth_header.starts_with("Basic ") {
             self.validate_basic_auth(auth_header).await
         } else {
-            Err(AuthError::InvalidToken("Unsupported authorization scheme".to_string()))
+            Err(AuthError::InvalidToken(
+                "Unsupported authorization scheme".to_string(),
+            ))
         }
     }
 
     /// Validate Bearer token
     async fn validate_bearer_token(&self, auth_header: &str) -> Result<AuthContext, AuthError> {
         let token = crate::validation::extract_bearer_token(auth_header)?;
-        
+
         // Validate JWT token
         let claims = self.token_validator.validate_token(token).await?;
-        
+
         // Check required scopes
         if !self.required_scopes.is_empty() {
-            self.token_validator.validate_scopes(&claims, &self.required_scopes)?;
+            self.token_validator
+                .validate_scopes(&claims, &self.required_scopes)?;
         }
 
         let scopes = claims
@@ -161,18 +167,25 @@ impl ServerAuthMiddleware {
             .with_auth_method(AuthMethod::bearer(token.to_string()))
             .authenticated();
 
-        debug!("Bearer token validated for user: {}", auth_context.user_id.as_ref().unwrap_or(&"unknown".to_string()));
+        debug!(
+            "Bearer token validated for user: {}",
+            auth_context
+                .user_id
+                .as_ref()
+                .unwrap_or(&"unknown".to_string())
+        );
         Ok(auth_context)
     }
 
     /// Validate Basic authentication
     async fn validate_basic_auth(&self, auth_header: &str) -> Result<AuthContext, AuthError> {
         // Extract and decode basic auth credentials
-        let encoded = auth_header.strip_prefix("Basic ").ok_or_else(|| {
-            AuthError::InvalidToken("Invalid Basic auth format".to_string())
-        })?;
+        let encoded = auth_header
+            .strip_prefix("Basic ")
+            .ok_or_else(|| AuthError::InvalidToken("Invalid Basic auth format".to_string()))?;
 
-        let decoded = base64::engine::general_purpose::STANDARD.decode(encoded)
+        let decoded = base64::engine::general_purpose::STANDARD
+            .decode(encoded)
             .map_err(|_| AuthError::InvalidToken("Invalid Basic auth encoding".to_string()))?;
 
         let credentials = String::from_utf8(decoded)
@@ -180,7 +193,9 @@ impl ServerAuthMiddleware {
 
         let parts: Vec<&str> = credentials.splitn(2, ':').collect();
         if parts.len() != 2 {
-            return Err(AuthError::InvalidToken("Invalid Basic auth format".to_string()));
+            return Err(AuthError::InvalidToken(
+                "Invalid Basic auth format".to_string(),
+            ));
         }
 
         let username = parts[0];
@@ -194,7 +209,10 @@ impl ServerAuthMiddleware {
 
         let auth_context = AuthContext::new()
             .with_user_id(username.to_string())
-            .with_auth_method(AuthMethod::basic(username.to_string(), password.to_string()))
+            .with_auth_method(AuthMethod::basic(
+                username.to_string(),
+                password.to_string(),
+            ))
             .authenticated();
 
         debug!("Basic auth validated for user: {}", username);
@@ -202,7 +220,11 @@ impl ServerAuthMiddleware {
     }
 
     /// Validate API key
-    async fn validate_api_key(&self, _header_name: &str, api_key: &str) -> Result<AuthContext, AuthError> {
+    async fn validate_api_key(
+        &self,
+        _header_name: &str,
+        api_key: &str,
+    ) -> Result<AuthContext, AuthError> {
         if api_key.is_empty() {
             return Err(AuthError::InvalidCredentials);
         }
@@ -210,11 +232,17 @@ impl ServerAuthMiddleware {
         // In a real implementation, you would validate the API key against a database
         // For now, we'll accept any non-empty API key
         let auth_context = AuthContext::new()
-            .with_user_id(format!("api_user_{}", api_key[..8.min(api_key.len())].to_string()))
+            .with_user_id(format!("api_user_{}", &api_key[..8.min(api_key.len())]))
             .with_auth_method(AuthMethod::api_key(api_key.to_string()))
             .authenticated();
 
-        debug!("API key validated for user: {}", auth_context.user_id.as_ref().unwrap_or(&"unknown".to_string()));
+        debug!(
+            "API key validated for user: {}",
+            auth_context
+                .user_id
+                .as_ref()
+                .unwrap_or(&"unknown".to_string())
+        );
         Ok(auth_context)
     }
 
@@ -237,7 +265,11 @@ impl ServerAuthMiddleware {
     }
 
     /// Check if user has required scopes
-    pub fn check_scopes(&self, auth_context: &AuthContext, required_scopes: &[String]) -> Result<(), AuthError> {
+    pub fn check_scopes(
+        &self,
+        auth_context: &AuthContext,
+        required_scopes: &[String],
+    ) -> Result<(), AuthError> {
         if required_scopes.is_empty() {
             return Ok(());
         }
@@ -248,7 +280,7 @@ impl ServerAuthMiddleware {
                 .filter(|scope| !auth_context.has_scope(scope))
                 .cloned()
                 .collect();
-            
+
             return Err(AuthError::MissingScope {
                 scope: missing_scopes.join(", "),
             });
@@ -314,7 +346,10 @@ mod tests {
             .with_required_scopes(vec!["read".to_string(), "write".to_string()]);
 
         let mut headers = HashMap::new();
-        headers.insert("Authorization".to_string(), "Bearer invalid_token".to_string());
+        headers.insert(
+            "Authorization".to_string(),
+            "Bearer invalid_token".to_string(),
+        );
 
         let result = middleware.validate_request(&headers).await;
         assert!(result.is_err());
@@ -326,7 +361,10 @@ mod tests {
         let middleware = ServerAuthMiddleware::new(validator);
 
         let mut headers = HashMap::new();
-        headers.insert("Authorization".to_string(), "Basic dXNlcjpwYXNz".to_string()); // user:pass
+        headers.insert(
+            "Authorization".to_string(),
+            "Basic dXNlcjpwYXNz".to_string(),
+        ); // user:pass
 
         let result = middleware.validate_request(&headers).await;
         assert!(result.is_ok());
@@ -346,8 +384,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_auth_context_scopes() {
-        let context = AuthContext::new()
-            .with_scopes(vec!["read".to_string(), "write".to_string()]);
+        let context = AuthContext::new().with_scopes(vec!["read".to_string(), "write".to_string()]);
 
         assert!(context.has_scope("read"));
         assert!(context.has_scope("write"));
@@ -357,4 +394,4 @@ mod tests {
         assert!(context.has_all_scopes(&["read".to_string(), "write".to_string()]));
         assert!(!context.has_all_scopes(&["read".to_string(), "delete".to_string()]));
     }
-} 
+}

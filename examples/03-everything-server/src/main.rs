@@ -284,18 +284,9 @@ impl ToolHandler for EverythingToolHandler {
             }
             "startElicitation" => {
                 let args = call.arguments.unwrap_or_default();
-                let color = args
-                    .get("color")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("blue");
-                let number = args
-                    .get("number")
-                    .and_then(|v| v.as_u64())
-                    .unwrap_or(42);
-                let pets = args
-                    .get("pets")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("dogs");
+                let color = args.get("color").and_then(|v| v.as_str()).unwrap_or("blue");
+                let number = args.get("number").and_then(|v| v.as_u64()).unwrap_or(42);
+                let pets = args.get("pets").and_then(|v| v.as_str()).unwrap_or("dogs");
 
                 Ok(ToolResult {
                     content: vec![ToolContent::text(format!(

@@ -1,6 +1,14 @@
+use crate::error::AuthError;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use crate::error::AuthError;
+
+/// Type alias for refresh function to reduce complexity
+pub type RefreshFn = Box<
+    dyn Fn()
+            -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<String, AuthError>> + Send>>
+        + Send
+        + Sync,
+>;
 
 /// OAuth 2.1 configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -34,14 +42,21 @@ pub struct PkceParams {
 /// Bearer token authentication
 pub struct BearerAuth {
     pub token: String,
-    pub refresh_fn: Option<Box<dyn Fn() -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<String, AuthError>> + Send>> + Send + Sync>>,
+    pub refresh_fn: Option<RefreshFn>,
 }
 
 impl std::fmt::Debug for BearerAuth {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("BearerAuth")
             .field("token", &"***REDACTED***")
-            .field("refresh_fn", &if self.refresh_fn.is_some() { "Some(Fn)" } else { "None" })
+            .field(
+                "refresh_fn",
+                &if self.refresh_fn.is_some() {
+                    "Some(Fn)"
+                } else {
+                    "None"
+                },
+            )
             .finish()
     }
 }
@@ -63,14 +78,17 @@ impl BearerAuth {
         }
     }
 
-    pub fn with_auto_refresh<F, Fut>(mut self, refresh_fn: F) -> Self 
-    where 
+    pub fn with_auto_refresh<F, Fut>(mut self, refresh_fn: F) -> Self
+    where
         F: Fn() -> Fut + Send + Sync + 'static,
         Fut: std::future::Future<Output = Result<String, AuthError>> + Send + 'static,
     {
         self.refresh_fn = Some(Box::new(move || {
             let fut = refresh_fn();
-            Box::pin(fut) as std::pin::Pin<Box<dyn std::future::Future<Output = Result<String, AuthError>> + Send>>
+            Box::pin(fut)
+                as std::pin::Pin<
+                    Box<dyn std::future::Future<Output = Result<String, AuthError>> + Send>,
+                >
         }));
         self
     }
@@ -83,7 +101,9 @@ impl BearerAuth {
         if let Some(refresh_fn) = &self.refresh_fn {
             refresh_fn().await
         } else {
-            Err(AuthError::InvalidToken("No refresh function configured".to_string()))
+            Err(AuthError::InvalidToken(
+                "No refresh function configured".to_string(),
+            ))
         }
     }
 }
@@ -126,10 +146,7 @@ pub struct BasicAuth {
 
 impl BasicAuth {
     pub fn new(username: String, password: String) -> Self {
-        Self {
-            username,
-            password,
-        }
+        Self { username, password }
     }
 
     pub fn from_credentials(username: &str, password: &str) -> Self {
@@ -182,7 +199,10 @@ impl CustomHeaderAuth {
 
     pub fn with_basic_auth(self, username: &str, password: &str) -> Self {
         let basic_auth = BasicAuth::from_credentials(username, password);
-        self.with_header("Authorization".to_string(), format!("Basic {}", basic_auth.encode_credentials()))
+        self.with_header(
+            "Authorization".to_string(),
+            format!("Basic {}", basic_auth.encode_credentials()),
+        )
     }
 
     pub fn get_headers(&self) -> &HashMap<String, String> {
@@ -267,17 +287,26 @@ impl AuthMethod {
 
         match self {
             AuthMethod::Bearer(bearer) => {
-                headers.insert("Authorization".to_string(), format!("Bearer {}", bearer.get_token()));
+                headers.insert(
+                    "Authorization".to_string(),
+                    format!("Bearer {}", bearer.get_token()),
+                );
             }
             AuthMethod::OAuth(_) => {
                 // OAuth tokens are handled separately in the OAuth flow
                 // This would typically be called after token acquisition
             }
             AuthMethod::ApiKey(api_key) => {
-                headers.insert(api_key.get_header_name().to_string(), api_key.get_api_key().to_string());
+                headers.insert(
+                    api_key.get_header_name().to_string(),
+                    api_key.get_api_key().to_string(),
+                );
             }
             AuthMethod::Basic(basic) => {
-                headers.insert("Authorization".to_string(), format!("Basic {}", basic.encode_credentials()));
+                headers.insert(
+                    "Authorization".to_string(),
+                    format!("Basic {}", basic.encode_credentials()),
+                );
             }
             AuthMethod::Custom(custom) => {
                 headers.extend(custom.get_headers().clone());

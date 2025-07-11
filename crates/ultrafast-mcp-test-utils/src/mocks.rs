@@ -136,7 +136,7 @@ pub fn create_failing_receive_transport() -> MockTransport {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ultrafast_mcp_core::protocol::{jsonrpc::{JsonRpcRequest, RequestId}};
+    use ultrafast_mcp_core::protocol::jsonrpc::{JsonRpcRequest, RequestId};
 
     #[tokio::test]
     async fn test_mock_transport_send() {
