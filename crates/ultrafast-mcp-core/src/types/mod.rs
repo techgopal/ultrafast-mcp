@@ -76,6 +76,7 @@
 //!         "required": ["name"]
 //!     }),
 //!     output_schema: None,
+//!     annotations: None,
 //! };
 //!
 //! // Create a tool call

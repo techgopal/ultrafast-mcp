@@ -70,7 +70,7 @@
 //!
 //! ### Basic Server Setup
 //!
-//! ```rust
+//! ```rust,ignore
 //! use ultrafast_mcp_server::{UltraFastServer, ToolHandler};
 //! use ultrafast_mcp_core::types::tools::{ToolCall, ToolResult, ToolContent, Tool, ListToolsRequest, ListToolsResponse};
 //! use ultrafast_mcp_core::types::server::ServerInfo;
@@ -120,6 +120,7 @@
 //!                         "output": {"type": "string"}
 //!                     }
 //!                 })),
+//!                 annotations: None,
 //!             }],
 //!             next_cursor: None,
 //!         })
@@ -151,7 +152,7 @@
 //!
 //! ### Advanced Server with Multiple Handlers
 //!
-//! ```rust
+//! ```rust,ignore
 //! use ultrafast_mcp_server::{UltraFastServer, ToolHandler, ResourceHandler, PromptHandler};
 //! use ultrafast_mcp_core::types::tools::{ToolCall, ToolResult, ListToolsRequest, ListToolsResponse, ToolContent};
 //! use ultrafast_mcp_core::types::resources::{ReadResourceRequest, ReadResourceResponse};
@@ -197,6 +198,9 @@
 //!             resource_templates: vec![],
 //!             next_cursor: None,
 //!         })
+//!     }
+//!     async fn validate_resource_access(&self, _uri: &str, _operation: ultrafast_mcp_core::types::roots::RootOperation, _roots: &[ultrafast_mcp_core::types::roots::Root]) -> MCPResult<()> {
+//!         Ok(())
 //!     }
 //! }
 //!

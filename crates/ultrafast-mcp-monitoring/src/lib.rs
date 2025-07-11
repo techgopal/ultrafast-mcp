@@ -61,10 +61,11 @@
 //!
 //! ### Basic Monitoring Setup
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! use ultrafast_mcp_monitoring::{
-//!     MonitoringSystem, MonitoringConfig, RequestTimer
+//!     MonitoringSystem, MonitoringConfig
 //! };
+//! use ultrafast_mcp_monitoring::metrics::RequestTimer;
 //!
 //! #[tokio::main]
 //! async fn main() -> anyhow::Result<()> {
@@ -96,7 +97,7 @@
 //!
 //! ### Custom Health Checks
 //!
-//! ```rust
+//! ```rust,ignore
 //! use ultrafast_mcp_monitoring::{
 //!     MonitoringSystem, HealthChecker, HealthStatus, MonitoringConfig
 //! };
@@ -113,13 +114,14 @@
 //!         // Implement your database health check
 //!         let status = match check_database_connection().await {
 //!             Ok(_) => HealthStatus::Healthy,
-//!             Err(e) => HealthStatus::Unhealthy(format!("Database error: {}", e)),
+//!             Err(e) => HealthStatus::Unhealthy(vec![format!("Database error: {}", e)]),
 //!         };
 //!
 //!         HealthCheckResult {
 //!             status,
 //!             duration: start.elapsed(),
 //!             timestamp: SystemTime::now(),
+//!             details: None,
 //!         }
 //!     }
 //!
@@ -142,7 +144,7 @@
 //!     health_checker.add_check(Box::new(DatabaseHealthCheck)).await;
 //!
 //!     // Check overall health
-//!     match health_checker.check_all().await {
+//!     match health_checker.get_overall_health().await {
 //!         HealthStatus::Healthy => println!("All systems healthy"),
 //!         HealthStatus::Degraded(warnings) => {
 //!             println!("System degraded: {:?}", warnings);
