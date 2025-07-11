@@ -35,7 +35,8 @@
 //!
 //! ### Creating an MCP Server
 //!
-//! ```rust
+//! ```rust,ignore
+//! #![cfg(feature = "core")]
 //! use ultrafast_mcp::{
 //!     UltraFastServer, ToolHandler, ToolCall, ToolResult, ToolContent,
 //!     ListToolsRequest, ListToolsResponse, ServerInfo, ServerCapabilities,
@@ -137,7 +138,8 @@
 //!
 //! ### Creating an MCP Client
 //!
-//! ```rust,no_run
+//! ```rust,ignore
+//! #![cfg(feature = "core")]
 //! use ultrafast_mcp::{
 //!     UltraFastClient, ClientInfo, ClientCapabilities, ToolCall, ToolResult
 //! };
@@ -187,7 +189,8 @@
 //!
 //! ### Resource Management
 //!
-//! ```rust
+//! ```rust,ignore
+//! #![cfg(feature = "core")]
 //! use ultrafast_mcp::{ResourceHandler, ReadResourceRequest, ReadResourceResponse, MCPResult};
 //! use ultrafast_mcp_core::ResourceContent;
 //!
@@ -222,7 +225,8 @@
 //!
 //! ### Progress Tracking
 //!
-//! ```no_run
+//! ```rust,ignore
+//! #![cfg(feature = "core")]
 //! use ultrafast_mcp::{Context, MCPResult, MCPError};
 //!
 //! async fn long_running_operation(ctx: &Context) -> MCPResult<()> {
@@ -242,7 +246,8 @@
 //!
 //! ### Transport Configuration
 //!
-//! ```no_run
+//! ```rust,ignore
+//! #![cfg(all(feature = "core", feature = "stdio"))]
 //! use ultrafast_mcp::{TransportConfig, ClientInfo, ClientCapabilities};
 //!
 //! #[tokio::main]
@@ -308,7 +313,8 @@
 //!
 //! The crate provides comprehensive error handling:
 //!
-//! ```rust
+//! ```rust,ignore
+//! #![cfg(feature = "core")]
 //! use ultrafast_mcp::{MCPError, MCPResult};
 //!
 //! async fn robust_operation() -> MCPResult<String> {

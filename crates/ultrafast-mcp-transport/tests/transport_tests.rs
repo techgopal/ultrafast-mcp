@@ -825,8 +825,10 @@ mod transport_compliance_tests {
         assert_eq!(response.status(), StatusCode::OK);
 
         // Verify session exists
-        let sessions = state.session_store.read().await;
-        assert!(sessions.contains_key(session_id));
+        {
+            let sessions = state.session_store.read().await;
+            assert!(sessions.contains_key(session_id));
+        } // Explicitly drop the read lock here
 
         // Delete the session
         let mut headers = HeaderMap::new();
@@ -837,8 +839,10 @@ mod transport_compliance_tests {
         assert_eq!(response.into_response().status(), StatusCode::OK);
 
         // Verify session is removed
-        let sessions = state.session_store.read().await;
-        assert!(!sessions.contains_key(session_id));
+        {
+            let sessions = state.session_store.read().await;
+            assert!(!sessions.contains_key(session_id));
+        } // Explicitly drop the read lock here
     }
 
     // Helper function to simulate the server's POST handler

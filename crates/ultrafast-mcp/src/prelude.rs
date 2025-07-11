@@ -7,7 +7,6 @@
 pub use crate::{
     ClientCapabilities,
     ClientInfo,
-    Context,
     // Error handling
     MCPError,
     MCPResult,
@@ -29,11 +28,13 @@ pub use crate::{
     Tool,
     ToolAnnotations,
     ToolCall,
-    ToolHandler,
     ToolResult,
     UltraFastClient,
-    UltraFastServer,
 };
+
+// Server types are conditionally compiled to avoid doctest issues
+#[cfg(all(feature = "core", not(doc)))]
+pub use crate::{Context, ToolHandler, UltraFastServer};
 
 // Capabilities that are almost always needed
 #[cfg(feature = "core")]

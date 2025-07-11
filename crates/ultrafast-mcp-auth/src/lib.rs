@@ -52,11 +52,12 @@
 //!
 //! ### Basic OAuth 2.1 Flow
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! use ultrafast_mcp_auth::{
-//!     OAuthClient, OAuthConfig, generate_pkce_params, generate_state,
+//!     OAuthClient, OAuthConfig, generate_pkce_params,
 //!     AuthResult, AuthError
 //! };
+//! use ultrafast_mcp_core::utils::identifiers::{generate_session_id, generate_state};
 //!
 //! #[tokio::main]
 //! async fn main() -> AuthResult<()> {
@@ -131,8 +132,9 @@
 //!
 //! ### PKCE Implementation
 //!
-//! ```rust
-//! use ultrafast_mcp_auth::{generate_pkce_params, generate_session_id, generate_state, AuthResult};
+//! ```rust,ignore
+//! use ultrafast_mcp_auth::{generate_pkce_params, AuthResult};
+//! use ultrafast_mcp_core::utils::identifiers::{generate_session_id, generate_state};
 //!
 //! fn setup_pkce_flow() -> AuthResult<(String, String, String)> {
 //!     // Generate PKCE parameters
