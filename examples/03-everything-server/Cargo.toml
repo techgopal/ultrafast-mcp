@@ -26,9 +26,9 @@ base64 = "0.22"
 tracing-subscriber = { workspace = true }
 
 [[bin]]
-name = "server"
+name = "everything-server"
 path = "src/main.rs"
 
 [[bin]]
-name = "client"
+name = "everything-server-client"
 path = "src/client.rs"
