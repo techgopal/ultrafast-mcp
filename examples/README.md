@@ -47,36 +47,24 @@ client.connect_streamable_http("http://127.0.0.1:8080/mcp").await?;
 **Focus**: File system operations and complex tool handling
 
 A comprehensive file operations server demonstrating:
-- Multiple file operations (read, write, list, delete)
-- Complex tool handler implementation
-- Error handling and validation
-- File metadata handling
+- Multiple file operations (read, write, list, delete, search, move)
+- Complex tool handler implementation with 12+ tools
+- Error handling and path validation
+- File metadata handling and directory tree generation
+- Robust path validation for symlinks (macOS `/tmp`/`/private/tmp`)
 
 **Key Features**:
-- File reading and writing
-- Directory listing
-- File deletion with safety checks
-- Comprehensive error handling
+- File reading and writing with head/tail support
+- Directory listing with size information
+- File search and pattern matching
+- Directory tree generation
+- File moving and renaming
+- Comprehensive error handling and validation
+- MCP Inspector configuration for visual testing
 
-### 3. [HTTP Server](./03-http-server/) - Network Operations
-**Difficulty**: Intermediate  
-**Focus**: HTTP client operations and network integration
-
-An HTTP operations server showcasing:
-- HTTP GET and POST requests
-- Custom headers and timeouts
-- Response time tracking
-- Status checking and info retrieval
-
-**Key Features**:
-- HTTP client functionality
-- Response time tracking
-- Custom header support
-- Error handling for network failures
-
-### 4. [Advanced Features](./04-advanced-features/) - Full MCP Capabilities
+### 3. [Everything Server](./03-everything-server/) - Complete MCP Implementation
 **Difficulty**: Advanced  
-**Focus**: Complete MCP feature set
+**Focus**: Complete MCP feature set with all capabilities
 
 A comprehensive example demonstrating all MCP capabilities:
 - Tools, resources, and prompts
@@ -84,32 +72,17 @@ A comprehensive example demonstrating all MCP capabilities:
 - Text analysis with sentiment detection
 - Dynamic resource serving
 - Prompt generation with arguments
+- HTTP transport with full feature set
 
 **Key Features**:
-- Multiple trait implementations
+- Multiple trait implementations (ToolHandler, ResourceHandler, PromptHandler)
 - Advanced data generation and processing
 - Text analysis capabilities
 - Dynamic resource management
-- Prompt generation
+- Prompt generation with context
+- Complete MCP protocol implementation
 
-### 5. [Lifecycle Compliance](./05-lifecycle-compliance/) - MCP 2025-06-18 Compliance
-**Difficulty**: Intermediate  
-**Focus**: Protocol compliance and timeout management
-
-A demonstration of MCP 2025-06-18 lifecycle compliance improvements:
-- Proper state transitions (Initialized → Operating)
-- Comprehensive timeout configuration
-- High-performance and long-running operation presets
-- Operation-specific timeout handling
-
-**Key Features**:
-- Protocol-compliant state management
-- Configurable timeout system with presets
-- Timeout validation and error handling
-- Progress tracking with configurable intervals
-- Cancellation notification support
-
-### 6. [Authentication Example](./06-authentication-example/) - **Authentication Methods and Middleware** ⭐
+### 4. [Authentication Example](./04-authentication-example/) - **Authentication Methods and Middleware** ⭐
 **Difficulty**: Intermediate  
 **Focus**: Comprehensive authentication support
 
@@ -171,8 +144,6 @@ let client = UltraFastClient::new(client_info, client_capabilities);
 // Connect with Streamable HTTP - just one line!
 client.connect_streamable_http("http://127.0.0.1:8080/mcp").await?;
 ```
-
-
 
 #### **stdio Transport (Local Communication)**
 ```rust
@@ -258,13 +229,14 @@ cargo run --bin client
 ### For Beginners
 1. Start with **Basic Echo** to understand fundamental concepts
 2. Move to **File Operations** to learn about complex tool handling
-3. Explore **HTTP Server** for network integration
-4. Finally, tackle **Advanced Features** for complete MCP understanding
+3. Explore **Everything Server** for complete MCP implementation
+4. Finally, tackle **Authentication Example** for security features
 
 ### For Experienced Developers
 1. Review **Basic Echo** for API patterns
-2. Study **Advanced Features** for complete implementation examples
-3. Use **File Operations** and **HTTP Server** as reference implementations
+2. Study **Everything Server** for complete implementation examples
+3. Use **File Operations** as reference for complex tool implementations
+4. Implement **Authentication Example** for production-ready security
 
 ## Key Concepts Demonstrated
 
