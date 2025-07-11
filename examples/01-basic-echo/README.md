@@ -1,236 +1,257 @@
-# Basic Echo Example - Subprocess Transport
+# Basic Echo Example - Transport Choice Demo
 
-This example demonstrates how to use UltraFast MCP with **subprocess transport**, where the MCP server runs as a separate process and communicates via STDIO.
+This example demonstrates UltraFast MCP's flexible transport layer by implementing a simple echo server and client that can work with both STDIO and Streamable HTTP transports.
 
-## Overview
+## Features
 
-The subprocess transport pattern is ideal for:
-- **Language isolation**: Run servers in different languages/environments
-- **Process isolation**: Separate server crashes don't affect the client
-- **Resource management**: Independent memory and resource allocation
-- **Deployment flexibility**: Deploy servers as standalone executables
-
-## Architecture
-
-```
-┌─────────────────┐    STDIO    ┌─────────────────┐
-│   MCP Client    │ ──────────► │   MCP Server    │
-│   (Rust)        │             │   (Subprocess)  │
-└─────────────────┘             └─────────────────┘
-```
-
-## Components
-
-### 1. Echo Server (`basic-echo-server`)
-
-A standalone MCP server that:
-- Runs as a subprocess via STDIO
-- Implements a simple `echo` tool
-- Returns messages with timestamps and metadata
-- Tracks echo count across calls
-
-**Features:**
-- ✅ MCP 2025-06-18 protocol compliance
-- ✅ STDIO transport
-- ✅ Tool implementation with validation
-- ✅ Error handling and logging
-- ✅ Stateful echo counter
-
-### 2. Echo Client (`basic-echo-client`)
-
-A client that demonstrates subprocess transport by:
-- Spawning the server as a subprocess
-- Establishing STDIO communication
-- Calling the echo tool multiple times
-- Graceful shutdown and cleanup
-
-**Features:**
-- ✅ Subprocess spawning and management
-- ✅ STDIO transport setup
-- ✅ Multiple tool calls
-- ✅ Error handling
-- ✅ Process lifecycle management
+- **Dual Transport Support**: Choose between STDIO (subprocess) and Streamable HTTP (network) transports
+- **Command Line Interface**: Easy-to-use CLI with transport selection
+- **Comprehensive Demo**: Shows all transport options in action
+- **Real-world Patterns**: Demonstrates proper server/client lifecycle management
 
 ## Quick Start
 
-### Prerequisites
+### Run the Comprehensive Demo
 
-- Rust toolchain (latest stable)
-- UltraFast MCP workspace built
+```bash
+# Demo both transports
+cargo run --bin basic-echo-demo
 
-### Running the Example
+# Demo STDIO transport only
+cargo run --bin basic-echo-demo -- stdio
 
-1. **Build the example:**
-   ```bash
-   cd ultrafast-mcp/examples/01-basic-echo
-   cargo build --release
-   ```
+# Demo HTTP transport only
+cargo run --bin basic-echo-demo -- http
+```
 
-2. **Run the subprocess client:**
-   ```bash
-   cargo run --release --bin basic-echo-client
-   ```
+### Run Individual Components
 
-3. **Expected output:**
-   ```
-   🚀 Starting Basic Echo MCP Client (Subprocess)
-   🔧 Spawning echo server as subprocess...
-   ✅ Server process spawned (PID: 12345)
-   🔌 Connecting client to subprocess server...
-   ✅ Connected to subprocess server
-   📋 Listing available tools...
-   Found 1 tools:
-     - echo: Echo back a message with timestamp and metadata
-   🔧 Calling echo tool (attempt 1)...
-   📤 Echo response 1:
-   {
-     "message": "Hello from UltraFast MCP Client! (attempt 1)",
-     "timestamp": "2024-01-15T10:30:45.123Z",
-     "echo_count": 1,
-     "server_id": "echo-server-12345"
-   }
-   🎉 Basic echo subprocess transport test completed successfully!
-   ```
+#### Server
 
-## API Reference
+```bash
+# Start STDIO server (subprocess mode)
+cargo run --bin basic-echo-server -- stdio
 
-### Echo Tool
+# Start HTTP server (network mode)
+cargo run --bin basic-echo-server -- http --host 127.0.0.1 --port 8080
+```
 
-**Name:** `echo`
+#### Client
 
-**Description:** Echo back a message with timestamp and metadata
+```bash
+# Connect to STDIO server (spawns server automatically)
+cargo run --bin basic-echo-client -- stdio --spawn-server
 
-**Input Schema:**
+# Connect to HTTP server
+cargo run --bin basic-echo-client -- http --url http://127.0.0.1:8080
+```
+
+## Transport Comparison
+
+| Feature | STDIO Transport | Streamable HTTP Transport |
+|---------|----------------|---------------------------|
+| **Use Case** | Subprocess communication | Network communication |
+| **Connection** | Parent-child process | Client-server over network |
+| **Performance** | Very fast (no network overhead) | Network-dependent |
+| **Deployment** | Local execution | Remote/cloud deployment |
+| **Security** | Process isolation | Network security required |
+| **Scalability** | Single client per server | Multiple clients per server |
+
+## Architecture
+
+### Server Components
+
+- **EchoToolHandler**: Implements the echo tool with transport awareness
+- **Transport Selection**: Command-line argument parsing for transport choice
+- **Configuration**: Transport-specific setup (STDIO vs HTTP)
+
+### Client Components
+
+- **Transport Connection**: Automatic transport detection and connection
+- **Server Management**: Optional subprocess spawning for STDIO
+- **Error Handling**: Robust error handling for both transports
+
+### Demo Components
+
+- **Comprehensive Testing**: Tests all transport combinations
+- **Lifecycle Management**: Proper server/client startup/shutdown
+- **Real-world Scenarios**: Demonstrates practical usage patterns
+
+## Code Examples
+
+### Server Implementation
+
+```rust
+// Transport selection via CLI
+let args = Args::parse();
+
+// Run with chosen transport
+match args.transport {
+    TransportType::Stdio => {
+        server.run_stdio().await?;
+    }
+    TransportType::Http => {
+        let config = HttpTransportConfig { /* ... */ };
+        server.run_streamable_http_with_config(config).await?;
+    }
+}
+```
+
+### Client Implementation
+
+```rust
+// Connect based on transport type
+match args.transport {
+    TransportType::Stdio => {
+        client.connect_stdio().await?;
+    }
+    TransportType::Http => {
+        client.connect_streamable_http(&args.url).await?;
+    }
+}
+```
+
+## Echo Tool
+
+The example implements a simple echo tool that:
+
+- **Accepts Messages**: Takes a message parameter (optional, defaults to "Hello, World!")
+- **Validates Input**: Ensures message is not empty and under 1000 characters
+- **Adds Metadata**: Includes timestamp, echo counter, server ID, and transport type
+- **Returns JSON**: Structured response with all metadata
+
+### Tool Schema
+
 ```json
 {
-  "type": "object",
-  "properties": {
-    "message": {
-      "type": "string",
-      "description": "Message to echo back (max 1000 characters, optional - defaults to 'Hello, World!')",
-      "maxLength": 1000,
-      "default": "Hello, World!"
+  "name": "echo",
+  "description": "Echo back a message with timestamp and metadata",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "message": {
+        "type": "string",
+        "description": "Message to echo back (max 1000 characters, optional)",
+        "maxLength": 1000,
+        "default": "Hello, World!"
+      }
     }
   }
 }
 ```
 
-**Output:**
+### Example Response
+
 ```json
 {
-  "message": "User's message",
-  "timestamp": "2024-01-15T10:30:45.123Z",
-  "echo_count": 1,
-  "server_id": "echo-server-12345"
+  "message": "Hello from UltraFast MCP!",
+  "timestamp": "2024-01-15T10:30:00Z",
+  "echo_count": 42,
+  "server_id": "echo-server-12345",
+  "transport": "Http"
 }
 ```
 
-## Implementation Details
+## Development
 
-### Server Implementation
+### Building
 
-The server uses the standard UltraFast MCP server pattern:
+```bash
+# Build all components
+cargo build --release
 
-```rust
-// Create server with tool handler
-let server = UltraFastServer::new(server_info, capabilities)
-    .with_tool_handler(Arc::new(EchoToolHandler::new()));
-
-// Run with STDIO transport
-server.run_stdio().await?;
+# Build specific component
+cargo build --release --bin basic-echo-server
+cargo build --release --bin basic-echo-client
+cargo build --release --bin basic-echo-demo
 ```
 
-### Client Implementation
+### Testing
 
-The client demonstrates subprocess transport:
+```bash
+# Run the comprehensive demo
+cargo run --bin basic-echo-demo
 
-```rust
-// Spawn server as subprocess
-let mut server_process = Command::new("cargo")
-    .args(&["run", "--release", "--bin", "basic-echo-server"])
-    .stdin(Stdio::piped())
-    .stdout(Stdio::piped())
-    .stderr(Stdio::piped())
-    .spawn()?;
-
-// Create STDIO transport from pipes
-let transport = StdioTransport::from_stdio(
-    server_process.stdin.take().unwrap(),
-    server_process.stdout.take().unwrap(),
-    server_process.stderr.take().unwrap(),
-).await?;
-
-// Connect client to transport
-client.connect(Box::new(transport)).await?;
+# Test individual transports
+cargo run --bin basic-echo-demo -- stdio
+cargo run --bin basic-echo-demo -- http
 ```
 
-## Benefits of Subprocess Transport
+### Debugging
 
-### 1. **Language Flexibility**
-- Run servers in any language that supports STDIO
-- Mix and match languages in your MCP ecosystem
-- Leverage language-specific libraries and tools
+```bash
+# Enable debug logging
+RUST_LOG=debug cargo run --bin basic-echo-server -- stdio
 
-### 2. **Process Isolation**
-- Server crashes don't affect the client
-- Independent memory management
-- Separate resource allocation
+# Run with specific log level
+RUST_LOG=ultrafast_mcp=debug cargo run --bin basic-echo-client -- http
+```
 
-### 3. **Deployment Options**
-- Deploy servers as standalone executables
-- Container-friendly architecture
-- Easy integration with existing systems
+## Integration Examples
 
-### 4. **Development Workflow**
-- Independent development and testing
-- Language-specific tooling and debugging
-- Clear separation of concerns
+### With External Tools
 
-## Error Handling
+```bash
+# Use with curl (HTTP transport)
+curl -X POST http://127.0.0.1:8080/tools/call \
+  -H "Content-Type: application/json" \
+  -d '{"name": "echo", "arguments": {"message": "Hello from curl!"}}'
 
-The example includes comprehensive error handling:
+# Use with subprocess (STDIO transport)
+echo '{"jsonrpc": "2.0", "method": "tools/call", "params": {"name": "echo", "arguments": {"message": "Hello!"}}}' | \
+  cargo run --bin basic-echo-server -- stdio
+```
 
-- **Process spawning errors**: Invalid commands, missing executables
-- **Transport errors**: Pipe failures, communication issues
-- **Protocol errors**: Invalid messages, timeouts
-- **Tool errors**: Invalid arguments, server-side failures
+### With Other MCP Clients
 
-## Performance Considerations
+This server is compatible with any MCP client that supports STDIO or Streamable HTTP transports, including:
 
-- **Process startup overhead**: ~10-50ms for simple servers
-- **STDIO communication**: Very low latency for local processes
-- **Memory usage**: Separate memory spaces for client and server
-- **Resource cleanup**: Automatic cleanup when processes exit
-
-## Next Steps
-
-This example provides a foundation for:
-
-1. **Multi-language MCP servers**: Implement servers in Python, Node.js, Go, etc.
-2. **Containerized deployment**: Package servers as Docker containers
-3. **Load balancing**: Run multiple server instances
-4. **Advanced error handling**: Implement retry logic and circuit breakers
-5. **Monitoring and observability**: Add metrics and health checks
+- Claude Desktop
+- MCP Inspector
+- Custom MCP clients
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **Server not found**: Ensure the server binary is built and accessible
-2. **Permission denied**: Check file permissions and PATH
-3. **Communication errors**: Verify STDIO pipes are properly configured
-4. **Protocol errors**: Check MCP protocol version compatibility
+1. **Port Already in Use**: Change the port with `--port 8081`
+2. **Permission Denied**: Ensure you have permission to bind to the specified port
+3. **Connection Refused**: Make sure the server is running before connecting the client
+4. **Subprocess Spawn Failed**: Ensure the server binary is built and accessible
 
-### Debug Mode
-
-Enable debug logging:
+### Debug Commands
 
 ```bash
-RUST_LOG=debug cargo run --release --bin basic-echo-client
+# Check if server is running (HTTP)
+curl http://127.0.0.1:8080/health
+
+# Check server logs
+RUST_LOG=debug cargo run --bin basic-echo-server -- http 2>&1 | tee server.log
+
+# Test connection manually
+nc -v 127.0.0.1 8080
 ```
 
-This will show detailed communication between client and server.
+## Next Steps
+
+After understanding this example, explore:
+
+1. **Advanced Examples**: Check out other examples in the `examples/` directory
+2. **Custom Tools**: Implement your own tools following the same pattern
+3. **Authentication**: Add OAuth or API key authentication
+4. **Monitoring**: Enable metrics and health checks
+5. **Production Deployment**: Configure for production environments
+
+## Contributing
+
+This example serves as a foundation for understanding UltraFast MCP's transport layer. Feel free to:
+
+- Add new transport types
+- Implement more complex tools
+- Add authentication examples
+- Improve error handling
+- Add performance benchmarks
 
 ## License
 
-MIT OR Apache-2.0 
+This example is part of the UltraFast MCP project and is licensed under the same terms as the main project. 
