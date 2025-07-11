@@ -833,6 +833,13 @@ impl UltraFastServer {
             .map_err(|e| MCPError::internal_error(format!("HTTP server failed: {}", e)))
     }
 
+    /// Run the server with custom Streamable HTTP transport configuration
+    /// This provides clearer naming for advanced Streamable HTTP configuration
+    #[cfg(feature = "http")]
+    pub async fn run_streamable_http_with_config(&self, config: HttpTransportConfig) -> MCPResult<()> {
+        self.run_http(config).await
+    }
+
     /// Process HTTP messages from the transport layer
     #[allow(dead_code)]
     async fn process_http_messages(

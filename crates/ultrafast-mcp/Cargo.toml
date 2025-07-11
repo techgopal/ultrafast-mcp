@@ -79,6 +79,7 @@ monitoring = ["ultrafast-mcp-monitoring"]
 http = [
     "ultrafast-mcp-transport/http",
     "ultrafast-mcp-server/http",
+    "ultrafast-mcp-client/http",
     "axum",
     "reqwest", 
     "tower",

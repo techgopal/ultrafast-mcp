@@ -22,6 +22,7 @@ targets = ["x86_64-unknown-linux-gnu"]
 # Internal dependencies
 ultrafast-mcp-core = { path = "../ultrafast-mcp-core", version = "=202506018.1.0-rc.2" }
 ultrafast-mcp-transport = { path = "../ultrafast-mcp-transport", version = "=202506018.1.0-rc.2" }
+ultrafast-mcp-auth = { path = "../ultrafast-mcp-auth", version = "=202506018.1.0-rc.2", optional = true }
 
 # Core runtime dependencies
 tokio = { workspace = true }
@@ -33,14 +34,14 @@ async-trait = { workspace = true }
 uuid = { workspace = true }
 
 [features]
-oauth = []
+oauth = ["ultrafast-mcp-auth/oauth"]
 default = []
 # Core client functionality
 core = []
 # HTTP transport support
-http = ["ultrafast-mcp-transport/http"]
+http = ["ultrafast-mcp-transport/http", "ultrafast-mcp-auth"]
 # All client features
-full = ["core", "http"]
+full = ["core", "http", "oauth"]
 
 [dev-dependencies]
 tokio-test = { workspace = true }

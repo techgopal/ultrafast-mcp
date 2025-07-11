@@ -1,5 +1,6 @@
 //! Everything MCP Client Example (Streamable HTTP)
 //! Connects to the everything server via HTTP and demonstrates tool calls.
+//! This example showcases the new convenience methods for different authentication types.
 
 use ultrafast_mcp::{
     ClientCapabilities, ClientInfo, ListPromptsRequest, ListResourcesRequest, ListToolsRequest,
@@ -9,6 +10,7 @@ use ultrafast_mcp::{
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     println!("🚀 Starting Everything MCP Client (Streamable HTTP)");
+    println!("📚 This example demonstrates various connection methods including new convenience APIs");
 
     // Create client info
     let client_info = ClientInfo {
@@ -24,40 +26,154 @@ async fn main() -> anyhow::Result<()> {
     // Create client capabilities
     let capabilities = ClientCapabilities::default();
 
+    // Demonstrate different connection methods
+    let url = "http://127.0.0.1:8080";
+    
+    println!("\n🔗 Connection Method 1: Simple Streamable HTTP (recommended)");
+    println!("   Using: client.connect_streamable_http(url).await?");
+    
     // Create the client
-    let client = UltraFastClient::new(client_info, capabilities);
+    let client = UltraFastClient::new(client_info.clone(), capabilities.clone());
+    
+    // Method 1: Simple connection (new convenience method)
+    client.connect_streamable_http(url).await?;
+    println!("✅ Connected successfully using simple method");
 
-    println!("🔗 Connecting to MCP server via HTTP...");
-
-    // Create HTTP transport configuration
-    let transport_config = StreamableHttpClientConfig {
-        base_url: "http://127.0.0.1:8080".to_string(),
-        session_id: Some("everything-client-session".to_string()),
+    // Test the connection with a quick tool call
+    test_connection(&client, "Simple Connection").await?;
+    
+    // Disconnect for next demo
+    client.disconnect().await?;
+    
+    println!("\n🔗 Connection Method 2: With Bearer Token Authentication");
+    println!("   Using: client.connect_streamable_http_with_bearer(url, token).await?");
+    
+    // Method 2: Bearer token authentication (new convenience method)
+    let client2 = UltraFastClient::new(client_info.clone(), capabilities.clone());
+    
+    // In a real app, you'd use a real token - this is just for demonstration
+    let mock_token = "demo-bearer-token-12345";
+    match client2.connect_streamable_http_with_bearer(url, mock_token.to_string()).await {
+        Ok(_) => {
+            println!("✅ Connected with Bearer token (server may not require auth)");
+            test_connection(&client2, "Bearer Token").await?;
+            client2.disconnect().await?;
+        }
+        Err(e) => {
+            println!("⚠️  Bearer token connection failed (expected if server doesn't support auth): {}", e);
+        }
+    }
+    
+    println!("\n🔗 Connection Method 3: With API Key Authentication");
+    println!("   Using: client.connect_streamable_http_with_api_key(url, api_key).await?");
+    
+    // Method 3: API key authentication (new convenience method)
+    let client3 = UltraFastClient::new(client_info.clone(), capabilities.clone());
+    
+    let mock_api_key = "demo-api-key-67890";
+    match client3.connect_streamable_http_with_api_key(url, mock_api_key.to_string()).await {
+        Ok(_) => {
+            println!("✅ Connected with API key (server may not require auth)");
+            test_connection(&client3, "API Key").await?;
+            client3.disconnect().await?;
+        }
+        Err(e) => {
+            println!("⚠️  API key connection failed (expected if server doesn't support auth): {}", e);
+        }
+    }
+    
+    println!("\n🔗 Connection Method 4: With Basic Authentication");
+    println!("   Using: client.connect_streamable_http_with_basic(url, username, password).await?");
+    
+    // Method 4: Basic authentication (new convenience method)
+    let client4 = UltraFastClient::new(client_info.clone(), capabilities.clone());
+    
+    match client4.connect_streamable_http_with_basic(url, "demo_user".to_string(), "demo_pass".to_string()).await {
+        Ok(_) => {
+            println!("✅ Connected with Basic auth (server may not require auth)");
+            test_connection(&client4, "Basic Auth").await?;
+            client4.disconnect().await?;
+        }
+        Err(e) => {
+            println!("⚠️  Basic auth connection failed (expected if server doesn't support auth): {}", e);
+        }
+    }
+    
+    println!("\n🔗 Connection Method 5: Client-Level Authentication Integration");
+    println!("   Using: client.with_bearer_auth(token).connect_streamable_http(url).await?");
+    
+    // Method 5: Client-level auth that integrates automatically (new feature)
+    #[cfg(feature = "oauth")]
+    {
+        let client5 = UltraFastClient::new(client_info.clone(), capabilities.clone())
+            .with_bearer_auth("client-level-token-123".to_string());
+        
+        match client5.connect_streamable_http(url).await {
+            Ok(_) => {
+                println!("✅ Connected with client-level auth integration");
+                test_connection(&client5, "Client-Level Auth").await?;
+                client5.disconnect().await?;
+            }
+            Err(e) => {
+                println!("⚠️  Client-level auth connection failed: {}", e);
+            }
+        }
+    }
+    #[cfg(not(feature = "oauth"))]
+    {
+        println!("⚠️  OAuth feature not enabled - skipping client-level auth demo");
+    }
+    
+    println!("\n🔗 Connection Method 6: Custom Configuration (advanced)");
+    println!("   Using: client.connect_streamable_http_with_config(custom_config).await?");
+    
+    // Method 6: Custom configuration (for advanced use cases)
+    let client6 = UltraFastClient::new(client_info.clone(), capabilities.clone());
+    
+    let custom_config = StreamableHttpClientConfig {
+        base_url: url.to_string(),
+        session_id: Some("custom-session-id".to_string()),
         protocol_version: "2025-06-18".to_string(),
-        timeout: std::time::Duration::from_secs(60), // Increased timeout
+        timeout: std::time::Duration::from_secs(60),
         max_retries: 3,
         auth_token: None,
         oauth_config: None,
         auth_method: None,
     };
+    
+    client6.connect_streamable_http_with_config(custom_config).await?;
+    println!("✅ Connected with custom configuration");
+    
+    // Run the main demo with the custom configured client
+    run_full_demo(&client6).await?;
+    
+    println!("\n🎉 All connection methods demonstrated successfully!");
+    println!("💡 Key takeaways:");
+    println!("   • Use connect_streamable_http() for simple connections");
+    println!("   • Use connect_streamable_http_with_*() for specific auth types");
+    println!("   • Use client.with_*_auth() for client-level auth integration");
+    println!("   • Use connect_streamable_http_with_config() for advanced scenarios");
+    
+    Ok(())
+}
 
+/// Test a connection with a simple tool call
+async fn test_connection(client: &UltraFastClient, method_name: &str) -> anyhow::Result<()> {
+    // Quick test - just list tools to verify connection works
+    match client.list_tools(ListToolsRequest { cursor: None }).await {
+        Ok(response) => {
+            println!("   ✅ {} connection verified - found {} tools", method_name, response.tools.len());
+        }
+        Err(e) => {
+            println!("   ❌ {} connection test failed: {}", method_name, e);
+        }
+    }
+    Ok(())
+}
 
-
-    // Create HTTP transport
-    let mut transport = StreamableHttpClient::new(transport_config)
-        .map_err(|e| anyhow::anyhow!("Transport creation failed: {}", e))?;
-
-    // Connect the transport first
-    transport
-        .connect()
-        .await
-        .map_err(|e| anyhow::anyhow!("Transport connection failed: {}", e))?;
-
-    // Small delay to ensure server is ready
-    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
-
-    client.connect(Box::new(transport)).await?;
-    println!("✅ Connected to MCP server successfully");
+/// Run the full demo with all features
+async fn run_full_demo(client: &UltraFastClient) -> anyhow::Result<()> {
+    println!("\n📋 Running full feature demonstration...");
 
     // List available tools
     println!("📋 Listing available tools...");
@@ -74,7 +190,7 @@ async fn main() -> anyhow::Result<()> {
         let tool_call = ToolCall {
             name: "echo".to_string(),
             arguments: Some(serde_json::json!({
-                "message": "Hello from Everything HTTP Client!"
+                "message": "Hello from Everything HTTP Client with new convenience APIs!"
             })),
         };
 
@@ -101,12 +217,15 @@ async fn main() -> anyhow::Result<()> {
         .list_resources(ListResourcesRequest { cursor: None })
         .await?;
     println!("Found {} resources:", resources_response.resources.len());
-    for resource in &resources_response.resources {
+    for resource in resources_response.resources.iter().take(3) {  // Show first 3 only
         println!(
             "  - {}: {}",
             resource.name,
             resource.description.as_deref().unwrap_or("No description")
         );
+    }
+    if resources_response.resources.len() > 3 {
+        println!("  ... and {} more resources", resources_response.resources.len() - 3);
     }
 
     // List available prompts
@@ -123,6 +242,6 @@ async fn main() -> anyhow::Result<()> {
         );
     }
 
-    println!("✅ Everything HTTP client completed successfully");
+    println!("✅ Full demo completed successfully");
     Ok(())
 }
