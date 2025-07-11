@@ -2,10 +2,38 @@
 //! Connects to the everything server via HTTP and demonstrates tool calls.
 //! This example showcases the new convenience methods for different authentication types.
 
+use std::sync::Arc;
 use ultrafast_mcp::{
     ClientCapabilities, ClientInfo, ListPromptsRequest, ListResourcesRequest, ListToolsRequest,
-    StreamableHttpClient, StreamableHttpClientConfig, ToolCall, ToolContent, UltraFastClient,
+    StreamableHttpClientConfig, ToolCall, ToolContent, UltraFastClient,
+    ClientElicitationHandler, ElicitationRequest, ElicitationResponse,
 };
+use ultrafast_mcp::types::ElicitationAction;
+
+/// Simple elicitation handler for demonstration
+struct DemoElicitationHandler;
+
+#[async_trait::async_trait]
+impl ClientElicitationHandler for DemoElicitationHandler {
+    async fn handle_elicitation_request(
+        &self,
+        request: ElicitationRequest,
+    ) -> ultrafast_mcp::MCPResult<ElicitationResponse> {
+        println!("🎯 Received elicitation request: {}", request.message);
+        println!("   Schema: {:?}", request.requested_schema);
+        
+        // For demo purposes, we'll accept the elicitation with some sample content
+        println!("   Responding with Accept action and sample content");
+        Ok(ElicitationResponse {
+            action: ElicitationAction::Accept,
+            content: Some(serde_json::json!({
+                "favoriteColor": "blue",
+                "favoriteNumber": 42,
+                "favoritePets": ["dogs", "cats"]
+            })),
+        })
+    }
+}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -128,7 +156,8 @@ async fn main() -> anyhow::Result<()> {
     println!("   Using: client.connect_streamable_http_with_config(custom_config).await?");
     
     // Method 6: Custom configuration (for advanced use cases)
-    let client6 = UltraFastClient::new(client_info.clone(), capabilities.clone());
+    let client6 = UltraFastClient::new(client_info.clone(), capabilities.clone())
+        .with_elicitation_handler(Arc::new(DemoElicitationHandler));
     
     let custom_config = StreamableHttpClientConfig {
         base_url: url.to_string(),
@@ -163,6 +192,10 @@ async fn test_connection(client: &UltraFastClient, method_name: &str) -> anyhow:
     match client.list_tools(ListToolsRequest { cursor: None }).await {
         Ok(response) => {
             println!("   ✅ {} connection verified - found {} tools", method_name, response.tools.len());
+            // Show available tools for verification
+            for tool in &response.tools {
+                println!("     - {}: {}", tool.name, tool.description);
+            }
         }
         Err(e) => {
             println!("   ❌ {} connection test failed: {}", method_name, e);
@@ -240,6 +273,35 @@ async fn run_full_demo(client: &UltraFastClient) -> anyhow::Result<()> {
             prompt.name,
             prompt.description.as_deref().unwrap_or("No description")
         );
+    }
+
+    // Test the startElicitation tool
+    println!("🎯 Testing startElicitation tool...");
+    let tool_call = ToolCall {
+        name: "startElicitation".to_string(),
+        arguments: Some(serde_json::json!({
+            "prompt": "What is your favorite color?",
+            "description": "A simple elicitation example"
+        })),
+    };
+
+    match client.call_tool(tool_call).await {
+        Ok(result) => {
+            println!("✅ Elicitation tool called successfully!");
+            for content in &result.content {
+                match content {
+                    ToolContent::Text { text } => {
+                        println!("   Response: {}", text);
+                    }
+                    _ => {
+                        println!("   Other content: {:?}", content);
+                    }
+                }
+            }
+        }
+        Err(e) => {
+            println!("❌ Failed to call elicitation tool: {}", e);
+        }
     }
 
     println!("✅ Full demo completed successfully");
