@@ -76,16 +76,13 @@ description = "UltraFast MCP - High-performance Model Context Protocol implement
 [workspace.dependencies]
 # Core runtime dependencies
 tokio = { version = "1.46", features = ["macros", "rt-multi-thread", "net", "time", "sync", "io-util", "signal", "process"] }
-tokio-util = { version = "0.7", features = ["codec"] }
-tokio-stream = { version = "0.1", features = ["sync"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 anyhow = "1.0"
 thiserror = "2.0"
-
-# Async utilities
 futures = "0.3"
 async-trait = "0.1"
+uuid = { version = "1.17", features = ["v4", "serde"] }
 
 # HTTP transport and networking
 axum = "0.8"
@@ -113,14 +110,11 @@ indicatif = "0.17"
 colored = "3.0"
 dirs = "6.0"
 
-# UUID generation  
-uuid = { version = "1.17", features = ["v4", "serde"] }
-
 # Logging and tracing
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 
-# Testing and benchmarking
+# Testing and benchmarking (dev-dependencies only)
 criterion = { version = "0.6", features = ["html_reports"] }
 tokio-test = "0.4"
 tempfile = "3.20"

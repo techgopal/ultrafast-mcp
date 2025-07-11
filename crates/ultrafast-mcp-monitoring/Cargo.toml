@@ -27,39 +27,33 @@ anyhow = { workspace = true }
 thiserror = { workspace = true }
 futures = { workspace = true }
 async-trait = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["time"] }
+uuid = { workspace = true, features = ["v4"] }
+chrono = { workspace = true }
+sysinfo = { workspace = true }
 
-# OpenTelemetry core
-opentelemetry = { workspace = true }
-opentelemetry_sdk = { workspace = true }
+# OpenTelemetry core (optional)
+opentelemetry = { workspace = true, optional = true }
+opentelemetry_sdk = { workspace = true, optional = true }
 
-# OpenTelemetry exporters
+# OpenTelemetry exporters (optional)
 opentelemetry-jaeger = { workspace = true, optional = true }
 opentelemetry-prometheus = { workspace = true, optional = true }
 opentelemetry-otlp = { workspace = true, optional = true }
 
-# Tracing integration
-tracing = { workspace = true }
+# Tracing integration (optional)
 tracing-opentelemetry = { workspace = true, optional = true }
-tracing-subscriber = { workspace = true, features = ["time"] }
 
-# UUID generation
-uuid = { workspace = true, features = ["v4"] }
-
-# Metrics
+# Metrics (optional)
 metrics = { workspace = true, optional = true }
 metrics-exporter-prometheus = { workspace = true, optional = true }
 
-# System monitoring
-sysinfo = { workspace = true }
-
-# HTTP support for metrics endpoints
+# HTTP support for metrics endpoints (optional)
 axum = { workspace = true, optional = true }
 tower = { workspace = true, optional = true }
 
-# Time utilities
-chrono = { workspace = true }
-
-# Configuration formats
+# Configuration formats (optional)
 toml = { workspace = true, optional = true }
 serde_yaml = { workspace = true, optional = true }
 
@@ -71,19 +65,19 @@ default = []
 core = []
 
 # HTTP metrics endpoints
-http = ["dep:axum", "dep:tower", "dep:opentelemetry-prometheus", "dep:metrics", "dep:metrics-exporter-prometheus"]
+http = ["axum", "tower", "opentelemetry-prometheus", "metrics", "metrics-exporter-prometheus"]
 
 # Jaeger tracing support
-jaeger = ["dep:opentelemetry-jaeger", "dep:tracing-opentelemetry"]
+jaeger = ["opentelemetry-jaeger", "tracing-opentelemetry"]
 
 # OTLP tracing support
-otlp = ["dep:opentelemetry-otlp", "dep:tracing-opentelemetry"]
+otlp = ["opentelemetry-otlp", "tracing-opentelemetry"]
 
 # Console tracing output
-console = ["dep:tracing-opentelemetry"]
+console = ["tracing-opentelemetry"]
 
 # Configuration file support
-config-files = ["dep:toml", "dep:serde_yaml"]
+config-files = ["toml", "serde_yaml"]
 
 # All monitoring features
 all = ["core", "http", "jaeger", "otlp", "console", "config-files"]

@@ -14,24 +14,12 @@ ultrafast-mcp-transport = { path = "../../crates/ultrafast-mcp-transport" }
 ultrafast-mcp-auth = { path = "../../crates/ultrafast-mcp-auth" }
 ultrafast-mcp-test-utils = { path = "../../crates/ultrafast-mcp-test-utils" }
 
-# Async runtime
-tokio = { version = "1.0", features = ["full", "test-util"] }
-
-# Serialization
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-
-# Async traits
-async-trait = "0.1"
-
-# Async utilities
-futures = "0.3"
-
-# Error handling
-anyhow = "1.0"
-
-# Time handling
-chrono = { version = "0.4", features = ["serde"] }
-
-# Testing
-tempfile = "3.20" 
+# Core dependencies
+tokio = { workspace = true, features = ["full", "test-util"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+async-trait = { workspace = true }
+futures = { workspace = true }
+anyhow = { workspace = true }
+chrono = { workspace = true }
+tempfile = { workspace = true } 

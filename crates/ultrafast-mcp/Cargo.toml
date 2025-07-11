@@ -35,37 +35,9 @@ anyhow = { workspace = true }
 thiserror = { workspace = true }
 futures = { workspace = true }
 async-trait = { workspace = true }
-
-# HTTP transport (optional)
-axum = { workspace = true, optional = true }
-reqwest = { workspace = true, optional = true }
-tower = { workspace = true, optional = true }
-tower-http = { workspace = true, optional = true }
-
-# Authentication (optional)
-oauth2 = { workspace = true, optional = true }
-jsonwebtoken = { workspace = true, optional = true }
-base64 = { workspace = true, optional = true }
-url = { workspace = true, optional = true }
-rand = { workspace = true, optional = true }
-sha2 = { workspace = true, optional = true }
-
-# UUID generation
 uuid = { workspace = true }
-
-# Logging
 tracing = { workspace = true }
-
-# JSON Schema
 schemars = { workspace = true }
-
-# Monitoring and observability (optional)
-opentelemetry = { workspace = true, optional = true }
-opentelemetry_sdk = { workspace = true, optional = true }
-tracing-opentelemetry = { workspace = true, optional = true }
-metrics = { workspace = true, optional = true }
-sysinfo = { workspace = true, optional = true }
-chrono = { workspace = true, optional = true }
 
 [features]
 # No default features for minimal footprint
