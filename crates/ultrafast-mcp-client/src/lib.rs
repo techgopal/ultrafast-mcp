@@ -150,6 +150,8 @@ pub struct UltraFastClient {
     // Authentication middleware
     #[cfg(feature = "oauth")]
     auth_middleware: Arc<RwLock<Option<ultrafast_mcp_auth::ClientAuthMiddleware>>>,
+    #[cfg(not(feature = "oauth"))]
+    auth_middleware: Arc<RwLock<Option<()>>>,
 }
 
 impl UltraFastClient {
@@ -164,6 +166,8 @@ impl UltraFastClient {
             request_timeout: std::time::Duration::from_secs(30),
             timeout_config: Arc::new(TimeoutConfig::default()),
             #[cfg(feature = "oauth")]
+            auth_middleware: Arc::new(RwLock::new(None)),
+            #[cfg(not(feature = "oauth"))]
             auth_middleware: Arc::new(RwLock::new(None)),
         }
     }
@@ -183,6 +187,8 @@ impl UltraFastClient {
             request_timeout: timeout,
             timeout_config: Arc::new(TimeoutConfig::default()),
             #[cfg(feature = "oauth")]
+            auth_middleware: Arc::new(RwLock::new(None)),
+            #[cfg(not(feature = "oauth"))]
             auth_middleware: Arc::new(RwLock::new(None)),
         }
     }
@@ -547,7 +553,7 @@ impl UltraFastClient {
     }
 
     /// Connect to a server using Streamable HTTP transport with Bearer token authentication
-    #[cfg(feature = "http")]
+    #[cfg(all(feature = "http", feature = "oauth"))]
     pub async fn connect_streamable_http_with_bearer(&self, url: &str, token: String) -> MCPResult<()> {
         use ultrafast_mcp_transport::streamable_http::client::{StreamableHttpClient, StreamableHttpClientConfig};
         
@@ -573,7 +579,7 @@ impl UltraFastClient {
     }
 
     /// Connect to a server using Streamable HTTP transport with OAuth 2.1 authentication
-    #[cfg(feature = "http")]
+    #[cfg(all(feature = "http", feature = "oauth"))]
     pub async fn connect_streamable_http_with_oauth(&self, url: &str, oauth_config: ultrafast_mcp_auth::OAuthConfig) -> MCPResult<()> {
         use ultrafast_mcp_transport::streamable_http::client::{StreamableHttpClient, StreamableHttpClientConfig};
         
@@ -599,7 +605,7 @@ impl UltraFastClient {
     }
 
     /// Connect to a server using Streamable HTTP transport with API key authentication
-    #[cfg(feature = "http")]
+    #[cfg(all(feature = "http", feature = "oauth"))]
     pub async fn connect_streamable_http_with_api_key(&self, url: &str, api_key: String) -> MCPResult<()> {
         use ultrafast_mcp_transport::streamable_http::client::{StreamableHttpClient, StreamableHttpClientConfig};
         
@@ -625,7 +631,7 @@ impl UltraFastClient {
     }
 
     /// Connect to a server using Streamable HTTP transport with API key authentication (custom header)
-    #[cfg(feature = "http")]
+    #[cfg(all(feature = "http", feature = "oauth"))]
     pub async fn connect_streamable_http_with_api_key_custom(&self, url: &str, api_key: String, header_name: String) -> MCPResult<()> {
         use ultrafast_mcp_transport::streamable_http::client::{StreamableHttpClient, StreamableHttpClientConfig};
         
@@ -655,7 +661,7 @@ impl UltraFastClient {
     }
 
     /// Connect to a server using Streamable HTTP transport with Basic authentication
-    #[cfg(feature = "http")]
+    #[cfg(all(feature = "http", feature = "oauth"))]
     pub async fn connect_streamable_http_with_basic(&self, url: &str, username: String, password: String) -> MCPResult<()> {
         use ultrafast_mcp_transport::streamable_http::client::{StreamableHttpClient, StreamableHttpClientConfig};
         

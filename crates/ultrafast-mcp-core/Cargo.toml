@@ -37,9 +37,12 @@ urlencoding = { workspace = true }
 rand = { workspace = true }
 
 [features]
+# No default features for minimal footprint
 default = []
+
 # Core functionality (always available)
 core = []
+
 # All features
 full = ["core"]
 

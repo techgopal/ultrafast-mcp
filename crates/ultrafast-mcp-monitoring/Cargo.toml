@@ -64,21 +64,29 @@ toml = { workspace = true, optional = true }
 serde_yaml = { workspace = true, optional = true }
 
 [features]
-default = ["http", "console"]
+# No default features for minimal footprint
+default = []
+
 # Core monitoring functionality
 core = []
+
 # HTTP metrics endpoints
 http = ["dep:axum", "dep:tower", "dep:opentelemetry-prometheus", "dep:metrics", "dep:metrics-exporter-prometheus"]
+
 # Jaeger tracing support
 jaeger = ["dep:opentelemetry-jaeger", "dep:tracing-opentelemetry"]
+
 # OTLP tracing support
 otlp = ["dep:opentelemetry-otlp", "dep:tracing-opentelemetry"]
+
 # Console tracing output
 console = ["dep:tracing-opentelemetry"]
+
 # Configuration file support
 config-files = ["dep:toml", "dep:serde_yaml"]
+
 # All monitoring features
-all = ["http", "jaeger", "otlp", "console", "config-files"]
+all = ["core", "http", "jaeger", "otlp", "console", "config-files"]
 
 [dev-dependencies]
 tokio-test = { workspace = true }

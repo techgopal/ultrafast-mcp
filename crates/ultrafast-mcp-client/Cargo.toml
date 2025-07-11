@@ -34,12 +34,21 @@ async-trait = { workspace = true }
 uuid = { workspace = true }
 
 [features]
-oauth = ["ultrafast-mcp-auth/oauth"]
+# No default features for minimal footprint
 default = []
+
 # Core client functionality
 core = []
+
 # HTTP transport support
-http = ["ultrafast-mcp-transport/http", "ultrafast-mcp-auth"]
+http = ["ultrafast-mcp-transport/http"]
+
+# OAuth authentication support
+oauth = ["ultrafast-mcp-auth"]
+
+# HTTP with authentication
+http-with-auth = ["http", "oauth"]
+
 # All client features
 full = ["core", "http", "oauth"]
 

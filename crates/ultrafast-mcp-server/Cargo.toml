@@ -45,14 +45,18 @@ tracing = { workspace = true }
 chrono = { workspace = true }
 
 [features]
-oauth = []
+# No default features for minimal footprint
 default = []
+
 # Core server functionality
 core = []
+
 # Monitoring and observability
 monitoring = ["ultrafast-mcp-monitoring"]
+
 # HTTP transport support
 http = ["ultrafast-mcp-transport/http"]
+
 # All server features
 full = ["core", "monitoring", "http"]
 

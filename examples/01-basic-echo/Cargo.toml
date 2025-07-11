@@ -19,7 +19,7 @@ path = "src/basic-echo-demo.rs"
 doc = false
 
 [dependencies]
-ultrafast-mcp = { path = "../../crates/ultrafast-mcp", features = ["http", "oauth"] }
+ultrafast-mcp = { path = "../../crates/ultrafast-mcp", features = ["http-with-auth"] }
 tokio = { workspace = true, features = ["full"] }
 serde = { workspace = true }
 serde_json = { workspace = true }

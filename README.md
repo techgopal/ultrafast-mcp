@@ -95,20 +95,52 @@ cargo add ultrafast-mcp --features="http,oauth"
 ```toml
 [dependencies]
 ultrafast-mcp = { version = "20250618.1.0-rc.2", features = [
-    "http",               # HTTP/HTTPS transport
-    "oauth",              # OAuth 2.1 authentication
-    "monitoring",         # OpenTelemetry observability
-    "full"                # All features enabled
+    "http",                    # HTTP/HTTPS transport
+    "oauth",                   # OAuth 2.1 authentication
+    "monitoring-full",         # Complete monitoring suite
+    "full"                     # All features enabled
 ] }
 ```
 
-**Note:** STDIO transport and JSON Schema support are always included by default.
+**Note:** No features are enabled by default for minimal footprint.
+
+### Available Features
+
+#### **Core Features**
+- `core` - Basic MCP functionality (types, traits, utilities)
+- `stdio` - STDIO transport support
+- `http` - HTTP/HTTPS transport support
+
+#### **Authentication**
+- `oauth` - OAuth 2.1 authentication with PKCE
+
+#### **Monitoring (Granular)**
+- `monitoring` - Basic monitoring capabilities
+- `monitoring-http` - HTTP metrics endpoints
+- `monitoring-jaeger` - Jaeger tracing support
+- `monitoring-otlp` - OTLP tracing support
+- `monitoring-console` - Console tracing output
+
+#### **Convenience Combinations**
+- `http-with-auth` - HTTP transport + OAuth authentication
+- `monitoring-full` - All monitoring features
+- `minimal` - Core + STDIO (minimal working setup)
+- `full` - Everything enabled
 
 ### Convenience Features
 
 ```bash
-# Web server with authentication
-cargo add ultrafast-mcp --features="http,oauth"
+# Minimal setup (STDIO only)
+cargo add ultrafast-mcp --features="minimal"
+
+# HTTP server
+cargo add ultrafast-mcp --features="http"
+
+# HTTP server with OAuth
+cargo add ultrafast-mcp --features="http-with-auth"
+
+# Production setup with monitoring
+cargo add ultrafast-mcp --features="http,oauth,monitoring-full"
 
 # All features enabled
 cargo add ultrafast-mcp --features="full"

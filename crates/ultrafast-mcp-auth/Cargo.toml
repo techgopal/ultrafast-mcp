@@ -46,11 +46,15 @@ tracing = { workspace = true }
 rand_distr = { workspace = true }
 
 [features]
-default = ["oauth"]
+# No default features for minimal footprint
+default = []
+
 # Core authentication functionality
 core = []
+
 # OAuth 2.1 authentication support
 oauth = []
+
 # All authentication methods
 full = ["core", "oauth"]
 

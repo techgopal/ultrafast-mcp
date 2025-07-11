@@ -76,58 +76,75 @@ async fn main() -> anyhow::Result<()> {
     println!("\n🔗 Connection Method 2: With Bearer Token Authentication");
     println!("   Using: client.connect_streamable_http_with_bearer(url, token).await?");
     
-    // Method 2: Bearer token authentication (new convenience method)
-    let client2 = UltraFastClient::new(client_info.clone(), capabilities.clone());
-    
-    // In a real app, you'd use a real token - this is just for demonstration
-    let mock_token = "demo-bearer-token-12345";
-    match client2.connect_streamable_http_with_bearer(url, mock_token.to_string()).await {
-        Ok(_) => {
-            println!("✅ Connected with Bearer token (server may not require auth)");
-            test_connection(&client2, "Bearer Token").await?;
-            client2.disconnect().await?;
-        }
-        Err(e) => {
-            println!("⚠️  Bearer token connection failed (expected if server doesn't support auth): {}", e);
+    // Method 2: Bearer token authentication
+    #[cfg(all(feature = "http", feature = "oauth"))]
+    {
+        let client2 = UltraFastClient::new(client_info.clone(), capabilities.clone());
+        let mock_token = "demo-bearer-token-12345";
+        match client2.connect_streamable_http_with_bearer(url, mock_token.to_string()).await {
+            Ok(_) => {
+                println!("✅ Connected with Bearer token (server may not require auth)");
+                test_connection(&client2, "Bearer Token").await?;
+                client2.disconnect().await?;
+            }
+            Err(e) => {
+                println!("⚠️  Bearer token connection failed (expected if server doesn't support auth): {}", e);
+            }
         }
     }
-    
+    #[cfg(not(all(feature = "http", feature = "oauth")))]
+    {
+        println!("⚠️  Bearer token authentication not available (requires http+oauth features)");
+    }
+
     println!("\n🔗 Connection Method 3: With API Key Authentication");
     println!("   Using: client.connect_streamable_http_with_api_key(url, api_key).await?");
-    
+
     // Method 3: API key authentication (new convenience method)
-    let client3 = UltraFastClient::new(client_info.clone(), capabilities.clone());
-    
-    let mock_api_key = "demo-api-key-67890";
-    match client3.connect_streamable_http_with_api_key(url, mock_api_key.to_string()).await {
-        Ok(_) => {
-            println!("✅ Connected with API key (server may not require auth)");
-            test_connection(&client3, "API Key").await?;
-            client3.disconnect().await?;
-        }
-        Err(e) => {
-            println!("⚠️  API key connection failed (expected if server doesn't support auth): {}", e);
+    #[cfg(all(feature = "http", feature = "oauth"))]
+    {
+        let client3 = UltraFastClient::new(client_info.clone(), capabilities.clone());
+        let mock_api_key = "demo-api-key-67890";
+        match client3.connect_streamable_http_with_api_key(url, mock_api_key.to_string()).await {
+            Ok(_) => {
+                println!("✅ Connected with API key (server may not require auth)");
+                test_connection(&client3, "API Key").await?;
+                client3.disconnect().await?;
+            }
+            Err(e) => {
+                println!("⚠️  API key connection failed (expected if server doesn't support auth): {}", e);
+            }
         }
     }
-    
+    #[cfg(not(all(feature = "http", feature = "oauth")))]
+    {
+        println!("⚠️  API key authentication not available (requires http+oauth features)");
+    }
+
     println!("\n🔗 Connection Method 4: With Basic Authentication");
     println!("   Using: client.connect_streamable_http_with_basic(url, username, password).await?");
-    
+
     // Method 4: Basic authentication (new convenience method)
-    let client4 = UltraFastClient::new(client_info.clone(), capabilities.clone());
-    
-    match client4.connect_streamable_http_with_basic(url, "demo_user".to_string(), "demo_pass".to_string()).await {
-        Ok(_) => {
-            println!("✅ Connected with Basic auth (server may not require auth)");
-            test_connection(&client4, "Basic Auth").await?;
-            client4.disconnect().await?;
-        }
-        Err(e) => {
-            println!("⚠️  Basic auth connection failed (expected if server doesn't support auth): {}", e);
+    #[cfg(all(feature = "http", feature = "oauth"))]
+    {
+        let client4 = UltraFastClient::new(client_info.clone(), capabilities.clone());
+        match client4.connect_streamable_http_with_basic(url, "demo_user".to_string(), "demo_pass".to_string()).await {
+            Ok(_) => {
+                println!("✅ Connected with Basic auth (server may not require auth)");
+                test_connection(&client4, "Basic Auth").await?;
+                client4.disconnect().await?;
+            }
+            Err(e) => {
+                println!("⚠️  Basic auth connection failed (expected if server doesn't support auth): {}", e);
+            }
         }
     }
+    #[cfg(not(all(feature = "http", feature = "oauth")))]
+    {
+        println!("⚠️  Basic authentication not available (requires http+oauth features)");
+    }
     
-    println!("\n🔗 Connection Method 5: Client-Level Authentication Integration");
+    println!("\n�� Connection Method 5: Client-Level Authentication Integration");
     println!("   Using: client.with_bearer_auth(token).connect_streamable_http(url).await?");
     
     // Method 5: Client-level auth that integrates automatically (new feature)

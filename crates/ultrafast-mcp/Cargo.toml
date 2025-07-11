@@ -68,37 +68,38 @@ sysinfo = { workspace = true, optional = true }
 chrono = { workspace = true, optional = true }
 
 [features]
+# No default features for minimal footprint
 default = []
+
 # Core functionality (always available)
 core = []
 
-# Monitoring and metrics collection
+# Transport features
+stdio = ["ultrafast-mcp-transport/stdio"]
+http = ["ultrafast-mcp-transport/http", "ultrafast-mcp-server/http", "ultrafast-mcp-client/http"]
+
+# Authentication features
+oauth = ["ultrafast-mcp-auth"]
+
+# Monitoring and observability
 monitoring = ["ultrafast-mcp-monitoring"]
+monitoring-http = ["ultrafast-mcp-monitoring/http"]
+monitoring-jaeger = ["ultrafast-mcp-monitoring/jaeger"]
+monitoring-otlp = ["ultrafast-mcp-monitoring/otlp"]
+monitoring-console = ["ultrafast-mcp-monitoring/console"]
 
-# HTTP transport support
-http = [
-    "ultrafast-mcp-transport/http",
-    "ultrafast-mcp-server/http",
-    "ultrafast-mcp-client/http",
-    "axum",
-    "reqwest", 
-    "tower",
-    "tower-http"
-]
+# Convenience combinations
+http-with-auth = ["http", "oauth"]
+monitoring-full = ["ultrafast-mcp-monitoring/all"]
 
-# OAuth authentication support
-oauth = [
-    "ultrafast-mcp-auth/oauth",
-    "oauth2",
-    "jsonwebtoken",
-    "base64",
-    "url",
-    "rand",
-    "sha2"
-]
+# Minimal feature set
+minimal = ["core", "stdio"]
 
 # All features enabled
-full = ["monitoring", "http", "oauth"]
-
-# Minimal features for basic usage
-minimal = ["core"] 
+full = [
+    "core",
+    "stdio", 
+    "http",
+    "oauth",
+    "monitoring-full"
+] 

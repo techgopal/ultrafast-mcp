@@ -71,13 +71,20 @@ dirs = { workspace = true }
 regex = { workspace = true }
 
 [features]
+# No default features for minimal footprint
 default = []
+
+# Core CLI functionality
+core = []
+
 # Authentication support
 auth = ["ultrafast-mcp-auth"]
+
 # Monitoring support
 monitoring = ["ultrafast-mcp-monitoring"]
+
 # All features
-full = ["auth", "monitoring"]
+full = ["core", "auth", "monitoring"]
 
 [dev-dependencies]
 tempfile = { workspace = true }

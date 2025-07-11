@@ -59,13 +59,20 @@ futures = { workspace = true }
 rand = { workspace = true }
 
 [features]
-default = ["stdio"]
+# No default features for minimal footprint
+default = []
+
+# Core functionality (always available)
+core = []
+
 # Standard I/O transport (always available)
 stdio = []
+
 # HTTP transport support
 http = ["axum", "reqwest", "tower-http", "axum-extra", "bytes"]
+
 # All transport types
-full = ["stdio", "http"]
+full = ["core", "stdio", "http"]
 
 [dev-dependencies]
 tokio-test = { workspace = true }

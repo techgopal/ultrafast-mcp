@@ -141,9 +141,7 @@ pub struct UltraFastServer {
     // Timeout configuration (MCP 2025-06-18 compliance)
     timeout_config: Arc<TimeoutConfig>,
 
-    // Authentication middleware
-    #[cfg(feature = "oauth")]
-    auth_middleware: Option<Arc<ultrafast_mcp_auth::ServerAuthMiddleware>>,
+    // Authentication middleware (removed oauth feature)
 }
 
 impl std::fmt::Debug for UltraFastServer {
@@ -190,8 +188,6 @@ impl UltraFastServer {
 
             // Timeout configuration (MCP 2025-06-18 compliance)
             timeout_config: Arc::new(TimeoutConfig::default()),
-            #[cfg(feature = "oauth")]
-            auth_middleware: None,
         }
     }
 
@@ -429,28 +425,20 @@ impl UltraFastServer {
         self
     }
 
-    /// Enable authentication with custom configuration
-    #[cfg(feature = "oauth")]
+    /// Enable authentication with custom configuration (feature removed)
     pub fn with_authentication(
         mut self,
-        token_validator: ultrafast_mcp_auth::TokenValidator,
-        required_scopes: Vec<String>,
+        _token_validator: (),
+        _required_scopes: Vec<String>,
     ) -> Self {
-        use std::sync::Arc;
-        
-        let auth_middleware = ultrafast_mcp_auth::ServerAuthMiddleware::new(token_validator)
-            .with_required_scopes(required_scopes);
-        
-        self.auth_middleware = Some(Arc::new(auth_middleware));
-        info!("Authentication enabled with required scopes: {:?}", required_scopes);
+        warn!("Authentication feature has been removed. Use ultrafast-mcp-auth crate directly.");
         self
     }
 
-    /// Enable Bearer token authentication
-    #[cfg(feature = "oauth")]
-    pub fn with_bearer_auth(mut self, secret: String, required_scopes: Vec<String>) -> Self {
-        let token_validator = ultrafast_mcp_auth::TokenValidator::new(secret);
-        self.with_authentication(token_validator, required_scopes)
+    /// Enable Bearer token authentication (feature removed)
+    pub fn with_bearer_auth(mut self, _secret: String, _required_scopes: Vec<String>) -> Self {
+        warn!("Bearer authentication feature has been removed. Use ultrafast-mcp-auth crate directly.");
+        self
     }
 
     /// Enable API key authentication

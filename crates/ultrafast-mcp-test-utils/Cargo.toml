@@ -33,9 +33,12 @@ anyhow = { workspace = true }
 async-trait = { workspace = true }
 
 [features]
+# No default features for minimal footprint
 default = []
+
 # Core test utilities
 core = []
+
 # All test utilities
 full = ["core"]
 
