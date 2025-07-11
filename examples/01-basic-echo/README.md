@@ -28,17 +28,17 @@ cargo run --bin basic-echo-demo -- http
 
 #### Server
 
-```bash
+   ```bash
 # Start STDIO server (subprocess mode)
 cargo run --bin basic-echo-server -- stdio
 
 # Start HTTP server (network mode)
 cargo run --bin basic-echo-server -- http --host 127.0.0.1 --port 8080
-```
+   ```
 
 #### Client
 
-```bash
+   ```bash
 # Connect to STDIO server (spawns server automatically)
 cargo run --bin basic-echo-client -- stdio --spawn-server
 
@@ -109,7 +109,7 @@ match args.transport {
         client.connect_streamable_http(&args.url).await?;
     }
 }
-```
+   ```
 
 ## Echo Tool
 
@@ -127,13 +127,13 @@ The example implements a simple echo tool that:
   "name": "echo",
   "description": "Echo back a message with timestamp and metadata",
   "input_schema": {
-    "type": "object",
-    "properties": {
-      "message": {
-        "type": "string",
+  "type": "object",
+  "properties": {
+    "message": {
+      "type": "string",
         "description": "Message to echo back (max 1000 characters, optional)",
-        "maxLength": 1000,
-        "default": "Hello, World!"
+      "maxLength": 1000,
+      "default": "Hello, World!"
       }
     }
   }
@@ -209,6 +209,24 @@ This server is compatible with any MCP client that supports STDIO or Streamable 
 - Claude Desktop
 - MCP Inspector
 - Custom MCP clients
+
+### Using MCP Inspector
+
+This example includes an `mcp-inspector-config.json` file for easy testing with the MCP Inspector tool:
+
+1. **Install MCP Inspector**: Follow the [MCP Inspector installation guide](https://github.com/modelcontextprotocol/inspector)
+2. **Configure**: Copy the `mcp-inspector-config.json` file to your MCP Inspector configuration directory
+3. **Test**: Use MCP Inspector to connect to the `basic-echo-server` and test the echo tool
+
+The configuration automatically spawns the server as a subprocess and connects via STDIO transport.
+
+```bash
+# Example: Copy config to MCP Inspector directory (adjust path as needed)
+cp mcp-inspector-config.json ~/.config/mcp-inspector/
+
+# Or use with MCP Inspector directly
+mcp-inspector --config mcp-inspector-config.json
+```
 
 ## Troubleshooting
 
