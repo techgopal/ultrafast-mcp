@@ -8,9 +8,9 @@ license = "MIT OR Apache-2.0"
 
 [dependencies]
 ultrafast-mcp = { path = "../../crates/ultrafast-mcp", features = ["oauth"] }
-ultrafast-mcp-client = { path = "../../crates/ultrafast-mcp-client", features = ["oauth"] }
-ultrafast-mcp-server = { path = "../../crates/ultrafast-mcp-server", features = ["oauth"] }
-ultrafast-mcp-transport = { path = "../../crates/ultrafast-mcp-transport", features = ["oauth"] }
+ultrafast-mcp-client = { path = "../../crates/ultrafast-mcp-client" }
+ultrafast-mcp-server = { path = "../../crates/ultrafast-mcp-server" }
+ultrafast-mcp-transport = { path = "../../crates/ultrafast-mcp-transport" }
 ultrafast-mcp-auth = { path = "../../crates/ultrafast-mcp-auth" }
 tokio = { version = "1.0", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] }

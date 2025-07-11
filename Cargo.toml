@@ -12,10 +12,8 @@ members = [
     "crates/ultrafast-mcp-test-utils",
     "examples/01-basic-echo",
     "examples/02-file-operations",
-    "examples/03-http-server",
-    "examples/04-advanced-features",
-    "examples/everything-server-stdio",
-    "examples/everything-server-streamable-http",
+    "examples/03-everything-server",
+    "examples/04-authentication-example",
     "tests/integration-test-suite",
 ]
 
