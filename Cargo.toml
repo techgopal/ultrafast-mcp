@@ -68,8 +68,12 @@ repository = "https://github.com/techgopal/ultrafast-mcp"
 homepage = "https://ultrafast-mcp.com"
 documentation = "https://docs.rs/ultrafast-mcp"
 authors = ["ULTRAFAST_MCP Team <team@ultrafast-mcp.com>"]
-keywords = ["mcp", "protocol", "llm", "ai", "json-rpc", "async", "transport"]
-categories = ["api-bindings", "asynchronous", "network-programming", "web-programming"]
+keywords = [
+    "mcp-protocol", "model-context-protocol", "llm", "ai", "json-rpc", "async", "transport", "server", "client", "openai", "chatgpt", "nlp", "rust"
+]
+categories = [
+    "api-bindings", "asynchronous", "network-programming", "web-programming", "command-line-utilities", "parsing"
+]
 readme = "README.md"
 description = "UltraFast MCP - High-performance Model Context Protocol implementation in Rust"
 
@@ -91,8 +95,8 @@ tower = { version = "0.5", features = ["util"] }
 tower-http = { version = "0.6", features = ["cors", "trace"] }
 hyper = "1.6"
 hyper-util = { version = "0.1", features = ["tokio"] }
-axum-extra = "0.9"
-bytes = "1.0"
+axum-extra = "0.10"
+bytes = "1.10"
 
 # Authentication and security
 oauth2 = "5.0"
@@ -106,7 +110,7 @@ sha2 = "0.10"
 clap = { version = "4.5", features = ["derive"] }
 clap_complete = "4.5"
 console = "0.16"
-indicatif = "0.17"
+indicatif = "0.18"
 colored = "3.0"
 dirs = "6.0"
 
@@ -131,15 +135,15 @@ opentelemetry-otlp = { version = "0.30", features = ["grpc-tonic", "tokio"] }
 tracing-opentelemetry = "0.31"
 metrics = "0.24"
 metrics-exporter-prometheus = "0.17"
-sysinfo = "0.35"
+sysinfo = "0.36"
 chrono = { version = "0.4", features = ["serde"] }
 
 # Configuration and serialization
-toml = "0.8"
+toml = "0.9"
 serde_yaml = "0.9"
 
 # Text processing and utilities
-regex = "1.10"
-lazy_static = "1.4"
+regex = "1.11"
+lazy_static = "1.5"
 urlencoding = "2.1"
 rand_distr = "0.5.1"

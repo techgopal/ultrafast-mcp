@@ -3,7 +3,6 @@
 //! This example demonstrates how to use various authentication methods
 //! with UltraFast MCP client and server.
 
-use ultrafast_mcp::prelude::*;
 use anyhow::Result;
 use tracing::info;
 

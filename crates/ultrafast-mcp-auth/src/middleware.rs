@@ -346,7 +346,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_auth_context_scopes() {
-        let mut context = AuthContext::new()
+        let context = AuthContext::new()
             .with_scopes(vec!["read".to_string(), "write".to_string()]);
 
         assert!(context.has_scope("read"));

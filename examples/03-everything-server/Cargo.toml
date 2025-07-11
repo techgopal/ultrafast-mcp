@@ -18,7 +18,7 @@ tokio = { workspace = true, features = ["full"] }
 anyhow = { workspace = true }
 async-trait = { workspace = true }
 serde_json = { workspace = true }
-base64 = "0.21"
+base64 = "0.22"
 tracing-subscriber = { workspace = true }
 
 [[bin]]

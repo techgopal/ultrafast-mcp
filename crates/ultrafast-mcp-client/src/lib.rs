@@ -497,7 +497,7 @@ impl UltraFastClient {
     pub async fn connect_streamable_http(&self, url: &str) -> MCPResult<()> {
         use ultrafast_mcp_transport::streamable_http::client::{StreamableHttpClient, StreamableHttpClientConfig};
         
-        let mut config = StreamableHttpClientConfig {
+        let config = StreamableHttpClientConfig {
             base_url: url.to_string(),
             session_id: None,
             protocol_version: "2025-06-18".to_string(),

@@ -427,7 +427,7 @@ impl UltraFastServer {
 
     /// Enable authentication with custom configuration (feature removed)
     pub fn with_authentication(
-        mut self,
+        self,
         _token_validator: (),
         _required_scopes: Vec<String>,
     ) -> Self {
@@ -436,19 +436,19 @@ impl UltraFastServer {
     }
 
     /// Enable Bearer token authentication (feature removed)
-    pub fn with_bearer_auth(mut self, _secret: String, _required_scopes: Vec<String>) -> Self {
+    pub fn with_bearer_auth(self, _secret: String, _required_scopes: Vec<String>) -> Self {
         warn!("Bearer authentication feature has been removed. Use ultrafast-mcp-auth crate directly.");
         self
     }
 
     /// Enable API key authentication
-    pub fn with_api_key_auth(mut self) -> Self {
+    pub fn with_api_key_auth(self) -> Self {
         info!("API key authentication enabled");
         self
     }
 
     /// Enable Basic authentication
-    pub fn with_basic_auth(mut self) -> Self {
+    pub fn with_basic_auth(self) -> Self {
         info!("Basic authentication enabled");
         self
     }
