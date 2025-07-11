@@ -72,12 +72,12 @@ mod pkce_tests {
         // Session IDs should be different
         assert_ne!(session1, session2);
 
-        // Should be base64-encoded strings (43 characters)
-        assert_eq!(session1.len(), 43);
-        assert_eq!(session2.len(), 43);
-        // Should be URL-safe base64 (no padding)
-        assert!(!session1.contains('='));
-        assert!(!session2.contains('='));
+        // Should be UUID format (36 characters)
+        assert_eq!(session1.len(), 36);
+        assert_eq!(session2.len(), 36);
+        // Should contain hyphens (UUID format)
+        assert!(session1.contains('-'));
+        assert!(session2.contains('-'));
     }
 
     #[test]

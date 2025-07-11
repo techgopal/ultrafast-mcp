@@ -567,11 +567,10 @@ async fn test_tool_execution() {
 
 The repository includes comprehensive examples:
 
-- **01-basic-echo**: Simple echo server with HTTP transport
-- **02-file-operations**: File reading and writing tools
-- **03-http-server**: HTTP server with OAuth authentication
-- **04-advanced-features**: Advanced features demonstration
-- **05-lifecycle-compliance**: Lifecycle management examples
+- **01-basic-echo**: Simple echo server and client with Streamable HTTP transport
+- **02-file-operations**: File reading, writing, and management tools with directory operations
+- **03-everything-server**: Complete MCP implementation with tools, resources, and prompts
+- **04-authentication-example**: Comprehensive authentication methods and middleware (OAuth, Bearer, API Key, Basic)
 
 Run examples with:
 
@@ -579,11 +578,14 @@ Run examples with:
 # Run basic echo server
 cargo run --example basic-echo-server
 
-# Run HTTP server
-cargo run --example http-server
+# Run file operations server
+cargo run --example file-ops-server
 
-# Run client
-cargo run --example basic-echo-client
+# Run everything server
+cargo run --example everything-server
+
+# Run authentication example
+cargo run --example authentication-example
 ```
 
 ## 🤝 Contributing
@@ -622,12 +624,6 @@ This project is licensed under either of
 
 at your option.
 
-## 🙏 Acknowledgments
-
-- [Model Context Protocol](https://modelcontextprotocol.io) for the specification
-- [Tokio](https://tokio.rs) for the async runtime
-- [Serde](https://serde.rs) for serialization
-- [Tracing](https://tracing.rs) for observability
 
 ## 📞 Support
 
