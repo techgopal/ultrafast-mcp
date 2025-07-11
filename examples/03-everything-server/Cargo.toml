@@ -31,4 +31,4 @@ path = "src/main.rs"
 
 [[bin]]
 name = "everything-server-client"
-path = "src/client.rs"
+path = "src/everything-server-client.rs"
