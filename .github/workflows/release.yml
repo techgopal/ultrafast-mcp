@@ -172,7 +172,7 @@ jobs:
     name: Publish Leaf Crates
     runs-on: ubuntu-latest
     needs: [validate, check-versions]
-    if: needs.check-versions.outputs.versions-exist == 'false'
+    if: always() && needs.check-versions.outputs.versions-exist == 'false'
     strategy:
       matrix:
         crate: ['ultrafast-mcp-core', 'ultrafast-mcp-monitoring']
@@ -252,7 +252,7 @@ jobs:
   publish-level-1:
     name: Publish Level 1 Dependencies
     runs-on: ubuntu-latest
-    needs: [publish-leaf-crates]
+    needs: [publish-leaf-crates, check-versions]
     if: always() && needs.publish-leaf-crates.result == 'success'
     strategy:
       matrix:
@@ -335,7 +335,7 @@ jobs:
   publish-level-2:
     name: Publish Level 2 Dependencies
     runs-on: ubuntu-latest
-    needs: [publish-level-1]
+    needs: [publish-level-1, check-versions]
     if: always() && needs.publish-level-1.result == 'success'
     strategy:
       matrix:
@@ -418,7 +418,7 @@ jobs:
   publish-level-3:
     name: Publish Level 3 Dependencies
     runs-on: ubuntu-latest
-    needs: [publish-level-2]
+    needs: [publish-level-2, check-versions]
     if: always() && needs.publish-level-2.result == 'success'
     strategy:
       matrix:
