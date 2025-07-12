@@ -109,29 +109,43 @@ jobs:
         for crate in crates/*/; do
           if [ -f "$crate/Cargo.toml" ]; then
             CRATE_NAME=$(grep '^name = ' "$crate/Cargo.toml" | cut -d'"' -f2)
-            echo "Checking $CRATE_NAME@$WORKSPACE_VERSION"
-            
-            # Try to get crate info - if it fails, version doesn't exist
-            if cargo search "$CRATE_NAME" --limit 1 | grep -q "$WORKSPACE_VERSION"; then
-              echo "Version $WORKSPACE_VERSION already exists for $CRATE_NAME - will skip"
-              EXISTING_CRATES="$EXISTING_CRATES $CRATE_NAME"
+            # Validate crate name is not empty
+            if [ -n "$CRATE_NAME" ] && [ "$CRATE_NAME" != "" ]; then
+              echo "Checking $CRATE_NAME@$WORKSPACE_VERSION"
+              
+              # Try to get crate info - if it fails, version doesn't exist
+              if cargo search "$CRATE_NAME" --limit 1 | grep -q "$WORKSPACE_VERSION"; then
+                echo "Version $WORKSPACE_VERSION already exists for $CRATE_NAME - will skip"
+                EXISTING_CRATES="$EXISTING_CRATES $CRATE_NAME"
+              else
+                echo "Version $WORKSPACE_VERSION is new for $CRATE_NAME - will publish"
+                NEW_CRATES="$NEW_CRATES $CRATE_NAME"
+              fi
             else
-              echo "Version $WORKSPACE_VERSION is new for $CRATE_NAME - will publish"
-              NEW_CRATES="$NEW_CRATES $CRATE_NAME"
+              echo "Warning: Invalid crate name found in $crate/Cargo.toml"
             fi
           fi
         done
         
         # Also check main crate
         MAIN_CRATE_NAME=$(grep '^name = ' Cargo.toml | cut -d'"' -f2)
-        echo "Checking $MAIN_CRATE_NAME@$WORKSPACE_VERSION"
-        if cargo search "$MAIN_CRATE_NAME" --limit 1 | grep -q "$WORKSPACE_VERSION"; then
-          echo "Version $WORKSPACE_VERSION already exists for $MAIN_CRATE_NAME - will skip"
-          EXISTING_CRATES="$EXISTING_CRATES $MAIN_CRATE_NAME"
+        # Validate main crate name is not empty
+        if [ -n "$MAIN_CRATE_NAME" ] && [ "$MAIN_CRATE_NAME" != "" ]; then
+          echo "Checking $MAIN_CRATE_NAME@$WORKSPACE_VERSION"
+          if cargo search "$MAIN_CRATE_NAME" --limit 1 | grep -q "$WORKSPACE_VERSION"; then
+            echo "Version $WORKSPACE_VERSION already exists for $MAIN_CRATE_NAME - will skip"
+            EXISTING_CRATES="$EXISTING_CRATES $MAIN_CRATE_NAME"
+          else
+            echo "Version $WORKSPACE_VERSION is new for $MAIN_CRATE_NAME - will publish"
+            NEW_CRATES="$NEW_CRATES $MAIN_CRATE_NAME"
+          fi
         else
-          echo "Version $WORKSPACE_VERSION is new for $MAIN_CRATE_NAME - will publish"
-          NEW_CRATES="$NEW_CRATES $MAIN_CRATE_NAME"
+          echo "Warning: Invalid main crate name found in Cargo.toml"
         fi
+        
+        # Clean up the output strings (remove leading spaces and normalize)
+        EXISTING_CRATES=$(echo "$EXISTING_CRATES" | sed 's/^ *//;s/ *$//' | tr ' ' '\n' | grep -v '^$' | tr '\n' ' ' | sed 's/ *$//')
+        NEW_CRATES=$(echo "$NEW_CRATES" | sed 's/^ *//;s/ *$//' | tr ' ' '\n' | grep -v '^$' | tr '\n' ' ' | sed 's/ *$//')
         
         # Set outputs for use in other jobs
         echo "existing-crates=$EXISTING_CRATES" >> $GITHUB_OUTPUT
