@@ -20,7 +20,7 @@ targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
 # Internal dependencies
-ultrafast-mcp-core = { path = "../ultrafast-mcp-core" }
+ultrafast-mcp-core = { path = "../ultrafast-mcp-core", version = "=202506018.1.0-rc.3" }
 
 # Core runtime dependencies
 tokio = { workspace = true }
