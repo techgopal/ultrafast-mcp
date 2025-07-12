@@ -127,20 +127,24 @@ jobs:
           fi
         done
         
-        # Also check main crate
-        MAIN_CRATE_NAME=$(grep '^name = ' Cargo.toml | cut -d'"' -f2)
-        # Validate main crate name is not empty
-        if [ -n "$MAIN_CRATE_NAME" ] && [ "$MAIN_CRATE_NAME" != "" ]; then
-          echo "Checking $MAIN_CRATE_NAME@$WORKSPACE_VERSION"
-          if cargo search "$MAIN_CRATE_NAME" --limit 1 | grep -q "$WORKSPACE_VERSION"; then
-            echo "Version $WORKSPACE_VERSION already exists for $MAIN_CRATE_NAME - will skip"
-            EXISTING_CRATES="$EXISTING_CRATES $MAIN_CRATE_NAME"
+        # Check main crate (ultrafast-mcp in crates/ultrafast-mcp)
+        if [ -f "crates/ultrafast-mcp/Cargo.toml" ]; then
+          MAIN_CRATE_NAME=$(grep '^name = ' crates/ultrafast-mcp/Cargo.toml | cut -d'"' -f2)
+          # Validate main crate name is not empty
+          if [ -n "$MAIN_CRATE_NAME" ] && [ "$MAIN_CRATE_NAME" != "" ]; then
+            echo "Checking $MAIN_CRATE_NAME@$WORKSPACE_VERSION"
+            if cargo search "$MAIN_CRATE_NAME" --limit 1 | grep -q "$WORKSPACE_VERSION"; then
+              echo "Version $WORKSPACE_VERSION already exists for $MAIN_CRATE_NAME - will skip"
+              EXISTING_CRATES="$EXISTING_CRATES $MAIN_CRATE_NAME"
+            else
+              echo "Version $WORKSPACE_VERSION is new for $MAIN_CRATE_NAME - will publish"
+              NEW_CRATES="$NEW_CRATES $MAIN_CRATE_NAME"
+            fi
           else
-            echo "Version $WORKSPACE_VERSION is new for $MAIN_CRATE_NAME - will publish"
-            NEW_CRATES="$NEW_CRATES $MAIN_CRATE_NAME"
+            echo "Warning: Invalid main crate name found in crates/ultrafast-mcp/Cargo.toml"
           fi
         else
-          echo "Warning: Invalid main crate name found in Cargo.toml"
+          echo "Warning: Main crate Cargo.toml not found at crates/ultrafast-mcp/Cargo.toml"
         fi
         
         # Clean up the output strings (remove leading spaces and normalize)
