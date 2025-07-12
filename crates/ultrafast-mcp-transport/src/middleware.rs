@@ -174,10 +174,10 @@ impl ProgressMiddleware {
 impl TransportMiddleware for ProgressMiddleware {
     async fn process_outgoing(&self, message: &mut JsonRpcMessage) -> Result<()> {
         // Add timeout metadata to outgoing requests
-        if let JsonRpcMessage::Request(ref mut req) = message {
+        if let JsonRpcMessage::Request(req) = message {
             if req.method.contains("tools/call") || req.method.contains("resources/read") {
                 // Add progress tracking metadata
-                if let Some(ref mut params) = req.params {
+                if let Some(params) = req.params.as_mut() {
                     if let Some(obj) = params.as_object_mut() {
                         obj.insert(
                             "_timeout".to_string(),
@@ -204,7 +204,7 @@ impl TransportMiddleware for ProgressMiddleware {
     async fn process_incoming(&self, message: &mut JsonRpcMessage) -> Result<()> {
         // Check for timeout on incoming responses
         if let JsonRpcMessage::Response(resp) = message {
-            if let Some(ref result) = resp.result {
+            if let Some(result) = resp.result.as_mut() {
                 if let Some(start_time) = result.get("_start_time").and_then(|v| v.as_u64()) {
                     let elapsed = match SystemTime::now().duration_since(UNIX_EPOCH) {
                         Ok(duration) => duration.as_secs() - start_time,
@@ -477,7 +477,7 @@ impl ValidationMiddleware {
     fn validate_mcp_specific(&self, method: &str, params: &mut Option<Value>) -> Result<()> {
         match method {
             "initialize" => {
-                if let Some(ref mut params_obj) = params {
+                if let Some(params_obj) = params {
                     if let Some(obj) = params_obj.as_object_mut() {
                         // Validate protocol version
                         if let Some(version) = obj.get("protocolVersion") {
@@ -499,7 +499,7 @@ impl ValidationMiddleware {
                 }
             }
             "tools/call" => {
-                if let Some(ref mut params_obj) = params {
+                if let Some(params_obj) = params {
                     if let Some(obj) = params_obj.as_object_mut() {
                         // Validate tool name
                         if let Some(tool_name) = obj.get("name") {
@@ -521,7 +521,7 @@ impl ValidationMiddleware {
                 }
             }
             "resources/read" | "resources/subscribe" | "resources/unsubscribe" => {
-                if let Some(ref mut params_obj) = params {
+                if let Some(params_obj) = params {
                     if let Some(obj) = params_obj.as_object_mut() {
                         // Validate URI
                         if let Some(uri) = obj.get("uri") {
@@ -533,7 +533,7 @@ impl ValidationMiddleware {
                 }
             }
             "logging/log" => {
-                if let Some(ref mut params_obj) = params {
+                if let Some(params_obj) = params {
                     if let Some(obj) = params_obj.as_object_mut() {
                         // Validate log level
                         if let Some(level) = obj.get("level") {
@@ -590,7 +590,7 @@ impl TransportMiddleware for ValidationMiddleware {
                 self.validate_request_id(&req.id)?;
 
                 // Sanitize parameters
-                if let Some(ref mut params) = req.params {
+                if let Some(params) = req.params.as_mut() {
                     self.sanitize_value(params, 0)?;
                 }
 
@@ -608,12 +608,12 @@ impl TransportMiddleware for ValidationMiddleware {
                 self.validate_request_id(&resp.id)?;
 
                 // Sanitize result/error
-                if let Some(ref mut result) = resp.result {
+                if let Some(result) = resp.result.as_mut() {
                     self.sanitize_value(result, 0)?;
                 }
-                if let Some(ref mut error) = resp.error {
+                if let Some(error) = resp.error.as_mut() {
                     // Sanitize error data if present
-                    if let Some(ref mut data) = error.data {
+                    if let Some(data) = error.data.as_mut() {
                         self.sanitize_value(data, 0)?;
                     }
                 }
@@ -629,7 +629,7 @@ impl TransportMiddleware for ValidationMiddleware {
                 self.validate_method(&notif.method)?;
 
                 // Sanitize parameters
-                if let Some(ref mut params) = notif.params {
+                if let Some(params) = notif.params.as_mut() {
                     self.sanitize_value(params, 0)?;
                 }
 

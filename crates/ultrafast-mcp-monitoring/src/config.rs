@@ -218,7 +218,7 @@ impl MonitoringConfig {
         }
 
         if let Ok(val) = std::env::var("MCP_JAEGER_ENDPOINT") {
-            if let Some(ref mut jaeger) = config.tracing.jaeger {
+            if let Some(jaeger) = config.tracing.jaeger.as_mut() {
                 jaeger.agent_endpoint = val;
             }
         }

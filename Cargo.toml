@@ -62,7 +62,7 @@ incremental = false
 
 [workspace.package]
 version = "202506018.1.0"
-edition = "2021"
+edition = "2024"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/techgopal/ultrafast-mcp"
 homepage = "https://ultrafast-mcp.com"
