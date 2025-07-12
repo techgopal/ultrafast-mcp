@@ -69,7 +69,7 @@ homepage = "https://ultrafast-mcp.com"
 documentation = "https://docs.rs/ultrafast-mcp"
 authors = ["ULTRAFAST_MCP Team <team@ultrafast-mcp.com>"]
 keywords = [
-    "mcp-protocol", "model-context-protocol", "llm", "ai", "json-rpc"
+    "mcp-protocol", "mcp", "llm", "ai", "json-rpc"
 ]
 categories = [
     "api-bindings", "asynchronous", "network-programming", "web-programming", "command-line-utilities", "parsing"
