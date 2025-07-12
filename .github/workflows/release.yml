@@ -105,12 +105,12 @@ jobs:
         EXISTING_CRATES=""
         NEW_CRATES=""
         
-        # Check each crate individually
+        # Check each crate individually (excluding the main ultrafast-mcp crate)
         for crate in crates/*/; do
           if [ -f "$crate/Cargo.toml" ]; then
             CRATE_NAME=$(grep '^name = ' "$crate/Cargo.toml" | cut -d'"' -f2)
-            # Validate crate name is not empty
-            if [ -n "$CRATE_NAME" ] && [ "$CRATE_NAME" != "" ]; then
+            # Validate crate name is not empty and skip the main crate (handled separately)
+            if [ -n "$CRATE_NAME" ] && [ "$CRATE_NAME" != "" ] && [ "$CRATE_NAME" != "ultrafast-mcp" ]; then
               echo "Checking $CRATE_NAME@$WORKSPACE_VERSION"
               
               # Try to get crate info - if it fails, version doesn't exist
@@ -121,6 +121,8 @@ jobs:
                 echo "Version $WORKSPACE_VERSION is new for $CRATE_NAME - will publish"
                 NEW_CRATES="$NEW_CRATES $CRATE_NAME"
               fi
+            elif [ "$CRATE_NAME" = "ultrafast-mcp" ]; then
+              echo "Skipping main crate $CRATE_NAME in loop (will check separately)"
             else
               echo "Warning: Invalid crate name found in $crate/Cargo.toml"
             fi
