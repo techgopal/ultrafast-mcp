@@ -79,6 +79,8 @@ jobs:
     needs: [validate]
     outputs:
       versions-exist: ${{ steps.check.outputs.versions-exist }}
+      existing-crates: ${{ steps.check.outputs.existing-crates }}
+      new-crates: ${{ steps.check.outputs.new-crates }}
 
     steps:
     - name: Checkout code
@@ -99,7 +101,11 @@ jobs:
         WORKSPACE_VERSION=$(grep '^version = ' Cargo.toml | cut -d'"' -f2)
         echo "Checking version: $WORKSPACE_VERSION"
         
-        # Check each crate
+        # Initialize arrays to track which crates exist and which don't
+        EXISTING_CRATES=""
+        NEW_CRATES=""
+        
+        # Check each crate individually
         for crate in crates/*/; do
           if [ -f "$crate/Cargo.toml" ]; then
             CRATE_NAME=$(grep '^name = ' "$crate/Cargo.toml" | cut -d'"' -f2)
@@ -107,23 +113,37 @@ jobs:
             
             # Try to get crate info - if it fails, version doesn't exist
             if cargo search "$CRATE_NAME" --limit 1 | grep -q "$WORKSPACE_VERSION"; then
-              echo "Version $WORKSPACE_VERSION already exists for $CRATE_NAME"
-              echo "versions-exist=true" >> $GITHUB_OUTPUT
-              exit 1
+              echo "Version $WORKSPACE_VERSION already exists for $CRATE_NAME - will skip"
+              EXISTING_CRATES="$EXISTING_CRATES $CRATE_NAME"
+            else
+              echo "Version $WORKSPACE_VERSION is new for $CRATE_NAME - will publish"
+              NEW_CRATES="$NEW_CRATES $CRATE_NAME"
             fi
           fi
         done
         
         # Also check main crate
         MAIN_CRATE_NAME=$(grep '^name = ' Cargo.toml | cut -d'"' -f2)
+        echo "Checking $MAIN_CRATE_NAME@$WORKSPACE_VERSION"
         if cargo search "$MAIN_CRATE_NAME" --limit 1 | grep -q "$WORKSPACE_VERSION"; then
-          echo "Version $WORKSPACE_VERSION already exists for $MAIN_CRATE_NAME"
-          echo "versions-exist=true" >> $GITHUB_OUTPUT
-          exit 1
+          echo "Version $WORKSPACE_VERSION already exists for $MAIN_CRATE_NAME - will skip"
+          EXISTING_CRATES="$EXISTING_CRATES $MAIN_CRATE_NAME"
+        else
+          echo "Version $WORKSPACE_VERSION is new for $MAIN_CRATE_NAME - will publish"
+          NEW_CRATES="$NEW_CRATES $MAIN_CRATE_NAME"
         fi
         
-        echo "All versions are available for publishing"
-        echo "versions-exist=false" >> $GITHUB_OUTPUT
+        # Set outputs for use in other jobs
+        echo "existing-crates=$EXISTING_CRATES" >> $GITHUB_OUTPUT
+        echo "new-crates=$NEW_CRATES" >> $GITHUB_OUTPUT
+        
+        if [ -n "$NEW_CRATES" ]; then
+          echo "Some crates need publishing: $NEW_CRATES"
+          echo "versions-exist=false" >> $GITHUB_OUTPUT
+        else
+          echo "All crates already exist - nothing to publish"
+          echo "versions-exist=true" >> $GITHUB_OUTPUT
+        fi
 
 
 
@@ -163,7 +183,19 @@ jobs:
         command: login
         args: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
+    - name: Check if crate needs publishing
+      id: check-crate
+      run: |
+        if echo "${{ needs.check-versions.outputs.existing-crates }}" | grep -q "${{ matrix.crate }}"; then
+          echo "skip=true" >> $GITHUB_OUTPUT
+          echo "Skipping ${{ matrix.crate }} - version already exists"
+        else
+          echo "skip=false" >> $GITHUB_OUTPUT
+          echo "Publishing ${{ matrix.crate }} - version is new"
+        fi
+
     - name: Publish leaf crate
+      if: steps.check-crate.outputs.skip != 'true'
       run: |
         echo "Publishing ${{ matrix.crate }}..."
         cd ${{ matrix.path }}
@@ -191,6 +223,11 @@ jobs:
             attempt=$((attempt + 1))
           fi
         done
+
+    - name: Skip leaf crate
+      if: steps.check-crate.outputs.skip == 'true'
+      run: |
+        echo "Skipping ${{ matrix.crate }} - version already exists on crates.io"
 
   publish-level-1:
     name: Publish Level 1 Dependencies
@@ -230,7 +267,19 @@ jobs:
         command: login
         args: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
+    - name: Check if crate needs publishing
+      id: check-crate
+      run: |
+        if echo "${{ needs.check-versions.outputs.existing-crates }}" | grep -q "${{ matrix.crate }}"; then
+          echo "skip=true" >> $GITHUB_OUTPUT
+          echo "Skipping ${{ matrix.crate }} - version already exists"
+        else
+          echo "skip=false" >> $GITHUB_OUTPUT
+          echo "Publishing ${{ matrix.crate }} - version is new"
+        fi
+
     - name: Publish level 1 crate
+      if: steps.check-crate.outputs.skip != 'true'
       run: |
         echo "Publishing ${{ matrix.crate }}..."
         cd ${{ matrix.path }}
@@ -257,6 +306,11 @@ jobs:
             attempt=$((attempt + 1))
           fi
         done
+
+    - name: Skip level 1 crate
+      if: steps.check-crate.outputs.skip == 'true'
+      run: |
+        echo "Skipping ${{ matrix.crate }} - version already exists on crates.io"
 
   publish-level-2:
     name: Publish Level 2 Dependencies
@@ -296,7 +350,19 @@ jobs:
         command: login
         args: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
+    - name: Check if crate needs publishing
+      id: check-crate
+      run: |
+        if echo "${{ needs.check-versions.outputs.existing-crates }}" | grep -q "${{ matrix.crate }}"; then
+          echo "skip=true" >> $GITHUB_OUTPUT
+          echo "Skipping ${{ matrix.crate }} - version already exists"
+        else
+          echo "skip=false" >> $GITHUB_OUTPUT
+          echo "Publishing ${{ matrix.crate }} - version is new"
+        fi
+
     - name: Publish level 2 crate
+      if: steps.check-crate.outputs.skip != 'true'
       run: |
         echo "Publishing ${{ matrix.crate }}..."
         cd ${{ matrix.path }}
@@ -323,6 +389,11 @@ jobs:
             attempt=$((attempt + 1))
           fi
         done
+
+    - name: Skip level 2 crate
+      if: steps.check-crate.outputs.skip == 'true'
+      run: |
+        echo "Skipping ${{ matrix.crate }} - version already exists on crates.io"
 
   publish-level-3:
     name: Publish Level 3 Dependencies
@@ -364,7 +435,19 @@ jobs:
         command: login
         args: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
+    - name: Check if crate needs publishing
+      id: check-crate
+      run: |
+        if echo "${{ needs.check-versions.outputs.existing-crates }}" | grep -q "${{ matrix.crate }}"; then
+          echo "skip=true" >> $GITHUB_OUTPUT
+          echo "Skipping ${{ matrix.crate }} - version already exists"
+        else
+          echo "skip=false" >> $GITHUB_OUTPUT
+          echo "Publishing ${{ matrix.crate }} - version is new"
+        fi
+
     - name: Publish level 3 crate
+      if: steps.check-crate.outputs.skip != 'true'
       run: |
         echo "Publishing ${{ matrix.crate }}..."
         cd ${{ matrix.path }}
@@ -392,10 +475,15 @@ jobs:
           fi
         done
 
+    - name: Skip level 3 crate
+      if: steps.check-crate.outputs.skip == 'true'
+      run: |
+        echo "Skipping ${{ matrix.crate }} - version already exists on crates.io"
+
   publish-top-level:
     name: Publish Top-Level Crate
     runs-on: ubuntu-latest
-    needs: [publish-level-3]
+    needs: [publish-level-3, check-versions]
     if: always() && needs.publish-level-3.result == 'success'
 
     steps:
@@ -424,7 +512,19 @@ jobs:
         command: login
         args: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
+    - name: Check if crate needs publishing
+      id: check-crate
+      run: |
+        if echo "${{ needs.check-versions.outputs.existing-crates }}" | grep -q "ultrafast-mcp"; then
+          echo "skip=true" >> $GITHUB_OUTPUT
+          echo "Skipping ultrafast-mcp - version already exists"
+        else
+          echo "skip=false" >> $GITHUB_OUTPUT
+          echo "Publishing ultrafast-mcp - version is new"
+        fi
+
     - name: Publish top-level crate
+      if: steps.check-crate.outputs.skip != 'true'
       run: |
         echo "Publishing ultrafast-mcp..."
         cd crates/ultrafast-mcp
@@ -452,10 +552,15 @@ jobs:
           fi
         done
 
+    - name: Skip top-level crate
+      if: steps.check-crate.outputs.skip == 'true'
+      run: |
+        echo "Skipping ultrafast-mcp - version already exists on crates.io"
+
   publish-cli:
     name: Publish CLI Crate
     runs-on: ubuntu-latest
-    needs: [publish-top-level]
+    needs: [publish-top-level, check-versions]
     if: always() && needs.publish-top-level.result == 'success'
 
     steps:
@@ -484,7 +589,19 @@ jobs:
         command: login
         args: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
+    - name: Check if crate needs publishing
+      id: check-crate
+      run: |
+        if echo "${{ needs.check-versions.outputs.existing-crates }}" | grep -q "ultrafast-mcp-cli"; then
+          echo "skip=true" >> $GITHUB_OUTPUT
+          echo "Skipping ultrafast-mcp-cli - version already exists"
+        else
+          echo "skip=false" >> $GITHUB_OUTPUT
+          echo "Publishing ultrafast-mcp-cli - version is new"
+        fi
+
     - name: Publish CLI crate
+      if: steps.check-crate.outputs.skip != 'true'
       run: |
         echo "Publishing ultrafast-mcp-cli..."
         cd crates/ultrafast-mcp-cli
@@ -511,6 +628,11 @@ jobs:
             attempt=$((attempt + 1))
           fi
         done
+
+    - name: Skip CLI crate
+      if: steps.check-crate.outputs.skip == 'true'
+      run: |
+        echo "Skipping ultrafast-mcp-cli - version already exists on crates.io"
 
   # Verify installation
   verify-installation:
