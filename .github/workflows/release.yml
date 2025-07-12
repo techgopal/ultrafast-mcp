@@ -206,7 +206,8 @@ jobs:
     - name: Check if crate needs publishing
       id: check-crate
       run: |
-        if echo "${{ needs.check-versions.outputs.existing-crates }}" | grep -w "${{ matrix.crate }}" > /dev/null; then
+        # Use a more precise check to avoid substring matches
+        if echo " ${{ needs.check-versions.outputs.existing-crates }} " | grep -q " ${{ matrix.crate }} "; then
           echo "skip=true" >> $GITHUB_OUTPUT
           echo "Skipping ${{ matrix.crate }} - version already exists"
         else
@@ -290,7 +291,8 @@ jobs:
     - name: Check if crate needs publishing
       id: check-crate
       run: |
-        if echo "${{ needs.check-versions.outputs.existing-crates }}" | grep -w "${{ matrix.crate }}" > /dev/null; then
+        # Use a more precise check to avoid substring matches
+        if echo " ${{ needs.check-versions.outputs.existing-crates }} " | grep -q " ${{ matrix.crate }} "; then
           echo "skip=true" >> $GITHUB_OUTPUT
           echo "Skipping ${{ matrix.crate }} - version already exists"
         else
@@ -373,7 +375,8 @@ jobs:
     - name: Check if crate needs publishing
       id: check-crate
       run: |
-        if echo "${{ needs.check-versions.outputs.existing-crates }}" | grep -w "${{ matrix.crate }}" > /dev/null; then
+        # Use a more precise check to avoid substring matches
+        if echo " ${{ needs.check-versions.outputs.existing-crates }} " | grep -q " ${{ matrix.crate }} "; then
           echo "skip=true" >> $GITHUB_OUTPUT
           echo "Skipping ${{ matrix.crate }} - version already exists"
         else
@@ -458,7 +461,8 @@ jobs:
     - name: Check if crate needs publishing
       id: check-crate
       run: |
-        if echo "${{ needs.check-versions.outputs.existing-crates }}" | grep -w "${{ matrix.crate }}" > /dev/null; then
+        # Use a more precise check to avoid substring matches
+        if echo " ${{ needs.check-versions.outputs.existing-crates }} " | grep -q " ${{ matrix.crate }} "; then
           echo "skip=true" >> $GITHUB_OUTPUT
           echo "Skipping ${{ matrix.crate }} - version already exists"
         else
@@ -535,7 +539,8 @@ jobs:
     - name: Check if crate needs publishing
       id: check-crate
       run: |
-        if echo "${{ needs.check-versions.outputs.existing-crates }}" | grep -w "ultrafast-mcp" > /dev/null; then
+        # Use a more precise check to avoid substring matches
+        if echo " ${{ needs.check-versions.outputs.existing-crates }} " | grep -q " ultrafast-mcp "; then
           echo "skip=true" >> $GITHUB_OUTPUT
           echo "Skipping ultrafast-mcp - version already exists"
         else
@@ -612,7 +617,8 @@ jobs:
     - name: Check if crate needs publishing
       id: check-crate
       run: |
-        if echo "${{ needs.check-versions.outputs.existing-crates }}" | grep -w "ultrafast-mcp-cli" > /dev/null; then
+        # Use a more precise check to avoid substring matches
+        if echo " ${{ needs.check-versions.outputs.existing-crates }} " | grep -q " ultrafast-mcp-cli "; then
           echo "skip=true" >> $GITHUB_OUTPUT
           echo "Skipping ultrafast-mcp-cli - version already exists"
         else
