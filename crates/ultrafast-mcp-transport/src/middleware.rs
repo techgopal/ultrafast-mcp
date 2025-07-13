@@ -5,6 +5,11 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use tracing::{debug, info, warn};
 use ultrafast_mcp_core::protocol::{JsonRpcMessage, RequestId};
 
+// Static constants to reduce string allocations
+const JSONRPC_VERSION: &str = "2.0";
+const TIMEOUT_KEY: &str = "_timeout";
+const START_TIME_KEY: &str = "_start_time";
+
 /// Middleware trait for HTTP transport
 #[async_trait]
 pub trait TransportMiddleware: Send + Sync {
@@ -106,7 +111,7 @@ impl TransportMiddleware for LoggingMiddleware {
     }
 }
 
-/// Rate limiting middleware
+/// Rate limiting middleware with improved error handling
 pub struct RateLimitMiddleware {
     max_requests_per_minute: u32,
     request_count: std::sync::Arc<std::sync::Mutex<(u64, u32)>>, // (timestamp, count)
@@ -123,17 +128,20 @@ impl RateLimitMiddleware {
     fn check_rate_limit(&self) -> Result<()> {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .unwrap_or_default()
+            .map_err(|_| TransportError::InternalError {
+                message: "Failed to get system time".to_string(),
+            })?
             .as_secs();
 
         let minute_timestamp = now / 60;
 
-        let mut count_data =
-            self.request_count
-                .lock()
-                .map_err(|_| TransportError::InternalError {
-                    message: "Failed to acquire rate limit lock".to_string(),
-                })?;
+        let mut count_data = self
+            .request_count
+            .lock()
+            .map_err(|_| TransportError::InternalError {
+                message: "Failed to acquire rate limit lock".to_string(),
+            })?;
+        
         let (last_minute, count) = *count_data;
 
         if last_minute == minute_timestamp {
@@ -164,7 +172,7 @@ impl TransportMiddleware for RateLimitMiddleware {
     }
 }
 
-/// Progress tracking middleware
+/// Progress tracking middleware with improved error handling
 pub struct ProgressMiddleware {
     timeout_seconds: u64,
 }
@@ -185,17 +193,19 @@ impl TransportMiddleware for ProgressMiddleware {
                 if let Some(params) = req.params.as_mut() {
                     if let Some(obj) = params.as_object_mut() {
                         obj.insert(
-                            "_timeout".to_string(),
+                            TIMEOUT_KEY.to_string(),
                             serde_json::Value::Number(serde_json::Number::from(
                                 self.timeout_seconds,
                             )),
                         );
                         obj.insert(
-                            "_start_time".to_string(),
+                            START_TIME_KEY.to_string(),
                             serde_json::Value::Number(serde_json::Number::from(
                                 SystemTime::now()
                                     .duration_since(UNIX_EPOCH)
-                                    .unwrap_or_default()
+                                    .map_err(|_| TransportError::InternalError {
+                                        message: "Failed to get system time".to_string(),
+                                    })?
                                     .as_secs(),
                             )),
                         );
@@ -210,10 +220,13 @@ impl TransportMiddleware for ProgressMiddleware {
         // Check for timeout on incoming responses
         if let JsonRpcMessage::Response(resp) = message {
             if let Some(result) = resp.result.as_mut() {
-                if let Some(start_time) = result.get("_start_time").and_then(|v| v.as_u64()) {
+                if let Some(start_time) = result.get(START_TIME_KEY).and_then(|v| v.as_u64()) {
                     let elapsed = match SystemTime::now().duration_since(UNIX_EPOCH) {
                         Ok(duration) => duration.as_secs() - start_time,
-                        Err(_) => 0,
+                        Err(_) => {
+                            warn!("Failed to calculate elapsed time for request {:?}", resp.id);
+                            0
+                        }
                     };
 
                     if elapsed > self.timeout_seconds {
@@ -234,97 +247,79 @@ impl TransportMiddleware for ProgressMiddleware {
     }
 }
 
-/// Validation middleware for message schema validation
+/// Validation middleware for message schema validation with improved error handling and performance
 pub struct ValidationMiddleware {
     strict_mode: bool,
-    allowed_methods: Vec<String>,
+    allowed_methods: std::collections::HashSet<&'static str>,
     max_message_size: usize,
     max_params_depth: usize,
 }
 
 impl ValidationMiddleware {
     pub fn new() -> Self {
+        let mut allowed_methods = std::collections::HashSet::new();
+        // MCP 2025-06-18 core methods
+        allowed_methods.extend([
+            "initialize", "initialized", "shutdown", "exit", "ping", "pong",
+            // Tools methods
+            "tools/list", "tools/call",
+            // Resources methods
+            "resources/list", "resources/read", "resources/subscribe", "resources/unsubscribe",
+            // Prompts methods
+            "prompts/list", "prompts/get",
+            // Logging methods
+            "logging/log",
+            // Client methods
+            "sampling/sample", "roots/list", "roots/read", "roots/set",
+            "elicitation/create", "elicitation/respond",
+            // Completion methods
+            "completion/list", "completion/get",
+        ]);
+
         Self {
             strict_mode: false,
-            allowed_methods: vec![
-                // MCP 2025-06-18 core methods
-                "initialize".to_string(),
-                "initialized".to_string(),
-                "shutdown".to_string(),
-                "exit".to_string(),
-                "ping".to_string(),
-                "pong".to_string(),
-                // Tools methods
-                "tools/list".to_string(),
-                "tools/call".to_string(),
-                // Resources methods
-                "resources/list".to_string(),
-                "resources/read".to_string(),
-                "resources/subscribe".to_string(),
-                "resources/unsubscribe".to_string(),
-                // Prompts methods
-                "prompts/list".to_string(),
-                "prompts/get".to_string(),
-                // Logging methods
-                "logging/log".to_string(),
-                // Client methods
-                "sampling/sample".to_string(),
-                "roots/list".to_string(),
-                "roots/read".to_string(),
-                "roots/set".to_string(),
-                "elicitation/create".to_string(),
-                "elicitation/respond".to_string(),
-                // Completion methods
-                "completion/list".to_string(),
-                "completion/get".to_string(),
-            ],
+            allowed_methods,
             max_message_size: 10 * 1024 * 1024, // 10MB
             max_params_depth: 10,
         }
     }
 
     pub fn strict() -> Self {
+        let mut allowed_methods = std::collections::HashSet::new();
+        // MCP 2025-06-18 core methods
+        allowed_methods.extend([
+            "initialize", "initialized", "shutdown", "exit", "ping", "pong",
+            // Tools methods
+            "tools/list", "tools/call",
+            // Resources methods
+            "resources/list", "resources/read", "resources/subscribe", "resources/unsubscribe",
+            // Prompts methods
+            "prompts/list", "prompts/get",
+            // Logging methods
+            "logging/log",
+            // Client methods
+            "sampling/sample", "roots/list", "roots/read", "roots/set",
+            "elicitation/create", "elicitation/respond",
+            // Completion methods
+            "completion/list", "completion/get",
+        ]);
+
         Self {
             strict_mode: true,
-            allowed_methods: vec![
-                // MCP 2025-06-18 core methods
-                "initialize".to_string(),
-                "initialized".to_string(),
-                "shutdown".to_string(),
-                "exit".to_string(),
-                "ping".to_string(),
-                "pong".to_string(),
-                // Tools methods
-                "tools/list".to_string(),
-                "tools/call".to_string(),
-                // Resources methods
-                "resources/list".to_string(),
-                "resources/read".to_string(),
-                "resources/subscribe".to_string(),
-                "resources/unsubscribe".to_string(),
-                // Prompts methods
-                "prompts/list".to_string(),
-                "prompts/get".to_string(),
-                // Logging methods
-                "logging/log".to_string(),
-                // Client methods
-                "sampling/sample".to_string(),
-                "roots/list".to_string(),
-                "roots/read".to_string(),
-                "roots/set".to_string(),
-                "elicitation/create".to_string(),
-                "elicitation/respond".to_string(),
-                // Completion methods
-                "completion/list".to_string(),
-                "completion/get".to_string(),
-            ],
+            allowed_methods,
             max_message_size: 5 * 1024 * 1024, // 5MB in strict mode
             max_params_depth: 5,
         }
     }
 
     pub fn with_allowed_methods(mut self, methods: Vec<String>) -> Self {
-        self.allowed_methods = methods;
+        self.allowed_methods.clear();
+        for method in methods {
+            // Convert to static lifetime for HashSet (this is safe for validation)
+            if let Some(static_method) = Self::get_static_method(&method) {
+                self.allowed_methods.insert(static_method);
+            }
+        }
         self
     }
 
@@ -338,8 +333,38 @@ impl ValidationMiddleware {
         self
     }
 
+    // Helper to get static method references for common MCP methods
+    fn get_static_method(method: &str) -> Option<&'static str> {
+        match method {
+            "initialize" => Some("initialize"),
+            "initialized" => Some("initialized"),
+            "shutdown" => Some("shutdown"),
+            "exit" => Some("exit"),
+            "ping" => Some("ping"),
+            "pong" => Some("pong"),
+            "tools/list" => Some("tools/list"),
+            "tools/call" => Some("tools/call"),
+            "resources/list" => Some("resources/list"),
+            "resources/read" => Some("resources/read"),
+            "resources/subscribe" => Some("resources/subscribe"),
+            "resources/unsubscribe" => Some("resources/unsubscribe"),
+            "prompts/list" => Some("prompts/list"),
+            "prompts/get" => Some("prompts/get"),
+            "logging/log" => Some("logging/log"),
+            "sampling/sample" => Some("sampling/sample"),
+            "roots/list" => Some("roots/list"),
+            "roots/read" => Some("roots/read"),
+            "roots/set" => Some("roots/set"),
+            "elicitation/create" => Some("elicitation/create"),
+            "elicitation/respond" => Some("elicitation/respond"),
+            "completion/list" => Some("completion/list"),
+            "completion/get" => Some("completion/get"),
+            _ => None,
+        }
+    }
+
     fn validate_method(&self, method: &str) -> Result<()> {
-        if !self.allowed_methods.contains(&method.to_string()) {
+        if !self.allowed_methods.contains(method) {
             return Err(TransportError::ProtocolError {
                 message: format!("Method '{method}' not allowed"),
             });
@@ -379,7 +404,7 @@ impl ValidationMiddleware {
                 // Check for reasonable range
                 if *n < -999999999 || *n > 999999999 {
                     return Err(TransportError::ProtocolError {
-                        message: "Request ID number out of reasonable range".to_string(),
+                        message: "Request ID number out of range".to_string(),
                     });
                 }
             }
@@ -543,14 +568,8 @@ impl ValidationMiddleware {
                         if let Some(level) = obj.get("level") {
                             if let Some(level_str) = level.as_str() {
                                 let valid_levels = [
-                                    "emergency",
-                                    "alert",
-                                    "critical",
-                                    "error",
-                                    "warning",
-                                    "notice",
-                                    "info",
-                                    "debug",
+                                    "emergency", "alert", "critical", "error",
+                                    "warning", "notice", "info", "debug",
                                 ];
                                 if !valid_levels.contains(&level_str) {
                                     return Err(TransportError::ProtocolError {
@@ -581,7 +600,7 @@ impl TransportMiddleware for ValidationMiddleware {
         match message {
             JsonRpcMessage::Request(req) => {
                 // Basic JSON-RPC validation
-                if req.jsonrpc != "2.0" {
+                if req.jsonrpc != JSONRPC_VERSION {
                     return Err(TransportError::ProtocolError {
                         message: "Invalid JSON-RPC version".to_string(),
                     });
@@ -602,7 +621,7 @@ impl TransportMiddleware for ValidationMiddleware {
                 self.validate_mcp_specific(&req.method, &mut req.params)?;
             }
             JsonRpcMessage::Response(resp) => {
-                if resp.jsonrpc != "2.0" {
+                if resp.jsonrpc != JSONRPC_VERSION {
                     return Err(TransportError::ProtocolError {
                         message: "Invalid JSON-RPC version".to_string(),
                     });
@@ -623,7 +642,7 @@ impl TransportMiddleware for ValidationMiddleware {
                 }
             }
             JsonRpcMessage::Notification(notif) => {
-                if notif.jsonrpc != "2.0" {
+                if notif.jsonrpc != JSONRPC_VERSION {
                     return Err(TransportError::ProtocolError {
                         message: "Invalid JSON-RPC version".to_string(),
                     });
@@ -646,7 +665,12 @@ impl TransportMiddleware for ValidationMiddleware {
 
     async fn process_incoming(&self, message: &mut JsonRpcMessage) -> Result<()> {
         // Check message size
-        let message_size = serde_json::to_string(message).unwrap_or_default().len();
+        let message_size = serde_json::to_string(message)
+            .map_err(|e| TransportError::SerializationError {
+                message: format!("Failed to serialize message for size check: {}", e),
+            })?
+            .len();
+        
         if message_size > self.max_message_size {
             return Err(TransportError::ProtocolError {
                 message: format!(

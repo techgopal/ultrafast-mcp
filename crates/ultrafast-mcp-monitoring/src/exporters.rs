@@ -444,7 +444,7 @@ mod tests {
         if let ExporterType::Console(format) = &config.exporters[0] {
             assert!(matches!(format, ConsoleFormat::Human));
         } else {
-            panic!("Expected Console exporter type");
+            assert!(false, "Expected Console exporter type");
         }
     }
 }

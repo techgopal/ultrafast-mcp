@@ -2,7 +2,7 @@
 //!
 //! This module contains the main server implementation with all the core functionality.
 
-use std::{collections::HashMap, sync::Arc};
+use std::{borrow::Cow, collections::HashMap, sync::Arc};
 use tokio::sync::{RwLock, broadcast};
 use tracing::{error, info, warn};
 
@@ -2187,7 +2187,7 @@ impl UltraFastServer {
         transport: &mut Box<dyn Transport>,
     ) -> MCPResult<()> {
         let notification = JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: None, // Notifications have no ID
             method: method.to_string(),
             params,
@@ -2672,7 +2672,7 @@ mod tests {
 
         // Create tools/list request
         let request = JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: Some(ultrafast_mcp_core::protocol::jsonrpc::RequestId::string(
                 "test-id",
             )),
@@ -2715,7 +2715,7 @@ mod tests {
 
         // Create tools/call request
         let request = JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: Some(ultrafast_mcp_core::protocol::jsonrpc::RequestId::string(
                 "test-id",
             )),
@@ -2758,7 +2758,7 @@ mod tests {
 
         // Create tools/call request without parameters
         let request = JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: Some(ultrafast_mcp_core::protocol::jsonrpc::RequestId::string(
                 "test-id",
             )),
@@ -2790,7 +2790,7 @@ mod tests {
 
         // Create tools/call request without tool name
         let request = JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: Some(ultrafast_mcp_core::protocol::jsonrpc::RequestId::string(
                 "test-id",
             )),
@@ -2826,7 +2826,7 @@ mod tests {
 
         // Create tools/call request for non-existent tool
         let request = JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: Some(ultrafast_mcp_core::protocol::jsonrpc::RequestId::string(
                 "test-id",
             )),
@@ -2868,7 +2868,7 @@ mod tests {
 
         // Create tools/call request with invalid arguments
         let request = JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: Some(ultrafast_mcp_core::protocol::jsonrpc::RequestId::string(
                 "test-id",
             )),
@@ -2909,7 +2909,7 @@ mod tests {
 
         // Create tools/call request with empty arguments
         let request = JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: Some(ultrafast_mcp_core::protocol::jsonrpc::RequestId::string(
                 "test-id",
             )),
@@ -2945,7 +2945,7 @@ mod tests {
 
         // Create request for unknown method
         let request = JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: Some(ultrafast_mcp_core::protocol::jsonrpc::RequestId::string(
                 "test-id",
             )),
@@ -2985,7 +2985,7 @@ mod tests {
 
         // Step 2: List tools via JSON-RPC
         let list_request = JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: Some(ultrafast_mcp_core::protocol::jsonrpc::RequestId::string(
                 "list-id",
             )),
@@ -3010,7 +3010,7 @@ mod tests {
 
         // Step 3: Call a tool via JSON-RPC
         let call_request = JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: Some(ultrafast_mcp_core::protocol::jsonrpc::RequestId::string(
                 "call-id",
             )),
@@ -3032,10 +3032,10 @@ mod tests {
                     "call-id"
                 ))
             );
-            let content = result.get("content").and_then(|c| c.as_array()).unwrap();
+            let content = result.get("content").and_then(|c| c.as_array()).expect("Expected content array");
             assert_eq!(content.len(), 1);
         } else {
-            panic!("Expected success response for tools/call");
+            assert!(false, "Expected success response for tools/call");
         }
 
         // Step 4: Verify tool still exists in registry

@@ -7,7 +7,10 @@ use ultrafast_mcp_core::MCPResult;
 pub fn assert_mcp_error<T: Debug>(result: MCPResult<T>, expected_error_contains: &str) {
     match result {
         Ok(value) => {
-            panic!("Expected error containing '{expected_error_contains}', but got Ok({value:?})")
+            assert!(
+                false,
+                "Expected error containing '{expected_error_contains}', but got Ok({value:?})"
+            );
         }
         Err(error) => {
             let error_string = error.to_string();
@@ -22,7 +25,12 @@ pub fn assert_mcp_error<T: Debug>(result: MCPResult<T>, expected_error_contains:
 /// Assert that a result is an MCP error of a specific variant
 pub fn assert_mcp_error_variant<T: Debug>(result: MCPResult<T>, variant_name: &str) {
     match result {
-        Ok(value) => panic!("Expected {variant_name} error, but got Ok({value:?})"),
+        Ok(value) => {
+            assert!(
+                false,
+                "Expected {variant_name} error, but got Ok({value:?})"
+            );
+        }
         Err(error) => {
             let error_debug = format!("{error:?}");
             assert!(
@@ -37,17 +45,22 @@ pub fn assert_mcp_error_variant<T: Debug>(result: MCPResult<T>, variant_name: &s
 pub fn assert_mcp_success<T: Debug>(result: MCPResult<T>) -> T {
     match result {
         Ok(value) => value,
-        Err(error) => panic!("Expected success, but got error: {error}"),
+        Err(error) => {
+            assert!(false, "Expected success, but got error: {error}");
+            unreachable!()
+        }
     }
 }
 
 /// Assert that two JSON values are equal with better error messages
 pub fn assert_json_eq(left: &serde_json::Value, right: &serde_json::Value) {
     if left != right {
-        panic!(
+        let left_str = serde_json::to_string_pretty(left).unwrap_or_else(|_| format!("{left:?}"));
+        let right_str = serde_json::to_string_pretty(right).unwrap_or_else(|_| format!("{right:?}"));
+        assert!(
+            false,
             "JSON values are not equal:\nLeft:  {}\nRight: {}",
-            serde_json::to_string_pretty(left).unwrap_or_else(|_| format!("{left:?}")),
-            serde_json::to_string_pretty(right).unwrap_or_else(|_| format!("{right:?}"))
+            left_str, right_str
         );
     }
 }
@@ -202,7 +215,7 @@ mod tests {
 
     #[test]
     fn test_assert_not_empty() {
-        let vec = vec![1];
+        let vec = vec![1, 2, 3];
         assert_not_empty(&vec);
     }
 }

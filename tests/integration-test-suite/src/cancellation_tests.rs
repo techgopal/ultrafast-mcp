@@ -16,14 +16,15 @@ mod tests {
         ServerCapabilities, ServerInfo, Tool, ToolCall, ToolContent, ToolHandler, ToolResult,
         UltraFastClient, UltraFastServer,
     };
-    use ultrafast_mcp_core::{
-        protocol::{
-            capabilities::{PromptsCapability, ResourcesCapability, ToolsCapability},
-            jsonrpc::{JsonRpcMessage, JsonRpcRequest},
-            lifecycle::InitializeRequest,
-        },
-        types::notifications::{CancelledNotification, PingRequest},
-    };
+    use std::borrow::Cow;
+use ultrafast_mcp_core::{
+    protocol::{
+        capabilities::{PromptsCapability, ResourcesCapability, ToolsCapability},
+        jsonrpc::{JsonRpcMessage, JsonRpcRequest},
+        lifecycle::InitializeRequest,
+    },
+    types::notifications::{CancelledNotification, PingRequest},
+};
 
     // Mock tool handler that supports cancellation
     struct CancellableToolHandler {
@@ -250,7 +251,7 @@ mod tests {
 
         // For now, we test the cancellation notification mechanism
         let cancellation_notification = JsonRpcMessage::Notification(JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: None,
             method: "notifications/cancelled".to_string(),
             params: Some(json!({
@@ -514,7 +515,7 @@ mod tests {
     #[tokio::test]
     async fn test_cancellation_jsonrpc_compliance() {
         let notification = JsonRpcMessage::Notification(JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: None, // Notifications don't have IDs
             method: "notifications/cancelled".to_string(),
             params: Some(json!({
@@ -852,7 +853,7 @@ mod tests {
 
         // Test JSON-RPC 2.0 compliance
         let jsonrpc_notification = JsonRpcMessage::Notification(JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: None, // Notifications don't have IDs
             method: "notifications/cancelled".to_string(),
             params: Some(serde_json::to_value(notification).unwrap()),

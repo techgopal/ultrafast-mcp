@@ -1,6 +1,7 @@
 use crate::error::{MCPResult, ToolError};
 use serde_json::{Value, json};
 use std::collections::HashSet;
+use std::borrow::Cow;
 
 /// Enhanced schema validation with comprehensive JSON Schema support
 pub fn validate_against_schema(data: &Value, schema: &Value) -> MCPResult<()> {
@@ -1545,7 +1546,7 @@ impl MCPMessageValidator {
         report: &mut ValidationReport,
     ) -> MCPResult<()> {
         // Validate JSON-RPC version
-        if request.jsonrpc != "2.0" {
+        if request.jsonrpc != Cow::Borrowed("2.0") {
             report.add_error(ValidationError::new(
                 "jsonrpc".to_string(),
                 "Invalid JSON-RPC version, must be '2.0'".to_string(),
@@ -1577,7 +1578,7 @@ impl MCPMessageValidator {
         report: &mut ValidationReport,
     ) -> MCPResult<()> {
         // Validate JSON-RPC version
-        if response.jsonrpc != "2.0" {
+        if response.jsonrpc != Cow::Borrowed("2.0") {
             report.add_error(ValidationError::new(
                 "jsonrpc".to_string(),
                 "Invalid JSON-RPC version, must be '2.0'".to_string(),
@@ -1629,7 +1630,7 @@ impl MCPMessageValidator {
         report: &mut ValidationReport,
     ) -> MCPResult<()> {
         // Validate JSON-RPC version
-        if notification.jsonrpc != "2.0" {
+        if notification.jsonrpc != Cow::Borrowed("2.0") {
             report.add_error(ValidationError::new(
                 "jsonrpc".to_string(),
                 "Invalid JSON-RPC version, must be '2.0'".to_string(),
@@ -2724,7 +2725,7 @@ mod mcp_message_validator_tests {
     fn test_validate_valid_request() {
         let validator = create_test_validator();
         let request = JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             method: "tools/call".to_string(),
             params: Some(json!({
                 "name": "test_tool",
@@ -2749,7 +2750,7 @@ mod mcp_message_validator_tests {
     fn test_validate_invalid_jsonrpc_version() {
         let validator = create_test_validator();
         let request = JsonRpcRequest {
-            jsonrpc: "1.0".to_string(),
+            jsonrpc: Cow::Borrowed("1.0"),
             method: "test".to_string(),
             params: None,
             id: Some(RequestId::String("1".to_string())),
@@ -2773,7 +2774,7 @@ mod mcp_message_validator_tests {
     fn test_validate_dangerous_method_name() {
         let validator = create_test_validator();
         let request = JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             method: "../system/admin".to_string(),
             params: None,
             id: Some(RequestId::String("1".to_string())),
@@ -2797,7 +2798,7 @@ mod mcp_message_validator_tests {
     fn test_validate_script_injection_in_params() {
         let validator = create_test_validator();
         let request = JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             method: "tools/call".to_string(),
             params: Some(json!({
                 "name": "test_tool",
@@ -2824,7 +2825,7 @@ mod mcp_message_validator_tests {
     fn test_validate_tool_call_params() {
         let validator = create_test_validator();
         let request = JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             method: "tools/call".to_string(),
             params: Some(json!({
                 "name": "_private_tool",
@@ -2851,7 +2852,7 @@ mod mcp_message_validator_tests {
     fn test_validate_initialize_params() {
         let validator = create_test_validator();
         let request = JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             method: "initialize".to_string(),
             params: Some(json!({
                 "protocolVersion": "1.0.0",
@@ -2878,7 +2879,7 @@ mod mcp_message_validator_tests {
     fn test_validate_response_with_both_result_and_error() {
         let validator = create_test_validator();
         let response = JsonRpcResponse {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             result: Some(json!({"status": "ok"})),
             error: Some(JsonRpcError::new(-32600, "Invalid request".to_string())),
             id: Some(RequestId::String("1".to_string())),
@@ -2903,7 +2904,7 @@ mod mcp_message_validator_tests {
         let validator = create_test_validator();
         let large_array: Vec<serde_json::Value> = (0..60000).map(|i| json!(i)).collect();
         let request = JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             method: "test".to_string(),
             params: Some(json!({"items": large_array})),
             id: Some(RequestId::String("1".to_string())),
@@ -2934,7 +2935,7 @@ mod mcp_message_validator_tests {
         }
 
         let request = JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             method: "test".to_string(),
             params: Some(nested),
             id: Some(RequestId::String("1".to_string())),
@@ -2958,7 +2959,7 @@ mod mcp_message_validator_tests {
     fn test_validate_uri_security() {
         let validator = create_test_validator();
         let request = JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             method: "resources/read".to_string(),
             params: Some(json!({
                 "uri": "file:///../../etc/passwd"
@@ -2985,7 +2986,7 @@ mod mcp_message_validator_tests {
         let validator = create_test_validator();
         let long_string = "a".repeat(2_000_000); // 2MB string
         let request = JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             method: "test".to_string(),
             params: Some(json!({"data": long_string})),
             id: Some(RequestId::String("1".to_string())),
@@ -3011,7 +3012,7 @@ mod mcp_message_validator_tests {
         validator.add_blocked_pattern(r"SECRET_\w+").unwrap();
 
         let request = JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             method: "test".to_string(),
             params: Some(json!({"token": "SECRET_API_KEY_12345"})),
             id: Some(RequestId::String("1".to_string())),
@@ -3035,7 +3036,7 @@ mod mcp_message_validator_tests {
     fn test_validate_dangerous_content_allowed() {
         let validator = MCPMessageValidator::default().with_dangerous_content(true);
         let request = JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             method: "test".to_string(),
             params: Some(json!({"script": "<script>alert('test')</script>"})),
             id: Some(RequestId::String("1".to_string())),
@@ -3055,7 +3056,7 @@ mod mcp_message_validator_tests {
     fn test_validate_notification() {
         let validator = create_test_validator();
         let notification = JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             method: "logging/log".to_string(),
             params: Some(json!({
                 "level": "info",

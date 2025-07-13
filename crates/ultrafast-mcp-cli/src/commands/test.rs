@@ -276,7 +276,8 @@ async fn test_stdio_connection(args: &TestArgs) -> Result<()> {
             }
         })
         .await
-        .context("Timeout waiting for server response")??;
+        .context("Timeout waiting for server response")?
+        .context("Failed to read server response")?;
 
         // Parse and validate response
         let response_json: serde_json::Value =

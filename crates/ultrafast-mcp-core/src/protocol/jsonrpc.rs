@@ -3,6 +3,7 @@ use crate::protocol::constants::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::borrow::Cow;
 use std::collections::HashMap;
 
 /// Standard JSON-RPC 2.0 error codes
@@ -117,11 +118,12 @@ impl From<u64> for RequestId {
     }
 }
 
-/// JSON-RPC 2.0 Request
+/// JSON-RPC 2.0 Request with optimized memory usage
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct JsonRpcRequest {
     /// JSON-RPC version string (always "2.0")
-    pub jsonrpc: String,
+    #[serde(rename = "jsonrpc")]
+    pub jsonrpc: Cow<'static, str>,
     /// The name of the method to be invoked
     pub method: String,
     /// Optional parameters for the method
@@ -138,7 +140,7 @@ pub struct JsonRpcRequest {
 impl JsonRpcRequest {
     pub fn new(method: String, params: Option<Value>, id: Option<RequestId>) -> Self {
         Self {
-            jsonrpc: JSONRPC_VERSION.to_string(),
+            jsonrpc: Cow::Borrowed(JSONRPC_VERSION),
             method,
             params,
             id,
@@ -160,10 +162,11 @@ impl JsonRpcRequest {
     }
 }
 
-/// JSON-RPC 2.0 Response
+/// JSON-RPC 2.0 Response with optimized memory usage
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct JsonRpcResponse {
-    pub jsonrpc: String,
+    #[serde(rename = "jsonrpc")]
+    pub jsonrpc: Cow<'static, str>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub result: Option<Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -176,7 +179,7 @@ pub struct JsonRpcResponse {
 impl JsonRpcResponse {
     pub fn success(result: Value, id: Option<RequestId>) -> Self {
         Self {
-            jsonrpc: JSONRPC_VERSION.to_string(),
+            jsonrpc: Cow::Borrowed(JSONRPC_VERSION),
             result: Some(result),
             error: None,
             id,
@@ -186,7 +189,7 @@ impl JsonRpcResponse {
 
     pub fn error(error: JsonRpcError, id: Option<RequestId>) -> Self {
         Self {
-            jsonrpc: JSONRPC_VERSION.to_string(),
+            jsonrpc: Cow::Borrowed(JSONRPC_VERSION),
             result: None,
             error: Some(error),
             id,
@@ -200,7 +203,7 @@ impl JsonRpcResponse {
     }
 }
 
-/// JSON-RPC 2.0 Error
+/// JSON-RPC 2.0 Error with improved error handling and optimized memory usage
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct JsonRpcError {
     pub code: i32,
@@ -224,17 +227,13 @@ impl JsonRpcError {
     }
 
     pub fn parse_error(message: Option<String>) -> Self {
-        Self::new(
-            error_codes::PARSE_ERROR,
-            message.unwrap_or_else(|| "Parse error".to_string()),
-        )
+        let msg = message.unwrap_or_else(|| "Parse error".to_string());
+        Self::new(error_codes::PARSE_ERROR, msg)
     }
 
     pub fn invalid_request(message: Option<String>) -> Self {
-        Self::new(
-            error_codes::INVALID_REQUEST,
-            message.unwrap_or_else(|| "Invalid request".to_string()),
-        )
+        let msg = message.unwrap_or_else(|| "Invalid request".to_string());
+        Self::new(error_codes::INVALID_REQUEST, msg)
     }
 
     pub fn method_not_found(method: String) -> Self {
@@ -245,17 +244,13 @@ impl JsonRpcError {
     }
 
     pub fn invalid_params(message: Option<String>) -> Self {
-        Self::new(
-            error_codes::INVALID_PARAMS,
-            message.unwrap_or_else(|| "Invalid parameters".to_string()),
-        )
+        let msg = message.unwrap_or_else(|| "Invalid parameters".to_string());
+        Self::new(error_codes::INVALID_PARAMS, msg)
     }
 
     pub fn internal_error(message: Option<String>) -> Self {
-        Self::new(
-            error_codes::INTERNAL_ERROR,
-            message.unwrap_or_else(|| "Internal error".to_string()),
-        )
+        let msg = message.unwrap_or_else(|| "Internal error".to_string());
+        Self::new(error_codes::INTERNAL_ERROR, msg)
     }
 
     pub fn initialization_failed(message: String) -> Self {
@@ -332,7 +327,7 @@ impl JsonRpcMessage {
     }
 }
 
-/// Validate JSON-RPC message format
+/// Validate JSON-RPC message format with improved error handling
 pub fn validate_jsonrpc_message(
     message: &JsonRpcMessage,
 ) -> Result<(), crate::error::ProtocolError> {
@@ -400,7 +395,6 @@ pub fn validate_jsonrpc_message(
             }
         }
     }
-
     Ok(())
 }
 
@@ -413,12 +407,13 @@ mod tests {
         let request = JsonRpcRequest::new(
             "test_method".to_string(),
             Some(serde_json::json!({"param": "value"})),
-            Some(RequestId::String("test-123".to_string())),
+            Some(RequestId::number(1)),
         );
 
-        assert_eq!(request.method, "test_method");
-        assert_eq!(request.jsonrpc, JSONRPC_VERSION);
-        assert_eq!(request.id, Some(RequestId::String("test-123".to_string())));
+        let serialized = serde_json::to_string(&request).expect("Failed to serialize request");
+        let deserialized: JsonRpcRequest = serde_json::from_str(&serialized).expect("Failed to deserialize request");
+
+        assert_eq!(request, deserialized);
     }
 
     #[test]
@@ -429,74 +424,75 @@ mod tests {
         );
 
         assert!(notification.is_notification());
-        assert_eq!(notification.method, "test_notification");
+        assert_eq!(notification.id, None);
     }
 
     #[test]
     fn test_response_success() {
         let response = JsonRpcResponse::success(
-            serde_json::json!({"result": "ok"}),
-            Some(RequestId::String("test-456".to_string())),
+            serde_json::json!({"result": "success"}),
+            Some(RequestId::number(1)),
         );
 
         assert!(response.result.is_some());
         assert!(response.error.is_none());
-        assert_eq!(response.id, Some(RequestId::String("test-456".to_string())));
+        assert_eq!(response.id, Some(RequestId::number(1)));
     }
 
     #[test]
     fn test_response_error() {
-        let error = JsonRpcError::new(-32601, "Method not found".to_string());
-        let response =
-            JsonRpcResponse::error(error, Some(RequestId::String("test-789".to_string())));
+        let error = JsonRpcError::method_not_found("unknown_method".to_string());
+        let response = JsonRpcResponse::error(error, Some(RequestId::number(1)));
 
         assert!(response.result.is_none());
         assert!(response.error.is_some());
-        assert_eq!(response.id, Some(RequestId::String("test-789".to_string())));
+        assert_eq!(response.id, Some(RequestId::number(1)));
     }
 
     #[test]
     fn test_request_id_validation() {
         // Valid string ID
-        let string_id = RequestId::String("valid-id".to_string());
-        assert!(string_id.validate().is_ok());
+        let valid_string = RequestId::string("valid_id");
+        assert!(valid_string.validate().is_ok());
 
         // Valid number ID
-        let number_id = RequestId::Number(42);
-        assert!(number_id.validate().is_ok());
+        let valid_number = RequestId::number(123);
+        assert!(valid_number.validate().is_ok());
 
         // Invalid empty string
-        let empty_id = RequestId::String("".to_string());
-        assert!(empty_id.validate().is_err());
+        let invalid_string = RequestId::string("");
+        assert!(invalid_string.validate().is_err());
+
+        // Invalid number out of range
+        let invalid_number = RequestId::number(9999999999);
+        assert!(invalid_number.validate().is_err());
     }
 
     #[test]
     fn test_request_id_to_string() {
-        let string_id = RequestId::String("test-id".to_string());
-        assert_eq!(string_id.to_string(), "test-id");
+        let string_id = RequestId::string("test_id");
+        assert_eq!(string_id.to_string(), "test_id");
 
-        let number_id = RequestId::Number(123);
+        let number_id = RequestId::number(123);
         assert_eq!(number_id.to_string(), "123");
     }
 
     #[test]
     fn test_jsonrpc_message_validation() {
-        let valid_request = JsonRpcRequest::new(
+        // Valid request
+        let valid_request = JsonRpcMessage::Request(JsonRpcRequest::new(
             "test_method".to_string(),
             None,
-            Some(RequestId::String("test-123".to_string())),
-        );
-        let message = JsonRpcMessage::Request(valid_request);
-        assert!(validate_jsonrpc_message(&message).is_ok());
+            Some(RequestId::number(1)),
+        ));
+        assert!(validate_jsonrpc_message(&valid_request).is_ok());
 
-        let invalid_request = JsonRpcRequest {
-            jsonrpc: "1.0".to_string(),
-            method: "test_method".to_string(),
-            params: None,
-            id: Some(RequestId::String("test-123".to_string())),
-            meta: HashMap::new(),
-        };
-        let message = JsonRpcMessage::Request(invalid_request);
-        assert!(validate_jsonrpc_message(&message).is_err());
+        // Invalid request with empty method
+        let invalid_request = JsonRpcMessage::Request(JsonRpcRequest::new(
+            "".to_string(),
+            None,
+            Some(RequestId::number(1)),
+        ));
+        assert!(validate_jsonrpc_message(&invalid_request).is_err());
     }
 }

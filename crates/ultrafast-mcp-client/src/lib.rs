@@ -1227,7 +1227,11 @@ impl UltraFastClient {
             let mut transport_guard = self.transport.write().await;
             let transport = transport_guard
                 .as_mut()
-                .expect("Transport should be available");
+                .ok_or_else(|| {
+                    MCPError::Transport(TransportError::ConnectionFailed(
+                        "Transport not available".to_string(),
+                    ))
+                })?;
             transport
                 .send_message(JsonRpcMessage::Request(request))
                 .await
@@ -1239,7 +1243,11 @@ impl UltraFastClient {
             let mut transport_guard = self.transport.write().await;
             let transport = transport_guard
                 .as_mut()
-                .expect("Transport should be available");
+                .ok_or_else(|| {
+                    MCPError::Transport(TransportError::ConnectionFailed(
+                        "Transport not available".to_string(),
+                    ))
+                })?;
             transport.receive_message().await.ok()
         };
 
@@ -1295,7 +1303,11 @@ impl UltraFastClient {
         let mut transport_guard = self.transport.write().await;
         let transport = transport_guard
             .as_mut()
-            .expect("Transport should be available");
+            .ok_or_else(|| {
+                MCPError::Transport(TransportError::ConnectionFailed(
+                    "Transport not available".to_string(),
+                ))
+            })?;
 
         transport
             .send_message(JsonRpcMessage::Notification(notification))

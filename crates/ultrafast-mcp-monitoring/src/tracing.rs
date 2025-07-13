@@ -346,25 +346,25 @@ mod tests {
     fn test_tracing_utils_spans() {
         let span = TracingUtils::mcp_request_span("test_method", "test_id");
         assert_eq!(
-            span.metadata().expect("span should have metadata").name(),
+            span.metadata().map(|m| m.name()).unwrap_or("unknown"),
             "mcp_request"
         );
 
         let span = TracingUtils::tool_execution_span("test_tool", "test_id");
         assert_eq!(
-            span.metadata().expect("span should have metadata").name(),
+            span.metadata().map(|m| m.name()).unwrap_or("unknown"),
             "tool_execution"
         );
 
         let span = TracingUtils::resource_operation_span("read", "test://uri");
         assert_eq!(
-            span.metadata().expect("span should have metadata").name(),
+            span.metadata().map(|m| m.name()).unwrap_or("unknown"),
             "resource_operation"
         );
 
         let span = TracingUtils::transport_operation_span("send", "http");
         assert_eq!(
-            span.metadata().expect("span should have metadata").name(),
+            span.metadata().map(|m| m.name()).unwrap_or("unknown"),
             "transport_operation"
         );
     }

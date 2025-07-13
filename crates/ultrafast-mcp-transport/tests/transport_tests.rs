@@ -167,15 +167,16 @@ mod performance_tests {
 #[cfg(test)]
 mod validation_middleware_tests {
     use serde_json::{Value, json};
+use std::borrow::Cow;
 
-    use ultrafast_mcp_core::protocol::{JsonRpcMessage, JsonRpcRequest, RequestId};
-    use ultrafast_mcp_transport::middleware::{TransportMiddleware, ValidationMiddleware};
+use ultrafast_mcp_core::protocol::{JsonRpcMessage, JsonRpcRequest, RequestId};
+use ultrafast_mcp_transport::middleware::{TransportMiddleware, ValidationMiddleware};
 
     #[tokio::test]
     async fn test_validation_middleware_basic() {
         let middleware = ValidationMiddleware::new();
         let mut valid_request = JsonRpcMessage::Request(JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: Some(RequestId::from("1".to_string())),
             method: "tools/list".to_string(),
             params: None,
@@ -193,7 +194,7 @@ mod validation_middleware_tests {
     async fn test_validation_middleware_invalid_method() {
         let middleware = ValidationMiddleware::new();
         let mut invalid_request = JsonRpcMessage::Request(JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: Some(RequestId::from("1".to_string())),
             method: "invalid/method".to_string(),
             params: None,
@@ -213,7 +214,7 @@ mod validation_middleware_tests {
     async fn test_validation_middleware_invalid_jsonrpc_version() {
         let middleware = ValidationMiddleware::new();
         let mut invalid_request = JsonRpcMessage::Request(JsonRpcRequest {
-            jsonrpc: "1.0".to_string(),
+            jsonrpc: Cow::Borrowed("1.0"),
             id: Some(RequestId::from("1".to_string())),
             method: "tools/list".to_string(),
             params: None,
@@ -233,7 +234,7 @@ mod validation_middleware_tests {
     async fn test_validation_middleware_null_request_id() {
         let middleware = ValidationMiddleware::new();
         let mut invalid_request = JsonRpcMessage::Request(JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: None,
             method: "tools/list".to_string(),
             params: None,
@@ -251,7 +252,7 @@ mod validation_middleware_tests {
     async fn test_validation_middleware_strict_mode() {
         let middleware = ValidationMiddleware::strict();
         let mut invalid_request = JsonRpcMessage::Request(JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: None,
             method: "tools/list".to_string(),
             params: None,
@@ -271,7 +272,7 @@ mod validation_middleware_tests {
     async fn test_validation_middleware_string_sanitization() {
         let middleware = ValidationMiddleware::new();
         let mut request_with_nulls = JsonRpcMessage::Request(JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: Some(RequestId::from("1".to_string())),
             method: "tools/call".to_string(),
             params: Some(json!({
@@ -302,7 +303,7 @@ mod validation_middleware_tests {
         let middleware = ValidationMiddleware::new();
         let large_array: Vec<Value> = (0..10001).map(|i| json!(i)).collect();
         let mut request_with_large_array = JsonRpcMessage::Request(JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: Some(RequestId::from("1".to_string())),
             method: "tools/call".to_string(),
             params: Some(json!({
@@ -333,7 +334,7 @@ mod validation_middleware_tests {
             large_object.insert(format!("key_{i}"), json!(i));
         }
         let mut request_with_large_object = JsonRpcMessage::Request(JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: Some(RequestId::from("1".to_string())),
             method: "tools/call".to_string(),
             params: Some(Value::Object(large_object)),
@@ -355,7 +356,7 @@ mod validation_middleware_tests {
     async fn test_validation_middleware_reserved_key_names() {
         let middleware = ValidationMiddleware::new();
         let mut request_with_reserved_key = JsonRpcMessage::Request(JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: Some(RequestId::from("1".to_string())),
             method: "tools/call".to_string(),
             params: Some(json!({
@@ -380,7 +381,7 @@ mod validation_middleware_tests {
     async fn test_validation_middleware_meta_key_allowed() {
         let middleware = ValidationMiddleware::new();
         let mut request_with_meta = JsonRpcMessage::Request(JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: Some(RequestId::from("1".to_string())),
             method: "tools/call".to_string(),
             params: Some(json!({
@@ -403,7 +404,7 @@ mod validation_middleware_tests {
     async fn test_validation_middleware_uri_validation() {
         let middleware = ValidationMiddleware::new();
         let mut request_with_valid_uri = JsonRpcMessage::Request(JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: Some(RequestId::from("1".to_string())),
             method: "resources/read".to_string(),
             params: Some(json!({
@@ -418,7 +419,7 @@ mod validation_middleware_tests {
                 .is_ok()
         );
         let mut request_with_invalid_uri = JsonRpcMessage::Request(JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: Some(RequestId::from("1".to_string())),
             method: "resources/read".to_string(),
             params: Some(json!({
@@ -442,7 +443,7 @@ mod validation_middleware_tests {
     async fn test_validation_middleware_protocol_version_validation() {
         let middleware = ValidationMiddleware::new();
         let mut request_with_valid_version = JsonRpcMessage::Request(JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: Some(RequestId::from("1".to_string())),
             method: "initialize".to_string(),
             params: Some(json!({
@@ -458,7 +459,7 @@ mod validation_middleware_tests {
                 .is_ok()
         );
         let mut request_with_invalid_version = JsonRpcMessage::Request(JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: Some(RequestId::from("1".to_string())),
             method: "initialize".to_string(),
             params: Some(json!({
@@ -483,7 +484,7 @@ mod validation_middleware_tests {
     async fn test_validation_middleware_tool_name_validation() {
         let middleware = ValidationMiddleware::new();
         let mut request_with_valid_tool = JsonRpcMessage::Request(JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: Some(RequestId::from("1".to_string())),
             method: "tools/call".to_string(),
             params: Some(json!({
@@ -498,7 +499,7 @@ mod validation_middleware_tests {
                 .is_ok()
         );
         let mut request_with_invalid_tool = JsonRpcMessage::Request(JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: Some(RequestId::from("1".to_string())),
             method: "tools/call".to_string(),
             params: Some(json!({
@@ -522,7 +523,7 @@ mod validation_middleware_tests {
     async fn test_validation_middleware_log_level_validation() {
         let middleware = ValidationMiddleware::new();
         let mut request_with_valid_level = JsonRpcMessage::Request(JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: Some(RequestId::from("1".to_string())),
             method: "logging/log".to_string(),
             params: Some(json!({
@@ -538,7 +539,7 @@ mod validation_middleware_tests {
                 .is_ok()
         );
         let mut request_with_invalid_level = JsonRpcMessage::Request(JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: Some(RequestId::from("1".to_string())),
             method: "logging/log".to_string(),
             params: Some(json!({
@@ -565,7 +566,7 @@ mod validation_middleware_tests {
 
         // Test with a message that should be under the limit
         let mut small_request = JsonRpcMessage::Request(JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: Some(RequestId::from("1".to_string())),
             method: "tools/call".to_string(),
             params: Some(json!({
@@ -584,7 +585,7 @@ mod validation_middleware_tests {
         // Create a huge message that definitely exceeds the 10MB limit
         let huge_string = "x".repeat(15 * 1024 * 1024); // 15MB string
         let mut huge_request = JsonRpcMessage::Request(JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: Some(RequestId::from("1".to_string())),
             method: "tools/call".to_string(),
             params: Some(json!({
@@ -608,7 +609,7 @@ mod validation_middleware_tests {
             deep_object = json!({ "nested": deep_object });
         }
         let mut request_with_deep_object = JsonRpcMessage::Request(JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: Some(RequestId::from("1".to_string())),
             method: "tools/call".to_string(),
             params: Some(json!({
@@ -636,7 +637,7 @@ mod validation_middleware_tests {
             .with_max_params_depth(3)
             .with_allowed_methods(vec!["custom/method".to_string()]);
         let mut request_with_custom_method = JsonRpcMessage::Request(JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: Some(RequestId::from("1".to_string())),
             method: "custom/method".to_string(),
             params: None,
@@ -649,7 +650,7 @@ mod validation_middleware_tests {
                 .is_ok()
         );
         let mut request_with_standard_method = JsonRpcMessage::Request(JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: Some(RequestId::from("1".to_string())),
             method: "tools/list".to_string(),
             params: None,

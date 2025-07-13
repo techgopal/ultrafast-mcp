@@ -248,7 +248,7 @@ mod tests {
 
         // Test tool listing
         let list_request = ListToolsRequest { cursor: None };
-        let list_response = handler.list_tools(list_request).await.unwrap();
+        let list_response = handler.list_tools(list_request).await.expect("Failed to list tools");
         assert_eq!(list_response.tools.len(), 1);
         assert_eq!(list_response.tools[0].name, "echo");
 
