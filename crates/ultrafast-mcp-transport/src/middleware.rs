@@ -123,12 +123,15 @@ impl RateLimitMiddleware {
     fn check_rate_limit(&self) -> Result<()> {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .unwrap()
+            .unwrap_or_default()
             .as_secs();
 
         let minute_timestamp = now / 60;
 
-        let mut count_data = self.request_count.lock().unwrap();
+        let mut count_data = self.request_count.lock()
+            .map_err(|_| TransportError::InternalError {
+                message: "Failed to acquire rate limit lock".to_string(),
+            })?;
         let (last_minute, count) = *count_data;
 
         if last_minute == minute_timestamp {
@@ -190,7 +193,7 @@ impl TransportMiddleware for ProgressMiddleware {
                             serde_json::Value::Number(serde_json::Number::from(
                                 SystemTime::now()
                                     .duration_since(UNIX_EPOCH)
-                                    .unwrap()
+                                    .unwrap_or_default()
                                     .as_secs(),
                             )),
                         );
