@@ -113,19 +113,16 @@ jobs:
         WORKSPACE_VERSION=$(grep '^version = ' Cargo.toml | cut -d'"' -f2)
         echo "Checking if ${{ matrix.crate }}@$WORKSPACE_VERSION already exists..."
         
-        # Simple and robust version check using cargo search
-        SEARCH_OUTPUT=$(cargo search "${{ matrix.crate }}" --limit 5 2>/dev/null || echo "")
-        echo "Search output length: ${#SEARCH_OUTPUT}"
-        
-        # More precise pattern check - look for exact version match
-        # This prevents false positives with pre-releases like "202506018.1.0-rc.3"
-        if echo "$SEARCH_OUTPUT" | grep -q "${{ matrix.crate }} = \"$WORKSPACE_VERSION\""; then
+        # Try a dry-run publish to check if version exists
+        cd ${{ matrix.path }}
+        if cargo publish --dry-run --token ${{ secrets.CARGO_REGISTRY_TOKEN }} 2>&1 | grep -q "already exists"; then
           echo "skip=true" >> $GITHUB_OUTPUT
           echo "Skipping ${{ matrix.crate }} - version $WORKSPACE_VERSION already exists"
         else
           echo "skip=false" >> $GITHUB_OUTPUT
           echo "Publishing ${{ matrix.crate }} - version $WORKSPACE_VERSION is new"
         fi
+        cd ../..
 
     - name: Publish leaf crate
       if: steps.check-version.outputs.skip != 'true'
@@ -206,19 +203,16 @@ jobs:
         WORKSPACE_VERSION=$(grep '^version = ' Cargo.toml | cut -d'"' -f2)
         echo "Checking if ${{ matrix.crate }}@$WORKSPACE_VERSION already exists..."
         
-        # Simple and robust version check using cargo search
-        SEARCH_OUTPUT=$(cargo search "${{ matrix.crate }}" --limit 5 2>/dev/null || echo "")
-        echo "Search output length: ${#SEARCH_OUTPUT}"
-        
-        # More precise pattern check - look for exact version match
-        # This prevents false positives with pre-releases like "202506018.1.0-rc.3"
-        if echo "$SEARCH_OUTPUT" | grep -q "${{ matrix.crate }} = \"$WORKSPACE_VERSION\""; then
+        # Try a dry-run publish to check if version exists
+        cd ${{ matrix.path }}
+        if cargo publish --dry-run --token ${{ secrets.CARGO_REGISTRY_TOKEN }} 2>&1 | grep -q "already exists"; then
           echo "skip=true" >> $GITHUB_OUTPUT
           echo "Skipping ${{ matrix.crate }} - version $WORKSPACE_VERSION already exists"
         else
           echo "skip=false" >> $GITHUB_OUTPUT
           echo "Publishing ${{ matrix.crate }} - version $WORKSPACE_VERSION is new"
         fi
+        cd ../..
 
     - name: Publish level 1 crate
       if: steps.check-version.outputs.skip != 'true'
@@ -298,19 +292,16 @@ jobs:
         WORKSPACE_VERSION=$(grep '^version = ' Cargo.toml | cut -d'"' -f2)
         echo "Checking if ${{ matrix.crate }}@$WORKSPACE_VERSION already exists..."
         
-        # Simple and robust version check using cargo search
-        SEARCH_OUTPUT=$(cargo search "${{ matrix.crate }}" --limit 5 2>/dev/null || echo "")
-        echo "Search output length: ${#SEARCH_OUTPUT}"
-        
-        # More precise pattern check - look for exact version match
-        # This prevents false positives with pre-releases like "202506018.1.0-rc.3"
-        if echo "$SEARCH_OUTPUT" | grep -q "${{ matrix.crate }} = \"$WORKSPACE_VERSION\""; then
+        # Try a dry-run publish to check if version exists
+        cd ${{ matrix.path }}
+        if cargo publish --dry-run --token ${{ secrets.CARGO_REGISTRY_TOKEN }} 2>&1 | grep -q "already exists"; then
           echo "skip=true" >> $GITHUB_OUTPUT
           echo "Skipping ${{ matrix.crate }} - version $WORKSPACE_VERSION already exists"
         else
           echo "skip=false" >> $GITHUB_OUTPUT
           echo "Publishing ${{ matrix.crate }} - version $WORKSPACE_VERSION is new"
         fi
+        cd ../..
 
     - name: Publish level 2 crate
       if: steps.check-version.outputs.skip != 'true'
@@ -392,19 +383,16 @@ jobs:
         WORKSPACE_VERSION=$(grep '^version = ' Cargo.toml | cut -d'"' -f2)
         echo "Checking if ${{ matrix.crate }}@$WORKSPACE_VERSION already exists..."
         
-        # Simple and robust version check using cargo search
-        SEARCH_OUTPUT=$(cargo search "${{ matrix.crate }}" --limit 5 2>/dev/null || echo "")
-        echo "Search output length: ${#SEARCH_OUTPUT}"
-        
-        # More precise pattern check - look for exact version match
-        # This prevents false positives with pre-releases like "202506018.1.0-rc.3"
-        if echo "$SEARCH_OUTPUT" | grep -q "${{ matrix.crate }} = \"$WORKSPACE_VERSION\""; then
+        # Try a dry-run publish to check if version exists
+        cd ${{ matrix.path }}
+        if cargo publish --dry-run --token ${{ secrets.CARGO_REGISTRY_TOKEN }} 2>&1 | grep -q "already exists"; then
           echo "skip=true" >> $GITHUB_OUTPUT
           echo "Skipping ${{ matrix.crate }} - version $WORKSPACE_VERSION already exists"
         else
           echo "skip=false" >> $GITHUB_OUTPUT
           echo "Publishing ${{ matrix.crate }} - version $WORKSPACE_VERSION is new"
         fi
+        cd ../..
 
     - name: Publish level 3 crate
       if: steps.check-version.outputs.skip != 'true'
@@ -478,19 +466,16 @@ jobs:
         WORKSPACE_VERSION=$(grep '^version = ' Cargo.toml | cut -d'"' -f2)
         echo "Checking if ultrafast-mcp@$WORKSPACE_VERSION already exists..."
         
-        # Simple and robust version check using cargo search
-        SEARCH_OUTPUT=$(cargo search "ultrafast-mcp" --limit 5 2>/dev/null || echo "")
-        echo "Search output length: ${#SEARCH_OUTPUT}"
-        
-        # More precise pattern check - look for exact version match
-        # This prevents false positives with pre-releases like "202506018.1.0-rc.3"
-        if echo "$SEARCH_OUTPUT" | grep -q "ultrafast-mcp = \"$WORKSPACE_VERSION\""; then
+        # Try a dry-run publish to check if version exists
+        cd crates/ultrafast-mcp
+        if cargo publish --dry-run --token ${{ secrets.CARGO_REGISTRY_TOKEN }} 2>&1 | grep -q "already exists"; then
           echo "skip=true" >> $GITHUB_OUTPUT
           echo "Skipping ultrafast-mcp - version $WORKSPACE_VERSION already exists"
         else
           echo "skip=false" >> $GITHUB_OUTPUT
           echo "Publishing ultrafast-mcp - version $WORKSPACE_VERSION is new"
         fi
+        cd ../..
 
     - name: Publish top-level crate
       if: steps.check-version.outputs.skip != 'true'
@@ -564,19 +549,16 @@ jobs:
         WORKSPACE_VERSION=$(grep '^version = ' Cargo.toml | cut -d'"' -f2)
         echo "Checking if ultrafast-mcp-cli@$WORKSPACE_VERSION already exists..."
         
-        # Simple and robust version check using cargo search
-        SEARCH_OUTPUT=$(cargo search "ultrafast-mcp-cli" --limit 5 2>/dev/null || echo "")
-        echo "Search output length: ${#SEARCH_OUTPUT}"
-        
-        # More precise pattern check - look for exact version match
-        # This prevents false positives with pre-releases like "202506018.1.0-rc.3"
-        if echo "$SEARCH_OUTPUT" | grep -q "ultrafast-mcp-cli = \"$WORKSPACE_VERSION\""; then
+        # Try a dry-run publish to check if version exists
+        cd crates/ultrafast-mcp-cli
+        if cargo publish --dry-run --token ${{ secrets.CARGO_REGISTRY_TOKEN }} 2>&1 | grep -q "already exists"; then
           echo "skip=true" >> $GITHUB_OUTPUT
           echo "Skipping ultrafast-mcp-cli - version $WORKSPACE_VERSION already exists"
         else
           echo "skip=false" >> $GITHUB_OUTPUT
           echo "Publishing ultrafast-mcp-cli - version $WORKSPACE_VERSION is new"
         fi
+        cd ../..
 
     - name: Publish CLI crate
       if: steps.check-version.outputs.skip != 'true'
