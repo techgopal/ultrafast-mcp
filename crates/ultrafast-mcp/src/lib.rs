@@ -21,15 +21,15 @@
 //! ## Primary APIs
 //!
 //! ### Server Development
-//! - **[`UltraFastServer`]**: Create MCP servers with ergonomic, type-safe APIs
-//! - **[`ToolHandler`]**: Implement tool functionality with trait-based interfaces
-//! - **[`ResourceHandler`]**: Manage resources and content delivery
-//! - **[`PromptHandler`]**: Generate dynamic prompts and content
+//! - **`UltraFastServer`**: Create MCP servers with ergonomic, type-safe APIs
+//! - **`ToolHandler`**: Implement tool functionality with trait-based interfaces
+//! - **`ResourceHandler`**: Manage resources and content delivery
+//! - **`PromptHandler`**: Generate dynamic prompts and content
 //!
 //! ### Client Development
-//! - **[`UltraFastClient`]**: Connect to MCP servers with async/await APIs
-//! - **[`Transport`]**: Flexible transport layer with HTTP, STDIO, and custom options
-//! - **[`ResourceChangeHandler`]**: Handle resource updates and notifications
+//! - **`UltraFastClient`**: Connect to MCP servers with async/await APIs
+//! - **`Transport`**: Flexible transport layer with HTTP, STDIO, and custom options
+//! - **`ResourceSubscriptionHandler`**: Handle resource updates and notifications
 //!
 //! ## Quick Start
 //!

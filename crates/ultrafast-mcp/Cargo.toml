@@ -67,7 +67,7 @@ http = [
 ]
 
 # Authentication features
-oauth = ["core", "ultrafast-mcp-auth/oauth"]
+oauth = ["core", "ultrafast-mcp-auth/oauth", "ultrafast-mcp-client/oauth"]
 
 # Monitoring and observability
 monitoring = ["core", "ultrafast-mcp-monitoring/core"]
