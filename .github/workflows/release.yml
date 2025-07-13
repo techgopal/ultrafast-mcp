@@ -118,8 +118,12 @@ jobs:
         SEARCH_OUTPUT=$(cargo search "${{ matrix.crate }}" --limit 10)
         echo "$SEARCH_OUTPUT"
         
-        # Check if the exact version exists
-        if echo "$SEARCH_OUTPUT" | grep -q "${{ matrix.crate }} = \"$WORKSPACE_VERSION\""; then
+        # Debug: Show the pattern we're looking for
+        PATTERN="${{ matrix.crate }} = \"$WORKSPACE_VERSION\""
+        echo "Looking for pattern: '$PATTERN'"
+        
+        # Check if the exact version exists with better pattern matching
+        if echo "$SEARCH_OUTPUT" | grep -F "$PATTERN" > /dev/null; then
           echo "skip=true" >> $GITHUB_OUTPUT
           echo "Skipping ${{ matrix.crate }} - version $WORKSPACE_VERSION already exists"
         else
@@ -211,8 +215,12 @@ jobs:
         SEARCH_OUTPUT=$(cargo search "${{ matrix.crate }}" --limit 10)
         echo "$SEARCH_OUTPUT"
         
-        # Check if the exact version exists
-        if echo "$SEARCH_OUTPUT" | grep -q "${{ matrix.crate }} = \"$WORKSPACE_VERSION\""; then
+        # Debug: Show the pattern we're looking for
+        PATTERN="${{ matrix.crate }} = \"$WORKSPACE_VERSION\""
+        echo "Looking for pattern: '$PATTERN'"
+        
+        # Check if the exact version exists with better pattern matching
+        if echo "$SEARCH_OUTPUT" | grep -F "$PATTERN" > /dev/null; then
           echo "skip=true" >> $GITHUB_OUTPUT
           echo "Skipping ${{ matrix.crate }} - version $WORKSPACE_VERSION already exists"
         else
@@ -303,8 +311,12 @@ jobs:
         SEARCH_OUTPUT=$(cargo search "${{ matrix.crate }}" --limit 10)
         echo "$SEARCH_OUTPUT"
         
-        # Check if the exact version exists
-        if echo "$SEARCH_OUTPUT" | grep -q "${{ matrix.crate }} = \"$WORKSPACE_VERSION\""; then
+        # Debug: Show the pattern we're looking for
+        PATTERN="${{ matrix.crate }} = \"$WORKSPACE_VERSION\""
+        echo "Looking for pattern: '$PATTERN'"
+        
+        # Check if the exact version exists with better pattern matching
+        if echo "$SEARCH_OUTPUT" | grep -F "$PATTERN" > /dev/null; then
           echo "skip=true" >> $GITHUB_OUTPUT
           echo "Skipping ${{ matrix.crate }} - version $WORKSPACE_VERSION already exists"
         else
@@ -397,8 +409,12 @@ jobs:
         SEARCH_OUTPUT=$(cargo search "${{ matrix.crate }}" --limit 10)
         echo "$SEARCH_OUTPUT"
         
-        # Check if the exact version exists
-        if echo "$SEARCH_OUTPUT" | grep -q "${{ matrix.crate }} = \"$WORKSPACE_VERSION\""; then
+        # Debug: Show the pattern we're looking for
+        PATTERN="${{ matrix.crate }} = \"$WORKSPACE_VERSION\""
+        echo "Looking for pattern: '$PATTERN'"
+        
+        # Check if the exact version exists with better pattern matching
+        if echo "$SEARCH_OUTPUT" | grep -F "$PATTERN" > /dev/null; then
           echo "skip=true" >> $GITHUB_OUTPUT
           echo "Skipping ${{ matrix.crate }} - version $WORKSPACE_VERSION already exists"
         else
@@ -483,8 +499,12 @@ jobs:
         SEARCH_OUTPUT=$(cargo search "ultrafast-mcp" --limit 10)
         echo "$SEARCH_OUTPUT"
         
-        # Check if the exact version exists
-        if echo "$SEARCH_OUTPUT" | grep -q "ultrafast-mcp = \"$WORKSPACE_VERSION\""; then
+        # Debug: Show the pattern we're looking for
+        PATTERN="ultrafast-mcp = \"$WORKSPACE_VERSION\""
+        echo "Looking for pattern: '$PATTERN'"
+        
+        # Check if the exact version exists with better pattern matching
+        if echo "$SEARCH_OUTPUT" | grep -F "$PATTERN" > /dev/null; then
           echo "skip=true" >> $GITHUB_OUTPUT
           echo "Skipping ultrafast-mcp - version $WORKSPACE_VERSION already exists"
         else
@@ -569,8 +589,12 @@ jobs:
         SEARCH_OUTPUT=$(cargo search "ultrafast-mcp-cli" --limit 10)
         echo "$SEARCH_OUTPUT"
         
-        # Check if the exact version exists
-        if echo "$SEARCH_OUTPUT" | grep -q "ultrafast-mcp-cli = \"$WORKSPACE_VERSION\""; then
+        # Debug: Show the pattern we're looking for
+        PATTERN="ultrafast-mcp-cli = \"$WORKSPACE_VERSION\""
+        echo "Looking for pattern: '$PATTERN'"
+        
+        # Check if the exact version exists with better pattern matching
+        if echo "$SEARCH_OUTPUT" | grep -F "$PATTERN" > /dev/null; then
           echo "skip=true" >> $GITHUB_OUTPUT
           echo "Skipping ultrafast-mcp-cli - version $WORKSPACE_VERSION already exists"
         else
