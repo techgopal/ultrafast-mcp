@@ -43,7 +43,7 @@ pub async fn execute(args: TestArgs, config: Option<Config>) -> Result<()> {
             Ok(())
         }
         Ok(Err(e)) => {
-            println!("\n❌ Tests failed: {}", e);
+            println!("\n❌ Tests failed: {e}");
             Err(e)
         }
         Err(_) => {
@@ -76,7 +76,7 @@ async fn run_all_tests(args: &TestArgs, config: Option<Config>) -> Result<()> {
         Err(e) => {
             println!("{}", "❌ FAILED".red());
             if args.verbose {
-                println!("   Error: {}", e);
+                println!("   Error: {e}");
             }
             failed += 1;
         }
@@ -94,7 +94,7 @@ async fn run_all_tests(args: &TestArgs, config: Option<Config>) -> Result<()> {
                 Err(e) => {
                     println!("{}", "❌ FAILED".red());
                     if args.verbose {
-                        println!("   Error: {}", e);
+                        println!("   Error: {e}");
                     }
                     failed += 1;
                 }
@@ -110,7 +110,7 @@ async fn run_all_tests(args: &TestArgs, config: Option<Config>) -> Result<()> {
                 Err(e) => {
                     println!("{}", "❌ FAILED".red());
                     if args.verbose {
-                        println!("   Error: {}", e);
+                        println!("   Error: {e}");
                     }
                     failed += 1;
                 }
@@ -131,7 +131,7 @@ async fn run_all_tests(args: &TestArgs, config: Option<Config>) -> Result<()> {
         Err(e) => {
             println!("{}", "❌ FAILED".red());
             if args.verbose {
-                println!("   Error: {}", e);
+                println!("   Error: {e}");
             }
             failed += 1;
         }
@@ -150,7 +150,7 @@ async fn run_all_tests(args: &TestArgs, config: Option<Config>) -> Result<()> {
 }
 
 async fn run_specific_test(test_name: &str, args: &TestArgs, config: Option<Config>) -> Result<()> {
-    println!("🎯 Running specific test: {}\n", test_name);
+    println!("🎯 Running specific test: {test_name}\n");
 
     match test_name {
         "config" => test_config_loading(&config).await,
@@ -195,7 +195,7 @@ async fn test_config_loading(config: &Option<Config>) -> Result<()> {
 
 async fn test_stdio_connection(args: &TestArgs) -> Result<()> {
     if let Some(server) = &args.server {
-        println!("   Testing connection to: {}", server);
+        println!("   Testing connection to: {server}");
 
         // Parse server command
         let parts: Vec<&str> = server.split_whitespace().collect();
@@ -207,8 +207,8 @@ async fn test_stdio_connection(args: &TestArgs) -> Result<()> {
         let server_args = &parts[1..];
 
         if args.verbose {
-            println!("   Command: {}", command);
-            println!("   Args: {:?}", server_args);
+            println!("   Command: {command}");
+            println!("   Args: {server_args:?}");
         }
 
         // Test basic command availability
@@ -276,7 +276,8 @@ async fn test_stdio_connection(args: &TestArgs) -> Result<()> {
             }
         })
         .await
-        .context("Timeout waiting for server response")??;
+        .context("Timeout waiting for server response")?
+        .context("Failed to read server response")?;
 
         // Parse and validate response
         let response_json: serde_json::Value =
@@ -285,7 +286,7 @@ async fn test_stdio_connection(args: &TestArgs) -> Result<()> {
         if let Some(result) = response_json.get("result") {
             if let Some(protocol_version) = result.get("protocolVersion") {
                 println!("   ✅ MCP handshake successful");
-                println!("   📋 Protocol version: {}", protocol_version);
+                println!("   📋 Protocol version: {protocol_version}");
             } else {
                 anyhow::bail!("Invalid initialization response: missing protocolVersion");
             }
@@ -319,7 +320,7 @@ async fn test_stdio_connection(args: &TestArgs) -> Result<()> {
 
 async fn test_http_connection(args: &TestArgs) -> Result<()> {
     if let Some(server) = &args.server {
-        println!("   Testing connection to: {}", server);
+        println!("   Testing connection to: {server}");
 
         // Parse URL
         let url: reqwest::Url = server.parse().context("Invalid server URL")?;
@@ -350,7 +351,7 @@ async fn test_http_connection(args: &TestArgs) -> Result<()> {
         println!("   🔄 Testing MCP-over-HTTP protocol...");
 
         // Test MCP HTTP endpoint
-        let mcp_url = format!("{}/mcp", server);
+        let mcp_url = format!("{server}/mcp");
         let init_request = serde_json::json!({
             "jsonrpc": "2.0",
             "id": 1,
@@ -390,7 +391,7 @@ async fn test_http_connection(args: &TestArgs) -> Result<()> {
         if let Some(result) = response_json.get("result") {
             if let Some(protocol_version) = result.get("protocolVersion") {
                 println!("   ✅ MCP-over-HTTP handshake successful");
-                println!("   📋 Protocol version: {}", protocol_version);
+                println!("   📋 Protocol version: {protocol_version}");
             } else {
                 anyhow::bail!("Invalid MCP response: missing protocolVersion");
             }

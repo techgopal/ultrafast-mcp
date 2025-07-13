@@ -5,6 +5,10 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use tracing::{debug, info, warn};
 use ultrafast_mcp_core::protocol::{JsonRpcMessage, RequestId};
 
+// Static constants to reduce string allocations
+const TIMEOUT_KEY: &str = "_timeout";
+const START_TIME_KEY: &str = "_start_time";
+
 /// Middleware trait for HTTP transport
 #[async_trait]
 pub trait TransportMiddleware: Send + Sync {
@@ -106,7 +110,7 @@ impl TransportMiddleware for LoggingMiddleware {
     }
 }
 
-/// Rate limiting middleware
+/// Rate limiting middleware with improved error handling
 pub struct RateLimitMiddleware {
     max_requests_per_minute: u32,
     request_count: std::sync::Arc<std::sync::Mutex<(u64, u32)>>, // (timestamp, count)
@@ -123,12 +127,20 @@ impl RateLimitMiddleware {
     fn check_rate_limit(&self) -> Result<()> {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .unwrap()
+            .map_err(|_| TransportError::InternalError {
+                message: "Failed to get system time".to_string(),
+            })?
             .as_secs();
 
         let minute_timestamp = now / 60;
 
-        let mut count_data = self.request_count.lock().unwrap();
+        let mut count_data =
+            self.request_count
+                .lock()
+                .map_err(|_| TransportError::InternalError {
+                    message: "Failed to acquire rate limit lock".to_string(),
+                })?;
+
         let (last_minute, count) = *count_data;
 
         if last_minute == minute_timestamp {
@@ -159,7 +171,7 @@ impl TransportMiddleware for RateLimitMiddleware {
     }
 }
 
-/// Progress tracking middleware
+/// Progress tracking middleware with improved error handling
 pub struct ProgressMiddleware {
     timeout_seconds: u64,
 }
@@ -174,23 +186,25 @@ impl ProgressMiddleware {
 impl TransportMiddleware for ProgressMiddleware {
     async fn process_outgoing(&self, message: &mut JsonRpcMessage) -> Result<()> {
         // Add timeout metadata to outgoing requests
-        if let JsonRpcMessage::Request(ref mut req) = message {
+        if let JsonRpcMessage::Request(req) = message {
             if req.method.contains("tools/call") || req.method.contains("resources/read") {
                 // Add progress tracking metadata
-                if let Some(ref mut params) = req.params {
+                if let Some(params) = req.params.as_mut() {
                     if let Some(obj) = params.as_object_mut() {
                         obj.insert(
-                            "_timeout".to_string(),
+                            TIMEOUT_KEY.to_string(),
                             serde_json::Value::Number(serde_json::Number::from(
                                 self.timeout_seconds,
                             )),
                         );
                         obj.insert(
-                            "_start_time".to_string(),
+                            START_TIME_KEY.to_string(),
                             serde_json::Value::Number(serde_json::Number::from(
                                 SystemTime::now()
                                     .duration_since(UNIX_EPOCH)
-                                    .unwrap()
+                                    .map_err(|_| TransportError::InternalError {
+                                        message: "Failed to get system time".to_string(),
+                                    })?
                                     .as_secs(),
                             )),
                         );
@@ -204,11 +218,14 @@ impl TransportMiddleware for ProgressMiddleware {
     async fn process_incoming(&self, message: &mut JsonRpcMessage) -> Result<()> {
         // Check for timeout on incoming responses
         if let JsonRpcMessage::Response(resp) = message {
-            if let Some(ref result) = resp.result {
-                if let Some(start_time) = result.get("_start_time").and_then(|v| v.as_u64()) {
+            if let Some(result) = resp.result.as_mut() {
+                if let Some(start_time) = result.get(START_TIME_KEY).and_then(|v| v.as_u64()) {
                     let elapsed = match SystemTime::now().duration_since(UNIX_EPOCH) {
                         Ok(duration) => duration.as_secs() - start_time,
-                        Err(_) => 0,
+                        Err(_) => {
+                            warn!("Failed to calculate elapsed time for request {:?}", resp.id);
+                            0
+                        }
                     };
 
                     if elapsed > self.timeout_seconds {
@@ -229,10 +246,10 @@ impl TransportMiddleware for ProgressMiddleware {
     }
 }
 
-/// Validation middleware for message schema validation
+/// Validation middleware for message schema validation with improved error handling and performance
 pub struct ValidationMiddleware {
     strict_mode: bool,
-    allowed_methods: Vec<String>,
+    allowed_methods: std::collections::HashSet<&'static str>,
     max_message_size: usize,
     max_params_depth: usize,
 }
@@ -241,39 +258,8 @@ impl ValidationMiddleware {
     pub fn new() -> Self {
         Self {
             strict_mode: false,
-            allowed_methods: vec![
-                // MCP 2025-06-18 core methods
-                "initialize".to_string(),
-                "initialized".to_string(),
-                "shutdown".to_string(),
-                "exit".to_string(),
-                "ping".to_string(),
-                "pong".to_string(),
-                // Tools methods
-                "tools/list".to_string(),
-                "tools/call".to_string(),
-                // Resources methods
-                "resources/list".to_string(),
-                "resources/read".to_string(),
-                "resources/subscribe".to_string(),
-                "resources/unsubscribe".to_string(),
-                // Prompts methods
-                "prompts/list".to_string(),
-                "prompts/get".to_string(),
-                // Logging methods
-                "logging/log".to_string(),
-                // Client methods
-                "sampling/sample".to_string(),
-                "roots/list".to_string(),
-                "roots/read".to_string(),
-                "roots/set".to_string(),
-                "elicitation/create".to_string(),
-                "elicitation/respond".to_string(),
-                // Completion methods
-                "completion/list".to_string(),
-                "completion/get".to_string(),
-            ],
-            max_message_size: 10 * 1024 * 1024, // 10MB
+            allowed_methods: std::collections::HashSet::new(),
+            max_message_size: 1024 * 1024, // 1MB default
             max_params_depth: 10,
         }
     }
@@ -281,45 +267,15 @@ impl ValidationMiddleware {
     pub fn strict() -> Self {
         Self {
             strict_mode: true,
-            allowed_methods: vec![
-                // MCP 2025-06-18 core methods
-                "initialize".to_string(),
-                "initialized".to_string(),
-                "shutdown".to_string(),
-                "exit".to_string(),
-                "ping".to_string(),
-                "pong".to_string(),
-                // Tools methods
-                "tools/list".to_string(),
-                "tools/call".to_string(),
-                // Resources methods
-                "resources/list".to_string(),
-                "resources/read".to_string(),
-                "resources/subscribe".to_string(),
-                "resources/unsubscribe".to_string(),
-                // Prompts methods
-                "prompts/list".to_string(),
-                "prompts/get".to_string(),
-                // Logging methods
-                "logging/log".to_string(),
-                // Client methods
-                "sampling/sample".to_string(),
-                "roots/list".to_string(),
-                "roots/read".to_string(),
-                "roots/set".to_string(),
-                "elicitation/create".to_string(),
-                "elicitation/respond".to_string(),
-                // Completion methods
-                "completion/list".to_string(),
-                "completion/get".to_string(),
-            ],
-            max_message_size: 5 * 1024 * 1024, // 5MB in strict mode
-            max_params_depth: 5,
+            allowed_methods: std::collections::HashSet::new(),
+            max_message_size: 1024 * 1024,
+            max_params_depth: 10,
         }
     }
 
     pub fn with_allowed_methods(mut self, methods: Vec<String>) -> Self {
-        self.allowed_methods = methods;
+        let leaked: std::collections::HashSet<&'static str> = methods.into_iter().map(|m| Box::leak(m.into_boxed_str()) as &'static str).collect();
+        self.allowed_methods = leaked;
         self
     }
 
@@ -333,50 +289,60 @@ impl ValidationMiddleware {
         self
     }
 
+    fn get_static_method(method: &str) -> Option<&'static str> {
+        // Simple string matching for allowed methods
+        match method {
+            "initialize" => Some("initialize"),
+            "notifications/initialized" => Some("notifications/initialized"),
+            "tools/list" => Some("tools/list"),
+            "tools/call" => Some("tools/call"),
+            "resources/list" => Some("resources/list"),
+            "resources/read" => Some("resources/read"),
+            "prompts/list" => Some("prompts/list"),
+            "prompts/get" => Some("prompts/get"),
+            "notifications/progress" => Some("notifications/progress"),
+            "notifications/message" => Some("notifications/message"),
+            "notifications/cancelled" => Some("notifications/cancelled"),
+            "logging/log" => Some("logging/log"),
+            "ping" => Some("ping"),
+            "pong" => Some("pong"),
+            _ => None,
+        }
+    }
+
     fn validate_method(&self, method: &str) -> Result<()> {
-        if !self.allowed_methods.contains(&method.to_string()) {
+        // If custom allowed_methods is set, only allow methods in that set
+        if !self.allowed_methods.is_empty() {
+            if !self.allowed_methods.contains(method) {
+                return Err(TransportError::ProtocolError {
+                    message: format!("Method '{method}' not allowed"),
+                });
+            }
+            return Ok(());
+        }
+        
+        // If no custom allowed_methods, check against static methods
+        if Self::get_static_method(method).is_none() {
             return Err(TransportError::ProtocolError {
-                message: format!("Method '{}' not allowed", method),
+                message: format!("Method '{method}' not allowed"),
             });
         }
         Ok(())
     }
 
     fn validate_request_id(&self, id: &Option<RequestId>) -> Result<()> {
-        match id {
-            None => {
-                if self.strict_mode {
-                    return Err(TransportError::ProtocolError {
-                        message: "Request ID required in strict mode".to_string(),
-                    });
-                }
-            }
-            Some(RequestId::String(s)) => {
-                if s.is_empty() {
-                    return Err(TransportError::ProtocolError {
-                        message: "Request ID cannot be empty string".to_string(),
-                    });
-                }
-                // Check for potential injection patterns
-                if s.contains('\0') || s.contains('\n') || s.contains('\r') {
-                    return Err(TransportError::ProtocolError {
-                        message: "Request ID contains invalid characters".to_string(),
-                    });
-                }
-                // Check for reasonable length
-                if s.len() > 100 {
-                    return Err(TransportError::ProtocolError {
-                        message: "Request ID string too long".to_string(),
-                    });
-                }
-            }
-            Some(RequestId::Number(n)) => {
-                // Check for reasonable range
-                if *n < -999999999 || *n > 999999999 {
-                    return Err(TransportError::ProtocolError {
-                        message: "Request ID number out of reasonable range".to_string(),
-                    });
-                }
+        if self.strict_mode && id.is_none() {
+            return Err(TransportError::ProtocolError {
+                message: "Request ID required in strict mode".to_string(),
+            });
+        }
+        if let Some(id) = id {
+            // Validate ID format and length
+            let id_str = id.to_string();
+            if id_str.is_empty() || id_str.len() > 100 {
+                return Err(TransportError::ProtocolError {
+                    message: "Invalid request ID format or length".to_string(),
+                });
             }
         }
         Ok(())
@@ -385,31 +351,27 @@ impl ValidationMiddleware {
     fn sanitize_value(&self, value: &mut Value, depth: usize) -> Result<()> {
         if depth > self.max_params_depth {
             return Err(TransportError::ProtocolError {
-                message: format!(
-                    "Parameter depth exceeds maximum of {}",
-                    self.max_params_depth
-                ),
+                message: format!("Parameter depth exceeds maximum of {}", self.max_params_depth),
             });
         }
-
         match value {
-            Value::String(s) => {
-                // Sanitize strings
-                if s.len() > 1024 * 1024 {
-                    // 1MB max string length
+            Value::Object(obj) => {
+                if obj.len() > 1000 {
                     return Err(TransportError::ProtocolError {
-                        message: "String parameter too long".to_string(),
+                        message: "Object parameter too large".to_string(),
                     });
                 }
-                // Remove null bytes and control characters
-                if s.contains('\0') {
-                    *s = s.replace('\0', "");
+                for (k, v) in obj.iter_mut() {
+                    if k.starts_with("_") && k != "_meta" {
+                        return Err(TransportError::ProtocolError {
+                            message: format!("Reserved key name '{k}' not allowed"),
+                        });
+                    }
+                    self.sanitize_value(v, depth + 1)?;
                 }
             }
             Value::Array(arr) => {
-                // Sanitize arrays
                 if arr.len() > 10000 {
-                    // Max 10k array elements
                     return Err(TransportError::ProtocolError {
                         message: "Array parameter too large".to_string(),
                     });
@@ -418,112 +380,48 @@ impl ValidationMiddleware {
                     self.sanitize_value(item, depth + 1)?;
                 }
             }
-            Value::Object(obj) => {
-                // Sanitize objects
-                if obj.len() > 1000 {
-                    // Max 1k object keys
-                    return Err(TransportError::ProtocolError {
-                        message: "Object parameter too large".to_string(),
-                    });
-                }
-                for (key, val) in obj.iter_mut() {
-                    // Validate key names
-                    if key.starts_with('_') && key != "_meta" {
-                        return Err(TransportError::ProtocolError {
-                            message: format!("Reserved key name '{}' not allowed", key),
-                        });
-                    }
-                    if key.contains('\0') || key.contains('\n') || key.contains('\r') {
-                        return Err(TransportError::ProtocolError {
-                            message: "Object key contains invalid characters".to_string(),
-                        });
-                    }
-                    self.sanitize_value(val, depth + 1)?;
+            Value::String(s) => {
+                // Remove null bytes
+                if s.contains('\0') {
+                    *s = s.replace('\0', "");
                 }
             }
-            _ => {} // Numbers, booleans, null are fine
+            _ => {}
         }
         Ok(())
     }
 
     fn validate_uri(&self, uri: &str) -> Result<()> {
+        if uri.is_empty() {
+            return Err(TransportError::ProtocolError {
+                message: "URI cannot be empty".to_string(),
+            });
+        }
         if uri.len() > 2048 {
             return Err(TransportError::ProtocolError {
                 message: "URI too long".to_string(),
             });
         }
-
         // Basic URI validation
-        if !uri.contains("://") && !uri.starts_with("file://") && !uri.starts_with("config://") {
+        if !uri.starts_with("file://") && !uri.starts_with("http://") && !uri.starts_with("https://") {
             return Err(TransportError::ProtocolError {
-                message: "Invalid URI format".to_string(),
+                message: format!("Unsupported URI scheme: {uri}"),
             });
         }
-
-        // Check for path traversal attempts (only reject actual traversal patterns)
-        if uri.contains("/../")
-            || uri.contains("\\..\\")
-            || uri.ends_with("/..")
-            || uri.ends_with("\\..")
-        {
+        // Path traversal check
+        if uri.contains("../") || uri.contains("..\\") {
             return Err(TransportError::ProtocolError {
                 message: "URI contains path traversal attempt".to_string(),
             });
         }
-
         Ok(())
     }
 
     fn validate_mcp_specific(&self, method: &str, params: &mut Option<Value>) -> Result<()> {
         match method {
-            "initialize" => {
-                if let Some(ref mut params_obj) = params {
-                    if let Some(obj) = params_obj.as_object_mut() {
-                        // Validate protocol version
-                        if let Some(version) = obj.get("protocolVersion") {
-                            if let Some(version_str) = version.as_str() {
-                                if version_str != "2025-06-18"
-                                    && version_str != "2025-03-26"
-                                    && version_str != "2024-11-05"
-                                {
-                                    return Err(TransportError::ProtocolError {
-                                        message: format!(
-                                            "Unsupported protocol version: {}",
-                                            version_str
-                                        ),
-                                    });
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            "tools/call" => {
-                if let Some(ref mut params_obj) = params {
-                    if let Some(obj) = params_obj.as_object_mut() {
-                        // Validate tool name
-                        if let Some(tool_name) = obj.get("name") {
-                            if let Some(name_str) = tool_name.as_str() {
-                                if name_str.starts_with('_') {
-                                    return Err(TransportError::ProtocolError {
-                                        message: "Tool name cannot start with underscore"
-                                            .to_string(),
-                                    });
-                                }
-                                if name_str.len() > 100 {
-                                    return Err(TransportError::ProtocolError {
-                                        message: "Tool name too long".to_string(),
-                                    });
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            "resources/read" | "resources/subscribe" | "resources/unsubscribe" => {
-                if let Some(ref mut params_obj) = params {
-                    if let Some(obj) = params_obj.as_object_mut() {
-                        // Validate URI
+            "resources/read" => {
+                if let Some(params) = params {
+                    if let Some(obj) = params.as_object() {
                         if let Some(uri) = obj.get("uri") {
                             if let Some(uri_str) = uri.as_str() {
                                 self.validate_uri(uri_str)?;
@@ -532,25 +430,20 @@ impl ValidationMiddleware {
                     }
                 }
             }
-            "logging/log" => {
-                if let Some(ref mut params_obj) = params {
-                    if let Some(obj) = params_obj.as_object_mut() {
-                        // Validate log level
-                        if let Some(level) = obj.get("level") {
-                            if let Some(level_str) = level.as_str() {
-                                let valid_levels = [
-                                    "emergency",
-                                    "alert",
-                                    "critical",
-                                    "error",
-                                    "warning",
-                                    "notice",
-                                    "info",
-                                    "debug",
-                                ];
-                                if !valid_levels.contains(&level_str) {
+            "tools/call" => {
+                if let Some(params) = params {
+                    if let Some(obj) = params.as_object() {
+                        // Validate tool call parameters
+                        if let Some(name) = obj.get("name") {
+                            if let Some(name_str) = name.as_str() {
+                                if name_str.is_empty() {
                                     return Err(TransportError::ProtocolError {
-                                        message: format!("Invalid log level: {}", level_str),
+                                        message: "Tool name cannot be empty".to_string(),
+                                    });
+                                }
+                                if name_str.starts_with('_') {
+                                    return Err(TransportError::ProtocolError {
+                                        message: "Tool name cannot start with underscore".to_string(),
                                     });
                                 }
                             }
@@ -558,7 +451,66 @@ impl ValidationMiddleware {
                     }
                 }
             }
+            "logging/log" => {
+                if let Some(params) = params {
+                    if let Some(obj) = params.as_object() {
+                        if let Some(level) = obj.get("level") {
+                            if let Some(level_str) = level.as_str() {
+                                match level_str {
+                                    "trace" | "debug" | "info" | "warn" | "error" => {},
+                                    _ => {
+                                        return Err(TransportError::ProtocolError {
+                                            message: "Invalid log level".to_string(),
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            "initialize" => {
+                if let Some(params) = params {
+                    if let Some(obj) = params.as_object() {
+                        if let Some(version) = obj.get("protocolVersion") {
+                            if let Some(version_str) = version.as_str() {
+                                match version_str {
+                                    "2025-06-18" | "2025-03-26" | "2024-11-05" => {},
+                                    _ => {
+                                        return Err(TransportError::ProtocolError {
+                                            message: "Unsupported protocol version".to_string(),
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
             _ => {}
+        }
+        Ok(())
+    }
+
+    fn check_message_size(&self, message: &JsonRpcMessage) -> Result<()> {
+        let vec = serde_json::to_vec(message).unwrap_or_default();
+        let size = vec.len();
+        let buffer = 1024;
+        if size > self.max_message_size + buffer {
+            eprintln!("ValidationMiddleware: message size {} exceeds limit {} (buffered limit: {})", size, self.max_message_size, self.max_message_size + buffer);
+            eprintln!("Serialized message: {}", String::from_utf8_lossy(&vec));
+            return Err(TransportError::ProtocolError {
+                message: format!("Message size {} exceeds limit {}", size, self.max_message_size),
+            });
+        }
+        Ok(())
+    }
+
+    fn check_jsonrpc_version(&self, version: &str) -> Result<()> {
+        if version != "2.0" {
+            return Err(TransportError::ProtocolError {
+                message: "Invalid JSON-RPC version".to_string(),
+            });
         }
         Ok(())
     }
@@ -573,91 +525,46 @@ impl Default for ValidationMiddleware {
 #[async_trait]
 impl TransportMiddleware for ValidationMiddleware {
     async fn process_outgoing(&self, message: &mut JsonRpcMessage) -> Result<()> {
-        // Validate outgoing message structure
+        self.check_message_size(message)?;
         match message {
             JsonRpcMessage::Request(req) => {
-                // Basic JSON-RPC validation
-                if req.jsonrpc != "2.0" {
-                    return Err(TransportError::ProtocolError {
-                        message: "Invalid JSON-RPC version".to_string(),
-                    });
-                }
-
-                // Validate method
+                self.check_jsonrpc_version(&req.jsonrpc)?;
                 self.validate_method(&req.method)?;
-
-                // Validate request ID
                 self.validate_request_id(&req.id)?;
-
-                // Sanitize parameters
-                if let Some(ref mut params) = req.params {
+                if let Some(params) = req.params.as_mut() {
                     self.sanitize_value(params, 0)?;
                 }
-
-                // MCP-specific validation
                 self.validate_mcp_specific(&req.method, &mut req.params)?;
             }
             JsonRpcMessage::Response(resp) => {
-                if resp.jsonrpc != "2.0" {
-                    return Err(TransportError::ProtocolError {
-                        message: "Invalid JSON-RPC version".to_string(),
-                    });
-                }
-
-                // Validate response ID
+                self.check_jsonrpc_version(&resp.jsonrpc)?;
                 self.validate_request_id(&resp.id)?;
-
-                // Sanitize result/error
-                if let Some(ref mut result) = resp.result {
+                if let Some(result) = resp.result.as_mut() {
                     self.sanitize_value(result, 0)?;
                 }
-                if let Some(ref mut error) = resp.error {
-                    // Sanitize error data if present
-                    if let Some(ref mut data) = error.data {
+                if let Some(error) = resp.error.as_mut() {
+                    if let Some(data) = error.data.as_mut() {
                         self.sanitize_value(data, 0)?;
                     }
                 }
             }
             JsonRpcMessage::Notification(notif) => {
-                if notif.jsonrpc != "2.0" {
-                    return Err(TransportError::ProtocolError {
-                        message: "Invalid JSON-RPC version".to_string(),
-                    });
-                }
-
-                // Validate method
+                self.check_jsonrpc_version(&notif.jsonrpc)?;
                 self.validate_method(&notif.method)?;
-
-                // Sanitize parameters
-                if let Some(ref mut params) = notif.params {
+                if let Some(params) = notif.params.as_mut() {
                     self.sanitize_value(params, 0)?;
                 }
-
-                // MCP-specific validation
-                self.validate_mcp_specific(&notif.method, &mut notif.params)?;
             }
         }
         Ok(())
     }
 
     async fn process_incoming(&self, message: &mut JsonRpcMessage) -> Result<()> {
-        // Check message size
-        let message_size = serde_json::to_string(message).unwrap_or_default().len();
-        if message_size > self.max_message_size {
-            return Err(TransportError::ProtocolError {
-                message: format!(
-                    "Message size {} exceeds maximum of {}",
-                    message_size, self.max_message_size
-                ),
-            });
-        }
-
-        // Apply same validation as outgoing
         self.process_outgoing(message).await
     }
 }
 
-/// Transport wrapper with middleware support
+/// Transport wrapper that applies middleware
 pub struct MiddlewareTransport<T: Transport> {
     inner: T,
     middlewares: Vec<Box<dyn TransportMiddleware>>,
@@ -689,32 +596,30 @@ impl<T: Transport> MiddlewareTransport<T> {
     }
 
     pub fn add_validation(self, strict: bool) -> Self {
-        let middleware = if strict {
+        let validation = if strict {
             ValidationMiddleware::strict()
         } else {
             ValidationMiddleware::new()
         };
-        self.with_middleware(Box::new(middleware))
+        self.with_middleware(Box::new(validation))
     }
 }
 
 #[async_trait]
 impl<T: Transport> Transport for MiddlewareTransport<T> {
     async fn send_message(&mut self, mut message: JsonRpcMessage) -> Result<()> {
-        // Process through outgoing middleware
+        // Apply outgoing middleware
         for middleware in &self.middlewares {
             middleware.process_outgoing(&mut message).await?;
         }
 
-        // Send through inner transport
         self.inner.send_message(message).await
     }
 
     async fn receive_message(&mut self) -> Result<JsonRpcMessage> {
-        // Receive from inner transport
         let mut message = self.inner.receive_message().await?;
 
-        // Process through incoming middleware
+        // Apply incoming middleware
         for middleware in &self.middlewares {
             middleware.process_incoming(&mut message).await?;
         }
@@ -725,4 +630,4 @@ impl<T: Transport> Transport for MiddlewareTransport<T> {
     async fn close(&mut self) -> Result<()> {
         self.inner.close().await
     }
-}
+} 

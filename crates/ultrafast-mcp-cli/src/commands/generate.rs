@@ -43,7 +43,7 @@ async fn generate_tool(args: &GenerateArgs) -> Result<()> {
         .as_deref()
         .ok_or_else(|| anyhow::anyhow!("Tool name is required for tool generation"))?;
 
-    println!("🔧 Generating tool: {}", tool_name);
+    println!("🔧 Generating tool: {tool_name}");
 
     // Create tools directory if it doesn't exist
     std::fs::create_dir_all("src/tools").context("Failed to create src/tools directory")?;
@@ -63,56 +63,56 @@ async fn generate_tool(args: &GenerateArgs) -> Result<()> {
         .collect::<String>();
 
     let tool_template = format!(
-        r#"//! {} tool implementation
+        r#"//! {tool_name} tool implementation
 
 use serde::{{Deserialize, Serialize}};
 use ultrafast_mcp::prelude::*;
 
-/// Request structure for the {} tool
+/// Request structure for the {tool_name} tool
 #[derive(Debug, Deserialize)]
-pub struct {}Request {{
+pub struct {pascal_case_name}Request {{
     /// Input message for the tool
     pub message: String,
     /// Optional configuration parameters
-    pub options: Option<{}Options>,
+    pub options: Option<{pascal_case_name}Options>,
 }}
 
-/// Optional configuration for the {} tool
+/// Optional configuration for the {tool_name} tool
 #[derive(Debug, Deserialize)]
-pub struct {}Options {{
+pub struct {pascal_case_name}Options {{
     /// Enable verbose output
     pub verbose: Option<bool>,
     /// Custom formatting options
     pub format: Option<String>,
 }}
 
-/// Response structure for the {} tool
+/// Response structure for the {tool_name} tool
 #[derive(Debug, Serialize)]
-pub struct {}Response {{
+pub struct {pascal_case_name}Response {{
     /// The result of the tool execution
     pub result: String,
     /// Execution metadata
-    pub metadata: {}Metadata,
+    pub metadata: {pascal_case_name}Metadata,
 }}
 
 /// Metadata for tool execution
 #[derive(Debug, Serialize)]
-pub struct {}Metadata {{
+pub struct {pascal_case_name}Metadata {{
     /// Processing time in milliseconds
     pub processing_time_ms: u64,
     /// Number of operations performed
     pub operations_count: usize,
 }}
 
-/// Main handler function for the {} tool
-pub async fn {}(
-    req: {}Request,
+/// Main handler function for the {tool_name} tool
+pub async fn {snake_case_name}(
+    req: {pascal_case_name}Request,
     ctx: Context,
-) -> Result<{}Response, Box<dyn std::error::Error + Send + Sync>> {{
+) -> Result<{pascal_case_name}Response, Box<dyn std::error::Error + Send + Sync>> {{
     let start_time = std::time::Instant::now();
     
     // Log the incoming request
-    ctx.log_info(&format!("Processing {} request: {{}}", req.message)).await?;
+    ctx.log_info(&format!("Processing {tool_name} request: {{}}", req.message)).await?;
     
     // Process the request based on options
     let verbose = req.options.as_ref()
@@ -164,9 +164,9 @@ pub async fn {}(
     // Report progress
     ctx.progress("Tool execution completed", 1.0, Some(1.0)).await?;
     
-    Ok({}Response {{
+    Ok({pascal_case_name}Response {{
         result,
-        metadata: {}Metadata {{
+        metadata: {pascal_case_name}Metadata {{
             processing_time_ms: processing_time,
             operations_count: 1,
         }},
@@ -178,61 +178,37 @@ mod tests {{
     use super::*;
     
     #[tokio::test]
-    async fn test_{}_basic_functionality() {{
+    async fn test_{snake_case_name}_basic_functionality() {{
         let ctx = Context::new();
-        let request = {}Request {{
+        let request = {pascal_case_name}Request {{
             message: "test input".to_string(),
             options: None,
         }};
         
-        let response = {}(request, ctx).await.unwrap();
+        let response = {snake_case_name}(request, ctx).await.unwrap();
         assert_eq!(response.result, "Processed: test input");
         assert!(response.metadata.processing_time_ms >= 0);
     }}
     
     #[tokio::test]
-    async fn test_{}_with_options() {{
+    async fn test_{snake_case_name}_with_options() {{
         let ctx = Context::new();
-        let request = {}Request {{
+        let request = {pascal_case_name}Request {{
             message: "test input".to_string(),
-            options: Some({}Options {{
+            options: Some({pascal_case_name}Options {{
                 verbose: Some(true),
                 format: Some("json".to_string()),
             }}),
         }};
         
-        let response = {}(request, ctx).await.unwrap();
+        let response = {snake_case_name}(request, ctx).await.unwrap();
         assert!(response.result.contains("test input"));
     }}
 }}
-"#,
-        tool_name,
-        tool_name,
-        pascal_case_name,
-        pascal_case_name,
-        tool_name,
-        pascal_case_name,
-        tool_name,
-        pascal_case_name,
-        pascal_case_name,
-        pascal_case_name,
-        tool_name,
-        snake_case_name,
-        pascal_case_name,
-        pascal_case_name,
-        tool_name,
-        pascal_case_name,
-        pascal_case_name,
-        snake_case_name,
-        pascal_case_name,
-        snake_case_name,
-        snake_case_name,
-        pascal_case_name,
-        pascal_case_name,
-        snake_case_name
+"#
     );
 
-    let file_path = format!("src/tools/{}.rs", snake_case_name);
+    let file_path = format!("src/tools/{snake_case_name}.rs");
     std::fs::write(&file_path, tool_template).context("Failed to write tool file")?;
 
     // Update mod.rs to include the new tool
@@ -243,19 +219,16 @@ mod tests {{
         "//! Tools module\n\n".to_string()
     };
 
-    if !mod_content.contains(&format!("pub mod {};", snake_case_name)) {
-        let updated_mod_content = format!("{}pub mod {};\n", mod_content, snake_case_name);
+    if !mod_content.contains(&format!("pub mod {snake_case_name};")) {
+        let updated_mod_content = format!("{mod_content}pub mod {snake_case_name};\n");
         std::fs::write(mod_file_path, updated_mod_content)
             .context("Failed to update tools/mod.rs")?;
     }
 
-    println!("✅ Generated tool template at {}", file_path);
-    println!("📝 Updated {}", mod_file_path);
+    println!("✅ Generated tool template at {file_path}");
+    println!("📝 Updated {mod_file_path}");
     println!("\n🔧 To register this tool in your server, add:");
-    println!(
-        "   .tool(\"{}\", tools::{}::{});",
-        tool_name, snake_case_name, snake_case_name
-    );
+    println!("   .tool(\"{tool_name}\", tools::{snake_case_name}::{snake_case_name});");
 
     Ok(())
 }
@@ -266,7 +239,7 @@ async fn generate_resource(args: &GenerateArgs) -> Result<()> {
         .as_deref()
         .ok_or_else(|| anyhow::anyhow!("Resource name is required for resource generation"))?;
 
-    println!("📄 Generating resource: {}", resource_name);
+    println!("📄 Generating resource: {resource_name}");
 
     // Create resources directory if it doesn't exist
     std::fs::create_dir_all("src/resources").context("Failed to create src/resources directory")?;
@@ -291,18 +264,18 @@ use ultrafast_mcp_core::{{
     types::Uri,
 }};
 
-/// {} resource handler
-pub struct {}Resource {{
+/// {resource_name} resource handler
+pub struct {pascal_case_name}Resource {{
     base_uri: Uri,
 }}
 
-impl {}Resource {{
-    /// Create a new {} resource
+impl {pascal_case_name}Resource {{
+    /// Create a new {resource_name} resource
     pub fn new(base_uri: Uri) -> Self {{
         Self {{ base_uri }}
     }}
 
-    /// List all available {} resources
+    /// List all available {resource_name} resources
     pub async fn list_resources(&self) -> Result<Vec<Resource>> {{
         // Implement your resource listing logic here
         // This could scan directories, query databases, or fetch from APIs
@@ -328,7 +301,7 @@ impl {}Resource {{
                             resources.push(Resource {{
                                 uri,
                                 name: Some(name_str.to_string()),
-                                description: Some(format!("{} resource file", name_str)),
+                                description: Some(format!("{resource_name} resource file", name_str)),
                                 mime_type,
                             }});
                         }}
@@ -341,8 +314,8 @@ impl {}Resource {{
         if resources.is_empty() {{
             resources.push(Resource {{
                 uri: format!("{{}}/{{}}", self.base_uri, "example").parse()?,
-                name: Some("Example {}".to_string()),
-                description: Some("An example {} resource".to_string()),
+                name: Some("Example {resource_name}".to_string()),
+                description: Some("An example {resource_name} resource".to_string()),
                 mime_type: Some("text/plain".to_string()),
             }});
         }}
@@ -350,7 +323,7 @@ impl {}Resource {{
         Ok(resources)
     }}
 
-    /// Read a specific {} resource
+    /// Read a specific {resource_name} resource
     pub async fn read_resource(&self, uri: &Uri) -> Result<ResourceContents> {{
         // Implement your resource reading logic here
         // Parse the URI to determine what resource is being requested
@@ -361,7 +334,7 @@ impl {}Resource {{
                 ResourceContents::Text {{
                     uri: uri.clone(),
                     mime_type: Some("text/plain".to_string()),
-                    text: "This is an example {} resource.".to_string(),
+                    text: "This is an example {resource_name} resource.".to_string(),
                 }}
             }}
             _ => {{
@@ -427,14 +400,14 @@ impl {}Resource {{
         let templates = vec![
             ResourceTemplate {{
                 uri_template: format!("{{}}/{{}}", self.base_uri, "{{name}}"),
-                name: Some("Dynamic {} Resource".to_string()),
-                description: Some("A parameterized {} resource".to_string()),
+                name: Some("Dynamic {resource_name} Resource".to_string()),
+                description: Some("A parameterized {resource_name} resource".to_string()),
                 mime_type: Some("text/plain".to_string()),
             }},
             ResourceTemplate {{
                 uri_template: format!("{{}}/{{}}", self.base_uri, "{{type}}/{{id}}"),
-                name: Some("Typed {} Resource".to_string()),
-                description: Some("A typed {} resource with ID".to_string()),
+                name: Some("Typed {snake_case_name} Resource".to_string()),
+                description: Some("A typed {resource_name} resource with ID".to_string()),
                 mime_type: Some("application/json".to_string()),
             }},
         ];
@@ -448,35 +421,18 @@ mod tests {{
     use super::*;
 
     #[tokio::test]
-    async fn test_{}_resource() {{
-        let base_uri = "resource://{}".parse().unwrap();
-        let resource = {}Resource::new(base_uri);
+    async fn test_{pascal_case_name}_resource() {{
+        let base_uri = "resource://{resource_name}".parse().unwrap();
+        let resource = {pascal_case_name}Resource::new(base_uri);
         
         let resources = resource.list_resources().await.unwrap();
         assert!(!resources.is_empty());
     }}
 }}
-"#,
-        resource_name,
-        pascal_case_name,
-        pascal_case_name,
-        resource_name,
-        resource_name,
-        resource_name,
-        resource_name,
-        resource_name,
-        resource_name,
-        resource_name,
-        resource_name,
-        resource_name,
-        snake_case_name,
-        resource_name,
-        pascal_case_name,
-        resource_name,
-        pascal_case_name
+"#
     );
 
-    let resource_file = format!("src/resources/{}.rs", snake_case_name);
+    let resource_file = format!("src/resources/{snake_case_name}.rs");
     std::fs::write(&resource_file, resource_content).context("Failed to write resource file")?;
 
     // Update mod.rs file to include the new resource
@@ -487,19 +443,19 @@ mod tests {{
         String::new()
     };
 
-    if !mod_content.contains(&format!("pub mod {};", snake_case_name)) {
+    if !mod_content.contains(&format!("pub mod {snake_case_name};")) {
         let new_mod_content = if mod_content.is_empty() {
-            format!("pub mod {};\n", snake_case_name)
+            format!("pub mod {snake_case_name};\n")
         } else {
             format!("{}\npub mod {};\n", mod_content.trim(), snake_case_name)
         };
         std::fs::write(mod_file, new_mod_content).context("Failed to update resources/mod.rs")?;
     }
 
-    println!("✅ Generated resource: {}", resource_file);
-    println!("✅ Updated: {}", mod_file);
+    println!("✅ Generated resource: {resource_file}");
+    println!("✅ Updated: {mod_file}");
     println!("\n💡 Next steps:");
-    println!("   1. Implement the TODO sections in {}", resource_file);
+    println!("   1. Implement the TODO sections in {resource_file}");
     println!("   2. Register the resource in your server");
     println!("   3. Add any required dependencies to Cargo.toml");
 
@@ -517,7 +473,7 @@ async fn generate_client(args: &GenerateArgs) -> Result<()> {
         .as_deref()
         .unwrap_or_else(|| std::path::Path::new("."));
 
-    println!("👤 Generating client: {}", client_name);
+    println!("👤 Generating client: {client_name}");
 
     let project_dir = output_dir.join(client_name);
     std::fs::create_dir_all(&project_dir).context("Failed to create project directory")?;
@@ -527,7 +483,7 @@ async fn generate_client(args: &GenerateArgs) -> Result<()> {
     // Generate Cargo.toml
     let cargo_toml = format!(
         r#"[package]
-name = "{}"
+name = "{client_name}"
 version = "0.1.0"
 edition = "2021"
 
@@ -541,8 +497,7 @@ serde = {{ version = "1.0", features = ["derive"] }}
 serde_json = "1.0"
 clap = {{ version = "4.0", features = ["derive"] }}
 colored = "2.0"
-"#,
-        client_name
+"#
     );
 
     std::fs::write(project_dir.join("Cargo.toml"), cargo_toml)
@@ -558,7 +513,7 @@ use ultrafast_mcp_core::protocol::{{CallToolRequest, ListToolsRequest, Tool}};
 use ultrafast_mcp_transport::{{stdio::StdioTransport, streamable_http::server::HttpTransportServer}};
 
 #[derive(Parser)]
-#[command(name = "{}", about = "A custom MCP client")]
+#[command(name = "{client_name}", about = "A custom MCP client")]
 struct Cli {{
     #[command(subcommand)]
     command: Commands,
@@ -641,7 +596,7 @@ async fn connect_stdio(command: &str, args: &[String]) -> Result<()> {{
     println!("✅ Connected to server");
     
     // Initialize the connection
-    client.initialize("{}".to_string(), "0.1.0".to_string()).await?;
+    client.initialize("{client_name}".to_string(), "0.1.0".to_string()).await?;
     
     println!("🎉 Client initialized successfully");
     
@@ -660,7 +615,7 @@ async fn connect_http(url: &str) -> Result<()> {{
     println!("✅ Connected to server at {{}}", url);
     
     // Initialize the connection
-    client.initialize("{}".to_string(), "0.1.0".to_string()).await?;
+    client.initialize("{client_name}".to_string(), "0.1.0".to_string()).await?;
     
     println!("🎉 Client initialized successfully");
     
@@ -742,7 +697,7 @@ async fn create_client(transport: &str, endpoint: &str) -> Result<ultrafast_mcp_
                 .build()
                 .await?;
                 
-            client.initialize("{}".to_string(), "0.1.0".to_string()).await?;
+            client.initialize("{client_name}".to_string(), "0.1.0".to_string()).await?;
             Ok(client)
         }}
         "http" => {{
@@ -752,14 +707,13 @@ async fn create_client(transport: &str, endpoint: &str) -> Result<ultrafast_mcp_
                 .build()
                 .await?;
                 
-            client.initialize("{}".to_string(), "0.1.0".to_string()).await?;
+            client.initialize("{client_name}".to_string(), "0.1.0".to_string()).await?;
             Ok(client)
         }}
         _ => anyhow::bail!("Unsupported transport type: {{}}", transport),
     }}
 }}
-"#,
-        client_name, client_name, client_name, client_name, client_name
+"#
     );
 
     std::fs::create_dir_all(project_dir.join("src"))?;
@@ -767,7 +721,7 @@ async fn create_client(transport: &str, endpoint: &str) -> Result<ultrafast_mcp_
 
     // Generate README.md
     let readme = format!(
-        r#"# {}
+        r#"# {client_name}
 
 A custom MCP (Model Context Protocol) client built with Ultrafast MCP.
 
@@ -819,8 +773,7 @@ RUST_LOG=debug cargo run -- [command]
 ## Examples
 
 See the main MCP workspace examples for server implementations to test with.
-"#,
-        client_name
+"#
     );
 
     std::fs::write(project_dir.join("README.md"), readme).context("Failed to write README.md")?;
@@ -831,7 +784,7 @@ See the main MCP workspace examples for server implementations to test with.
     println!("   📄 src/main.rs");
     println!("   📄 README.md");
     println!("\n💡 Next steps:");
-    println!("   1. cd {}", client_name);
+    println!("   1. cd {client_name}");
     println!("   2. cargo build");
     println!("   3. cargo run -- --help");
 
@@ -841,7 +794,7 @@ See the main MCP workspace examples for server implementations to test with.
 async fn generate_server(args: &GenerateArgs) -> Result<()> {
     let server_name = args.name.as_deref().unwrap_or("mcp-server");
 
-    println!("🖥️ Generating server: {}", server_name);
+    println!("🖥️ Generating server: {server_name}");
 
     // Create project directory
     std::fs::create_dir_all(server_name).context("Failed to create server directory")?;
@@ -851,7 +804,7 @@ async fn generate_server(args: &GenerateArgs) -> Result<()> {
     // Generate Cargo.toml
     let cargo_toml = format!(
         r#"[package]
-name = "{}"
+name = "{server_name}"
 version = "0.1.0"
 edition = "2021"
 
@@ -865,26 +818,25 @@ tracing = "0.1"
 tracing-subscriber = "0.3"
 
 [lib]
-name = "{}"
+name = "{snake_case_name}"
 path = "src/lib.rs"
 
 [[bin]]
-name = "{}"
+name = "{server_name}"
 path = "src/main.rs"
-"#,
-        server_name, snake_case_name, server_name
+"#
     );
 
-    std::fs::write(format!("{}/Cargo.toml", server_name), cargo_toml)
+    std::fs::write(format!("{server_name}/Cargo.toml"), cargo_toml)
         .context("Failed to write Cargo.toml")?;
 
     // Create src directory
-    std::fs::create_dir_all(format!("{}/src", server_name))
+    std::fs::create_dir_all(format!("{server_name}/src"))
         .context("Failed to create src directory")?;
 
     // Generate main.rs
     let main_rs = format!(
-        r#"//! {} MCP Server
+        r#"//! {server_name} MCP Server
 //! 
 //! A Model Context Protocol server implementation.
 
@@ -901,10 +853,10 @@ async fn main() -> Result<()> {{
         .with_env_filter("info")
         .init();
 
-    info!("Starting {} MCP Server");
+    info!("Starting {server_name} MCP Server");
 
     // Create the server
-    let server = UltraFastServer::new("{}")
+    let server = UltraFastServer::new("{server_name}")
         .tool("echo", tools::echo::echo)
         .tool("info", tools::info::info)
         .resource("status", tools::resources::status)
@@ -922,31 +874,29 @@ async fn main() -> Result<()> {{
         }}
     }}
 }}
-"#,
-        server_name, server_name, server_name
+"#
     );
 
-    std::fs::write(format!("{}/src/main.rs", server_name), main_rs)
+    std::fs::write(format!("{server_name}/src/main.rs"), main_rs)
         .context("Failed to write main.rs")?;
 
     // Generate lib.rs
     let lib_rs = format!(
-        r#"//! {} Library
+        r#"//! {server_name} Library
 //! 
-//! Core functionality for the {} MCP server.
+//! Core functionality for the {server_name} MCP server.
 
 pub mod tools;
 
 pub use tools::*;
-"#,
-        server_name, server_name
+"#
     );
 
-    std::fs::write(format!("{}/src/lib.rs", server_name), lib_rs)
+    std::fs::write(format!("{server_name}/src/lib.rs"), lib_rs)
         .context("Failed to write lib.rs")?;
 
     // Create tools directory and files
-    std::fs::create_dir_all(format!("{}/src/tools", server_name))
+    std::fs::create_dir_all(format!("{server_name}/src/tools"))
         .context("Failed to create tools directory")?;
 
     // Generate tools/mod.rs
@@ -957,7 +907,7 @@ pub mod info;
 pub mod resources;
 "#;
 
-    std::fs::write(format!("{}/src/tools/mod.rs", server_name), tools_mod_rs)
+    std::fs::write(format!("{server_name}/src/tools/mod.rs"), tools_mod_rs)
         .context("Failed to write tools/mod.rs")?;
 
     // Generate echo tool
@@ -990,7 +940,7 @@ pub async fn echo(
 }
 "#;
 
-    std::fs::write(format!("{}/src/tools/echo.rs", server_name), echo_tool)
+    std::fs::write(format!("{server_name}/src/tools/echo.rs"), echo_tool)
         .context("Failed to write echo tool")?;
 
     // Generate info tool
@@ -1029,7 +979,7 @@ pub async fn info(
 }
 "#;
 
-    std::fs::write(format!("{}/src/tools/info.rs", server_name), info_tool)
+    std::fs::write(format!("{server_name}/src/tools/info.rs"), info_tool)
         .context("Failed to write info tool")?;
 
     // Generate resources module
@@ -1060,14 +1010,14 @@ pub async fn status(
 "#;
 
     std::fs::write(
-        format!("{}/src/tools/resources.rs", server_name),
+        format!("{server_name}/src/tools/resources.rs"),
         resources_rs,
     )
     .context("Failed to write resources module")?;
 
     // Generate README.md
     let readme = format!(
-        r#"# {} MCP Server
+        r#"# {server_name} MCP Server
 
 A Model Context Protocol (MCP) server built with ULTRAFAST MCP.
 
@@ -1131,14 +1081,13 @@ echo '{{"method": "tools/call", "params": {{"name": "info", "arguments": {{}}}}}
 ## License
 
 This project is licensed under the MIT License.
-"#,
-        server_name
+"#
     );
 
-    std::fs::write(format!("{}/README.md", server_name), readme)
+    std::fs::write(format!("{server_name}/README.md"), readme)
         .context("Failed to write README.md")?;
 
-    println!("✅ Generated MCP server project at {}/", server_name);
+    println!("✅ Generated MCP server project at {server_name}/");
     println!("📁 Project structure:");
     println!("   ├── Cargo.toml");
     println!("   ├── README.md");
@@ -1151,7 +1100,7 @@ This project is licensed under the MIT License.
     println!("           ├── info.rs");
     println!("           └── resources.rs");
     println!("\n🚀 To get started:");
-    println!("   cd {}", server_name);
+    println!("   cd {server_name}");
     println!("   cargo run");
 
     Ok(())

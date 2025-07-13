@@ -267,7 +267,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Test file operations
     let test_dir = "/tmp/mcp_test";
-    let test_file = format!("{}/test.txt", test_dir);
+    let test_file = format!("{test_dir}/test.txt");
 
     // First, check allowed directories
     info!("Checking allowed directories");
@@ -463,7 +463,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 for entry in response.entries {
                     let size_str = entry
                         .size
-                        .map(|s| format!("{} bytes", s))
+                        .map(|s| format!("{s} bytes"))
                         .unwrap_or_else(|| "N/A".to_string());
                     println!("  {} ({}) - {}", entry.name, entry.entry_type, size_str);
                 }
@@ -539,7 +539,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     response.path
                 );
                 for result_path in response.results {
-                    println!("  {}", result_path);
+                    println!("  {result_path}");
                 }
             }
             _ => {
@@ -573,7 +573,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let response: EditFileResponse = serde_json::from_str(&text)?;
                 println!("File edited: {} ({})", response.path, response.message);
                 if let Some(diff) = response.diff {
-                    println!("Diff: {}", diff);
+                    println!("Diff: {diff}");
                 }
             }
             _ => {
@@ -611,7 +611,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // Move the file
-    let moved_file = format!("{}/moved_test.txt", test_dir);
+    let moved_file = format!("{test_dir}/moved_test.txt");
     let move_request = MoveFileRequest {
         source: test_file.clone(),
         destination: moved_file.clone(),

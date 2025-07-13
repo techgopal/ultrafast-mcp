@@ -2,8 +2,8 @@
 //!
 //! This module contains the main server implementation with all the core functionality.
 
-use std::{collections::HashMap, sync::Arc};
-use tokio::sync::{broadcast, RwLock};
+use std::{borrow::Cow, collections::HashMap, sync::Arc};
+use tokio::sync::{RwLock, broadcast};
 use tracing::{error, info, warn};
 
 use ultrafast_mcp_core::{
@@ -17,7 +17,7 @@ use ultrafast_mcp_core::{
     types::{
         notifications::{LogLevel, LogLevelSetRequest, LogLevelSetResponse},
         prompts::Prompt,
-        resources::{Resource, ResourceTemplate, SubscribeResponse},
+        resources::{Resource, SubscribeResponse},
         roots::{RootsListChangedNotification, SetRootsRequest, SetRootsResponse},
         server::ServerInfo,
         tools::Tool,
@@ -26,7 +26,7 @@ use ultrafast_mcp_core::{
 };
 #[cfg(feature = "http")]
 use ultrafast_mcp_transport::streamable_http::server::{HttpTransportConfig, HttpTransportServer};
-use ultrafast_mcp_transport::{create_transport, Transport, TransportConfig};
+use ultrafast_mcp_transport::{Transport, TransportConfig, create_transport};
 
 use crate::context::{Context, LoggerConfig};
 use crate::handlers::*;
@@ -106,11 +106,7 @@ pub struct UltraFastServer {
     capabilities: ServerCapabilities,
     state: Arc<RwLock<ServerState>>,
     tools: Arc<RwLock<HashMap<String, Tool>>>,
-    #[allow(dead_code)]
     resources: Arc<RwLock<HashMap<String, Resource>>>,
-    #[allow(dead_code)]
-    resource_templates: Arc<RwLock<HashMap<String, ResourceTemplate>>>,
-    #[allow(dead_code)]
     prompts: Arc<RwLock<HashMap<String, Prompt>>>,
     tool_handler: Option<Arc<dyn ToolHandler>>,
     resource_handler: Option<Arc<dyn ResourceHandler>>,
@@ -128,15 +124,10 @@ pub struct UltraFastServer {
     logging_config: Arc<RwLock<ServerLoggingConfig>>,
 
     #[cfg(feature = "monitoring")]
-    #[allow(dead_code)]
     monitoring_system: Option<Arc<crate::MonitoringSystem>>,
 
     // Advanced handlers
     advanced_sampling_handler: Option<Arc<dyn AdvancedSamplingHandler>>,
-
-    // Monitoring
-    #[allow(dead_code)]
-    monitoring_enabled: bool,
 
     // Timeout configuration (MCP 2025-06-18 compliance)
     timeout_config: Arc<TimeoutConfig>,
@@ -161,7 +152,6 @@ impl UltraFastServer {
             state: Arc::new(RwLock::new(ServerState::Uninitialized)),
             tools: Arc::new(RwLock::new(HashMap::new())),
             resources: Arc::new(RwLock::new(HashMap::new())),
-            resource_templates: Arc::new(RwLock::new(HashMap::new())),
             prompts: Arc::new(RwLock::new(HashMap::new())),
             tool_handler: None,
             resource_handler: None,
@@ -181,9 +171,6 @@ impl UltraFastServer {
 
             // Advanced handlers
             advanced_sampling_handler: None,
-
-            // Monitoring
-            monitoring_enabled: false,
 
             // Timeout configuration (MCP 2025-06-18 compliance)
             timeout_config: Arc::new(TimeoutConfig::default()),
@@ -339,7 +326,9 @@ impl UltraFastServer {
     }
     #[cfg(not(feature = "monitoring"))]
     pub fn with_health_checks(self) -> Self {
-        warn!("Health checks require monitoring feature. Add 'monitoring' feature to enable health checks.");
+        warn!(
+            "Health checks require monitoring feature. Add 'monitoring' feature to enable health checks."
+        );
         self
     }
 
@@ -401,7 +390,9 @@ impl UltraFastServer {
     }
     #[cfg(not(feature = "monitoring"))]
     pub fn with_full_monitoring(self) -> Self {
-        warn!("Full monitoring requires monitoring feature. Add 'monitoring' feature to enable all monitoring features.");
+        warn!(
+            "Full monitoring requires monitoring feature. Add 'monitoring' feature to enable all monitoring features."
+        );
         self
     }
 
@@ -432,7 +423,9 @@ impl UltraFastServer {
 
     /// Enable Bearer token authentication (feature removed)
     pub fn with_bearer_auth(self, _secret: String, _required_scopes: Vec<String>) -> Self {
-        warn!("Bearer authentication feature has been removed. Use ultrafast-mcp-auth crate directly.");
+        warn!(
+            "Bearer authentication feature has been removed. Use ultrafast-mcp-auth crate directly."
+        );
         self
     }
 
@@ -526,16 +519,14 @@ impl UltraFastServer {
         // Validate tool schema
         if let Err(e) = validate_tool_schema(&tool.input_schema) {
             return Err(ToolRegistrationError::InvalidSchema(format!(
-                "Input schema: {}",
-                e
+                "Input schema: {e}"
             )));
         }
 
         if let Some(output_schema) = &tool.output_schema {
             if let Err(e) = validate_tool_schema(output_schema) {
                 return Err(ToolRegistrationError::InvalidSchema(format!(
-                    "Output schema: {}",
-                    e
+                    "Output schema: {e}"
                 )));
             }
         } else {
@@ -636,14 +627,13 @@ impl UltraFastServer {
         arguments: &serde_json::Value,
     ) -> Result<(), MCPError> {
         let tool = self.get_tool(tool_name).await;
-        let tool = tool
-            .ok_or_else(|| MCPError::invalid_request(format!("Tool '{}' not found", tool_name)))?;
+        let tool =
+            tool.ok_or_else(|| MCPError::invalid_request(format!("Tool '{tool_name}' not found")))?;
 
         ultrafast_mcp_core::schema::validation::validate_tool_input(arguments, &tool.input_schema)
             .map_err(|e| {
                 MCPError::invalid_request(format!(
-                    "Tool '{}' input validation failed: {}",
-                    tool_name, e
+                    "Tool '{tool_name}' input validation failed: {e}"
                 ))
             })?;
 
@@ -675,7 +665,7 @@ impl UltraFastServer {
         tool_handler
             .handle_tool_call(tool_call)
             .await
-            .map_err(|e| MCPError::internal_error(format!("Tool execution failed: {}", e)))
+            .map_err(|e| MCPError::internal_error(format!("Tool execution failed: {e}")))
     }
 
     /// Add a tool handler to the server
@@ -745,7 +735,7 @@ impl UltraFastServer {
     pub async fn run_stdio(&self) -> MCPResult<()> {
         let transport = create_transport(TransportConfig::Stdio)
             .await
-            .map_err(|e| MCPError::internal_error(format!("Transport creation failed: {}", e)))?;
+            .map_err(|e| MCPError::internal_error(format!("Transport creation failed: {e}")))?;
         self.run_with_transport(transport).await
     }
 
@@ -813,7 +803,7 @@ impl UltraFastServer {
         transport_server
             .run()
             .await
-            .map_err(|e| MCPError::internal_error(format!("HTTP server failed: {}", e)))
+            .map_err(|e| MCPError::internal_error(format!("HTTP server failed: {e}")))
     }
 
     /// Run the server with custom Streamable HTTP transport configuration
@@ -1211,10 +1201,7 @@ impl UltraFastServer {
                                 .send_message(JsonRpcMessage::Response(response))
                                 .await
                                 .map_err(|e| {
-                                    MCPError::internal_error(format!(
-                                        "Failed to send message: {}",
-                                        e
-                                    ))
+                                    MCPError::internal_error(format!("Failed to send message: {e}"))
                                 })?;
                         }
                         Err(_) => {
@@ -1228,8 +1215,7 @@ impl UltraFastServer {
                                 .await
                                 .map_err(|e| {
                                     MCPError::internal_error(format!(
-                                        "Failed to send timeout error: {}",
-                                        e
+                                        "Failed to send timeout error: {e}"
                                     ))
                                 })?;
 
@@ -1273,7 +1259,7 @@ impl UltraFastServer {
                         Ok(response) => match serde_json::to_value(response) {
                             Ok(value) => JsonRpcResponse::success(value, request.id),
                             Err(e) => JsonRpcResponse::error(
-                                JsonRpcError::new(-32603, format!("Serialization error: {}", e)),
+                                JsonRpcError::new(-32603, format!("Serialization error: {e}")),
                                 request.id,
                             ),
                         },
@@ -1284,8 +1270,7 @@ impl UltraFastServer {
                     },
                     Err(e) => JsonRpcResponse::error(
                         JsonRpcError::invalid_params(Some(format!(
-                            "Invalid initialize request: {}",
-                            e
+                            "Invalid initialize request: {e}"
                         ))),
                         request.id,
                     ),
@@ -1335,7 +1320,7 @@ impl UltraFastServer {
                                     Err(e) => JsonRpcResponse::error(
                                         JsonRpcError::new(
                                             -32603,
-                                            format!("Serialization error: {}", e),
+                                            format!("Serialization error: {e}"),
                                         ),
                                         request.id,
                                     ),
@@ -1346,7 +1331,7 @@ impl UltraFastServer {
                                     Err(e) => JsonRpcResponse::error(
                                         JsonRpcError::new(
                                             -32603,
-                                            format!("Serialization error: {}", e),
+                                            format!("Serialization error: {e}"),
                                         ),
                                         request.id,
                                     ),
@@ -1354,7 +1339,7 @@ impl UltraFastServer {
                             }
                         }
                         Err(e) => JsonRpcResponse::error(
-                            JsonRpcError::new(-32603, format!("Tools list failed: {}", e)),
+                            JsonRpcError::new(-32603, format!("Tools list failed: {e}")),
                             request.id,
                         ),
                     }
@@ -1368,7 +1353,7 @@ impl UltraFastServer {
                     match serde_json::to_value(response) {
                         Ok(value) => JsonRpcResponse::success(value, request.id),
                         Err(e) => JsonRpcResponse::error(
-                            JsonRpcError::new(-32603, format!("Serialization error: {}", e)),
+                            JsonRpcError::new(-32603, format!("Serialization error: {e}")),
                             request.id,
                         ),
                     }
@@ -1412,10 +1397,7 @@ impl UltraFastServer {
                             Ok(result) => match serde_json::to_value(result) {
                                 Ok(value) => JsonRpcResponse::success(value, request.id),
                                 Err(e) => JsonRpcResponse::error(
-                                    JsonRpcError::new(
-                                        -32603,
-                                        format!("Serialization error: {}", e),
-                                    ),
+                                    JsonRpcError::new(-32603, format!("Serialization error: {e}")),
                                     request.id,
                                 ),
                             },
@@ -1424,9 +1406,9 @@ impl UltraFastServer {
                                 let (code, msg) = match &e {
                                     MCPError::Protocol(ProtocolError::InvalidParams(_))
                                     | MCPError::Protocol(ProtocolError::NotFound(_)) => {
-                                        (-32602, format!("Tool call failed: {}", e))
+                                        (-32602, format!("Tool call failed: {e}"))
                                     }
-                                    _ => (-32603, format!("Tool call failed: {}", e)),
+                                    _ => (-32603, format!("Tool call failed: {e}")),
                                 };
                                 JsonRpcResponse::error(JsonRpcError::new(code, msg), request.id)
                             }
@@ -1437,7 +1419,7 @@ impl UltraFastServer {
                             return JsonRpcResponse::error(
                                 JsonRpcError::new(
                                     -32602,
-                                    format!("Tool call failed: Tool not found: {}", tool_name),
+                                    format!("Tool call failed: Tool not found: {tool_name}"),
                                 ),
                                 request.id,
                             );
@@ -1447,10 +1429,7 @@ impl UltraFastServer {
                             Ok(result) => match serde_json::to_value(result) {
                                 Ok(value) => JsonRpcResponse::success(value, request.id),
                                 Err(e) => JsonRpcResponse::error(
-                                    JsonRpcError::new(
-                                        -32603,
-                                        format!("Serialization error: {}", e),
-                                    ),
+                                    JsonRpcError::new(-32603, format!("Serialization error: {e}")),
                                     request.id,
                                 ),
                             },
@@ -1459,9 +1438,9 @@ impl UltraFastServer {
                                 let (code, msg) = match &e {
                                     MCPError::Protocol(ProtocolError::InvalidParams(_))
                                     | MCPError::Protocol(ProtocolError::NotFound(_)) => {
-                                        (-32602, format!("Tool call failed: {}", e))
+                                        (-32602, format!("Tool call failed: {e}"))
                                     }
-                                    _ => (-32603, format!("Tool call failed: {}", e)),
+                                    _ => (-32603, format!("Tool call failed: {e}")),
                                 };
                                 JsonRpcResponse::error(JsonRpcError::new(code, msg), request.id)
                             }
@@ -1497,12 +1476,12 @@ impl UltraFastServer {
                         Ok(response) => match serde_json::to_value(response) {
                             Ok(value) => JsonRpcResponse::success(value, request.id),
                             Err(e) => JsonRpcResponse::error(
-                                JsonRpcError::new(-32603, format!("Serialization error: {}", e)),
+                                JsonRpcError::new(-32603, format!("Serialization error: {e}")),
                                 request.id,
                             ),
                         },
                         Err(e) => JsonRpcResponse::error(
-                            JsonRpcError::new(-32603, format!("Resources list failed: {}", e)),
+                            JsonRpcError::new(-32603, format!("Resources list failed: {e}")),
                             request.id,
                         ),
                     }
@@ -1539,7 +1518,7 @@ impl UltraFastServer {
                                     return JsonRpcResponse::error(
                                         JsonRpcError::new(
                                             -32603,
-                                            format!("Root validation failed: {}", e),
+                                            format!("Root validation failed: {e}"),
                                         ),
                                         request.id,
                                     );
@@ -1547,10 +1526,7 @@ impl UltraFastServer {
                             }
                             Err(e) => {
                                 return JsonRpcResponse::error(
-                                    JsonRpcError::new(
-                                        -32603,
-                                        format!("Failed to get roots: {}", e),
-                                    ),
+                                    JsonRpcError::new(-32603, format!("Failed to get roots: {e}")),
                                     request.id,
                                 );
                             }
@@ -1561,12 +1537,12 @@ impl UltraFastServer {
                         Ok(response) => match serde_json::to_value(response) {
                             Ok(value) => JsonRpcResponse::success(value, request.id),
                             Err(e) => JsonRpcResponse::error(
-                                JsonRpcError::new(-32603, format!("Serialization error: {}", e)),
+                                JsonRpcError::new(-32603, format!("Serialization error: {e}")),
                                 request.id,
                             ),
                         },
                         Err(e) => JsonRpcResponse::error(
-                            JsonRpcError::new(-32603, format!("Resource read failed: {}", e)),
+                            JsonRpcError::new(-32603, format!("Resource read failed: {e}")),
                             request.id,
                         ),
                     }
@@ -1597,7 +1573,7 @@ impl UltraFastServer {
                         Err(e) => JsonRpcResponse::error(
                             JsonRpcError::new(
                                 -32603,
-                                format!("Resource templates list failed: {}", e),
+                                format!("Resource templates list failed: {e}"),
                             ),
                             request.id,
                         ),
@@ -1635,7 +1611,7 @@ impl UltraFastServer {
                                     return JsonRpcResponse::error(
                                         JsonRpcError::new(
                                             -32603,
-                                            format!("Root validation failed: {}", e),
+                                            format!("Root validation failed: {e}"),
                                         ),
                                         request.id,
                                     );
@@ -1643,10 +1619,7 @@ impl UltraFastServer {
                             }
                             Err(e) => {
                                 return JsonRpcResponse::error(
-                                    JsonRpcError::new(
-                                        -32603,
-                                        format!("Failed to get roots: {}", e),
-                                    ),
+                                    JsonRpcError::new(-32603, format!("Failed to get roots: {e}")),
                                     request.id,
                                 );
                             }
@@ -1666,7 +1639,7 @@ impl UltraFastServer {
                             )
                         }
                         Err(e) => JsonRpcResponse::error(
-                            JsonRpcError::new(-32603, format!("Resource subscribe failed: {}", e)),
+                            JsonRpcError::new(-32603, format!("Resource subscribe failed: {e}")),
                             request.id,
                         ),
                     }
@@ -1695,10 +1668,7 @@ impl UltraFastServer {
                     match handler.unsubscribe(unsubscribe_request.uri).await {
                         Ok(_) => JsonRpcResponse::success(serde_json::Value::Null, request.id),
                         Err(e) => JsonRpcResponse::error(
-                            JsonRpcError::new(
-                                -32603,
-                                format!("Resource unsubscribe failed: {}", e),
-                            ),
+                            JsonRpcError::new(-32603, format!("Resource unsubscribe failed: {e}")),
                             request.id,
                         ),
                     }
@@ -1731,7 +1701,7 @@ impl UltraFastServer {
                             request.id,
                         ),
                         Err(e) => JsonRpcResponse::error(
-                            JsonRpcError::new(-32603, format!("Prompts list failed: {}", e)),
+                            JsonRpcError::new(-32603, format!("Prompts list failed: {e}")),
                             request.id,
                         ),
                     }
@@ -1759,7 +1729,7 @@ impl UltraFastServer {
                             request.id,
                         ),
                         Err(e) => JsonRpcResponse::error(
-                            JsonRpcError::new(-32603, format!("Prompt get failed: {}", e)),
+                            JsonRpcError::new(-32603, format!("Prompt get failed: {e}")),
                             request.id,
                         ),
                     }
@@ -1789,7 +1759,7 @@ impl UltraFastServer {
                             request.id,
                         ),
                         Err(e) => JsonRpcResponse::error(
-                            JsonRpcError::new(-32603, format!("Completion failed: {}", e)),
+                            JsonRpcError::new(-32603, format!("Completion failed: {e}")),
                             request.id,
                         ),
                     }
@@ -1820,7 +1790,7 @@ impl UltraFastServer {
                             request.id,
                         ),
                         Err(e) => JsonRpcResponse::error(
-                            JsonRpcError::new(-32603, format!("Message creation failed: {}", e)),
+                            JsonRpcError::new(-32603, format!("Message creation failed: {e}")),
                             request.id,
                         ),
                     }
@@ -1848,7 +1818,7 @@ impl UltraFastServer {
                             request.id,
                         ),
                         Err(e) => JsonRpcResponse::error(
-                            JsonRpcError::new(-32603, format!("Roots list failed: {}", e)),
+                            JsonRpcError::new(-32603, format!("Roots list failed: {e}")),
                             request.id,
                         ),
                     }
@@ -1879,7 +1849,7 @@ impl UltraFastServer {
                             request.id,
                         ),
                         Err(e) => JsonRpcResponse::error(
-                            JsonRpcError::new(-32603, format!("Elicitation failed: {}", e)),
+                            JsonRpcError::new(-32603, format!("Elicitation failed: {e}")),
                             request.id,
                         ),
                     }
@@ -1907,10 +1877,7 @@ impl UltraFastServer {
                     Ok(response) => response,
                     Err(e) => {
                         return JsonRpcResponse::error(
-                            JsonRpcError::new(
-                                -32602,
-                                format!("Invalid elicitation response: {}", e),
-                            ),
+                            JsonRpcError::new(-32602, format!("Invalid elicitation response: {e}")),
                             request.id,
                         );
                     }
@@ -1949,12 +1916,12 @@ impl UltraFastServer {
                             )
                         }
                         Err(e) => JsonRpcResponse::error(
-                            JsonRpcError::new(-32603, format!("Failed to set log level: {}", e)),
+                            JsonRpcError::new(-32603, format!("Failed to set log level: {e}")),
                             request.id,
                         ),
                     },
                     Err(e) => JsonRpcResponse::error(
-                        JsonRpcError::new(-32602, format!("Invalid log level set request: {}", e)),
+                        JsonRpcError::new(-32602, format!("Invalid log level set request: {e}")),
                         request.id,
                     ),
                 }
@@ -1976,7 +1943,7 @@ impl UltraFastServer {
                         request.id,
                     ),
                     Err(e) => JsonRpcResponse::error(
-                        JsonRpcError::new(-32603, format!("Ping failed: {}", e)),
+                        JsonRpcError::new(-32603, format!("Ping failed: {e}")),
                         request.id,
                     ),
                 }
@@ -2010,7 +1977,7 @@ impl UltraFastServer {
                         )
                     }
                     Err(e) => JsonRpcResponse::error(
-                        JsonRpcError::new(-32602, format!("Invalid roots set request: {}", e)),
+                        JsonRpcError::new(-32602, format!("Invalid roots set request: {e}")),
                         request.id,
                     ),
                 }
@@ -2207,7 +2174,7 @@ impl UltraFastServer {
         transport: &mut Box<dyn Transport>,
     ) -> MCPResult<()> {
         let notification = JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: None, // Notifications have no ID
             method: method.to_string(),
             params,
@@ -2217,7 +2184,7 @@ impl UltraFastServer {
         transport
             .send_message(JsonRpcMessage::Request(notification))
             .await
-            .map_err(|e| MCPError::internal_error(format!("Failed to send notification: {}", e)))?;
+            .map_err(|e| MCPError::internal_error(format!("Failed to send notification: {e}")))?;
 
         info!("Sent notification: {}", method);
         Ok(())
@@ -2692,7 +2659,7 @@ mod tests {
 
         // Create tools/list request
         let request = JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: Some(ultrafast_mcp_core::protocol::jsonrpc::RequestId::string(
                 "test-id",
             )),
@@ -2735,7 +2702,7 @@ mod tests {
 
         // Create tools/call request
         let request = JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: Some(ultrafast_mcp_core::protocol::jsonrpc::RequestId::string(
                 "test-id",
             )),
@@ -2778,7 +2745,7 @@ mod tests {
 
         // Create tools/call request without parameters
         let request = JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: Some(ultrafast_mcp_core::protocol::jsonrpc::RequestId::string(
                 "test-id",
             )),
@@ -2810,7 +2777,7 @@ mod tests {
 
         // Create tools/call request without tool name
         let request = JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: Some(ultrafast_mcp_core::protocol::jsonrpc::RequestId::string(
                 "test-id",
             )),
@@ -2846,7 +2813,7 @@ mod tests {
 
         // Create tools/call request for non-existent tool
         let request = JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: Some(ultrafast_mcp_core::protocol::jsonrpc::RequestId::string(
                 "test-id",
             )),
@@ -2888,7 +2855,7 @@ mod tests {
 
         // Create tools/call request with invalid arguments
         let request = JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: Some(ultrafast_mcp_core::protocol::jsonrpc::RequestId::string(
                 "test-id",
             )),
@@ -2929,7 +2896,7 @@ mod tests {
 
         // Create tools/call request with empty arguments
         let request = JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: Some(ultrafast_mcp_core::protocol::jsonrpc::RequestId::string(
                 "test-id",
             )),
@@ -2952,7 +2919,7 @@ mod tests {
                 ))
             );
             assert_eq!(error.code, -32602); // Invalid params
-                                            // The actual error message format has changed to include more context
+            // The actual error message format has changed to include more context
             assert!(error.message.contains("Invalid parameters"));
         } else {
             panic!("Expected error response");
@@ -2965,7 +2932,7 @@ mod tests {
 
         // Create request for unknown method
         let request = JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: Some(ultrafast_mcp_core::protocol::jsonrpc::RequestId::string(
                 "test-id",
             )),
@@ -3005,7 +2972,7 @@ mod tests {
 
         // Step 2: List tools via JSON-RPC
         let list_request = JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: Some(ultrafast_mcp_core::protocol::jsonrpc::RequestId::string(
                 "list-id",
             )),
@@ -3030,7 +2997,7 @@ mod tests {
 
         // Step 3: Call a tool via JSON-RPC
         let call_request = JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: Some(ultrafast_mcp_core::protocol::jsonrpc::RequestId::string(
                 "call-id",
             )),
@@ -3052,7 +3019,10 @@ mod tests {
                     "call-id"
                 ))
             );
-            let content = result.get("content").and_then(|c| c.as_array()).unwrap();
+            let content = result
+                .get("content")
+                .and_then(|c| c.as_array())
+                .expect("Expected content array");
             assert_eq!(content.len(), 1);
         } else {
             panic!("Expected success response for tools/call");

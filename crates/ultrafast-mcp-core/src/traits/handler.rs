@@ -144,7 +144,7 @@ mod tests {
     #[async_trait]
     impl RequestHandler<String, String> for TestRequestHandler {
         async fn handle(&self, request: String) -> MCPResult<String> {
-            Ok(format!("Handled: {}", request))
+            Ok(format!("Handled: {request}"))
         }
     }
 
@@ -170,9 +170,11 @@ mod tests {
     #[tokio::test]
     async fn test_notification_handler() {
         let handler = TestNotificationHandler;
-        assert!(handler
-            .handle_notification("test notification".to_string())
-            .await
-            .is_ok());
+        assert!(
+            handler
+                .handle_notification("test notification".to_string())
+                .await
+                .is_ok()
+        );
     }
 }

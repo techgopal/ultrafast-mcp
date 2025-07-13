@@ -245,7 +245,7 @@ impl FileOperationsHandler {
         } else {
             std::env::current_dir()
                 .map_err(|e| {
-                    MCPError::internal_error(format!("Failed to get current directory: {}", e))
+                    MCPError::internal_error(format!("Failed to get current directory: {e}"))
                 })?
                 .join(path)
         };
@@ -280,7 +280,7 @@ impl FileOperationsHandler {
             } else {
                 std::env::current_dir()
                     .map_err(|e| {
-                        MCPError::internal_error(format!("Failed to get current directory: {}", e))
+                        MCPError::internal_error(format!("Failed to get current directory: {e}"))
                     })?
                     .join(allowed_path)
             };
@@ -591,7 +591,7 @@ impl FileOperationsHandler {
 
         let mut content = fs::read_to_string(&path)
             .await
-            .map_err(|e| MCPError::internal_error(format!("Failed to read file: {}", e)))?;
+            .map_err(|e| MCPError::internal_error(format!("Failed to read file: {e}")))?;
 
         if let Some(head) = request.head {
             content = content
@@ -677,20 +677,20 @@ impl FileOperationsHandler {
         if let Some(parent) = path.parent() {
             if !parent.exists() {
                 fs::create_dir_all(parent).await.map_err(|e| {
-                    MCPError::internal_error(format!("Failed to create directory: {}", e))
+                    MCPError::internal_error(format!("Failed to create directory: {e}"))
                 })?;
             }
         }
 
         fs::write(&path, &request.content)
             .await
-            .map_err(|e| MCPError::internal_error(format!("Failed to write file: {}", e)))?;
+            .map_err(|e| MCPError::internal_error(format!("Failed to write file: {e}")))?;
 
         let path_clone = request.path.clone();
         let response = WriteFileResponse {
             path: request.path,
             success: true,
-            message: format!("Successfully wrote file: {}", path_clone),
+            message: format!("Successfully wrote file: {path_clone}"),
         };
 
         let response_text = serde_json::to_string_pretty(&response)
@@ -722,7 +722,7 @@ impl FileOperationsHandler {
 
         let mut content = fs::read_to_string(&path)
             .await
-            .map_err(|e| MCPError::internal_error(format!("Failed to read file: {}", e)))?;
+            .map_err(|e| MCPError::internal_error(format!("Failed to read file: {e}")))?;
 
         let mut diff_lines = Vec::new();
 
@@ -787,7 +787,7 @@ impl FileOperationsHandler {
         }
 
         fs::write(&path, &content).await.map_err(|e| {
-            MCPError::internal_error(format!("Failed to write file after editing: {}", e))
+            MCPError::internal_error(format!("Failed to write file after editing: {e}"))
         })?;
 
         let path_clone = request.path.clone();
@@ -795,7 +795,7 @@ impl FileOperationsHandler {
             path: request.path,
             success: true,
             diff: Some(serde_json::to_string_pretty(&diff_lines).unwrap()),
-            message: format!("Successfully edited file: {}", path_clone),
+            message: format!("Successfully edited file: {path_clone}"),
         };
 
         let response_text = serde_json::to_string_pretty(&response)
@@ -819,7 +819,7 @@ impl FileOperationsHandler {
             let response = CreateDirectoryResponse {
                 path: request.path,
                 success: true,
-                message: format!("Directory already exists: {}", path_clone),
+                message: format!("Directory already exists: {path_clone}"),
             };
             let response_text = serde_json::to_string_pretty(&response)
                 .map_err(|e| MCPError::serialization_error(e.to_string()))?;
@@ -831,13 +831,13 @@ impl FileOperationsHandler {
 
         fs::create_dir_all(&path)
             .await
-            .map_err(|e| MCPError::internal_error(format!("Failed to create directory: {}", e)))?;
+            .map_err(|e| MCPError::internal_error(format!("Failed to create directory: {e}")))?;
 
         let path_clone = request.path.clone();
         let response = CreateDirectoryResponse {
             path: request.path,
             success: true,
-            message: format!("Successfully created directory: {}", path_clone),
+            message: format!("Successfully created directory: {path_clone}"),
         };
 
         let response_text = serde_json::to_string_pretty(&response)
@@ -870,13 +870,15 @@ impl FileOperationsHandler {
         let mut entries = Vec::new();
         let mut entries_iter = fs::read_dir(&path)
             .await
-            .map_err(|e| MCPError::internal_error(format!("Failed to read directory: {}", e)))?;
+            .map_err(|e| MCPError::internal_error(format!("Failed to read directory: {e}")))?;
 
-        while let Some(entry) = entries_iter.next_entry().await.map_err(|e| {
-            MCPError::internal_error(format!("Failed to read directory entry: {}", e))
-        })? {
+        while let Some(entry) = entries_iter
+            .next_entry()
+            .await
+            .map_err(|e| MCPError::internal_error(format!("Failed to read directory entry: {e}")))?
+        {
             let metadata = entry.metadata().await.map_err(|e| {
-                MCPError::internal_error(format!("Failed to get file metadata: {}", e))
+                MCPError::internal_error(format!("Failed to get file metadata: {e}"))
             })?;
 
             let entry_type = if metadata.is_dir() {
@@ -944,13 +946,15 @@ impl FileOperationsHandler {
         let mut entries = Vec::new();
         let mut entries_iter = fs::read_dir(&path)
             .await
-            .map_err(|e| MCPError::internal_error(format!("Failed to read directory: {}", e)))?;
+            .map_err(|e| MCPError::internal_error(format!("Failed to read directory: {e}")))?;
 
-        while let Some(entry) = entries_iter.next_entry().await.map_err(|e| {
-            MCPError::internal_error(format!("Failed to read directory entry: {}", e))
-        })? {
+        while let Some(entry) = entries_iter
+            .next_entry()
+            .await
+            .map_err(|e| MCPError::internal_error(format!("Failed to read directory entry: {e}")))?
+        {
             let metadata = entry.metadata().await.map_err(|e| {
-                MCPError::internal_error(format!("Failed to get file metadata: {}", e))
+                MCPError::internal_error(format!("Failed to get file metadata: {e}"))
             })?;
 
             let entry_type = if metadata.is_dir() {
@@ -1027,13 +1031,15 @@ impl FileOperationsHandler {
         let mut children = Vec::new();
         let mut entries_iter = fs::read_dir(&path)
             .await
-            .map_err(|e| MCPError::internal_error(format!("Failed to read directory: {}", e)))?;
+            .map_err(|e| MCPError::internal_error(format!("Failed to read directory: {e}")))?;
 
-        while let Some(entry) = entries_iter.next_entry().await.map_err(|e| {
-            MCPError::internal_error(format!("Failed to read directory entry: {}", e))
-        })? {
+        while let Some(entry) = entries_iter
+            .next_entry()
+            .await
+            .map_err(|e| MCPError::internal_error(format!("Failed to read directory entry: {e}")))?
+        {
             let metadata = entry.metadata().await.map_err(|e| {
-                MCPError::internal_error(format!("Failed to get file metadata: {}", e))
+                MCPError::internal_error(format!("Failed to get file metadata: {e}"))
             })?;
 
             let node_type = if metadata.is_dir() {
@@ -1106,7 +1112,7 @@ impl FileOperationsHandler {
 
         fs::rename(&source_path, &destination_path)
             .await
-            .map_err(|e| MCPError::internal_error(format!("Failed to move file: {}", e)))?;
+            .map_err(|e| MCPError::internal_error(format!("Failed to move file: {e}")))?;
 
         let source_clone = request.source.clone();
         let dest_clone = request.destination.clone();
@@ -1114,10 +1120,7 @@ impl FileOperationsHandler {
             source: request.source,
             destination: request.destination,
             success: true,
-            message: format!(
-                "Successfully moved file from {} to {}",
-                source_clone, dest_clone
-            ),
+            message: format!("Successfully moved file from {source_clone} to {dest_clone}"),
         };
 
         let response_text = serde_json::to_string_pretty(&response)
@@ -1150,13 +1153,15 @@ impl FileOperationsHandler {
         let mut results = Vec::new();
         let mut entries_iter = fs::read_dir(&path)
             .await
-            .map_err(|e| MCPError::internal_error(format!("Failed to read directory: {}", e)))?;
+            .map_err(|e| MCPError::internal_error(format!("Failed to read directory: {e}")))?;
 
-        while let Some(entry) = entries_iter.next_entry().await.map_err(|e| {
-            MCPError::internal_error(format!("Failed to read directory entry: {}", e))
-        })? {
+        while let Some(entry) = entries_iter
+            .next_entry()
+            .await
+            .map_err(|e| MCPError::internal_error(format!("Failed to read directory entry: {e}")))?
+        {
             let _metadata = entry.metadata().await.map_err(|e| {
-                MCPError::internal_error(format!("Failed to get file metadata: {}", e))
+                MCPError::internal_error(format!("Failed to get file metadata: {e}"))
             })?;
 
             let entry_path = entry.path().to_string_lossy().to_string();
@@ -1214,7 +1219,7 @@ impl FileOperationsHandler {
 
         let metadata = fs::metadata(&path)
             .await
-            .map_err(|e| MCPError::internal_error(format!("Failed to get file metadata: {}", e)))?;
+            .map_err(|e| MCPError::internal_error(format!("Failed to get file metadata: {e}")))?;
 
         let is_directory = metadata.is_dir();
         let is_file = metadata.is_file();

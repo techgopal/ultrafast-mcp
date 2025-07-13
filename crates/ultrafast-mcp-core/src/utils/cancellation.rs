@@ -86,16 +86,17 @@ impl CancellationManager {
     ) -> MCPResult<bool> {
         let mut active = self.active_requests.write().await;
 
-        if let Some(request) = active.get_mut(id) {
-            if !request.cancelled {
-                request.cancelled = true;
-                request.cancel_reason = reason;
-                return Ok(true);
-            }
+        let Some(request) = active.get_mut(id) else {
+            return Ok(false);
+        };
+
+        if request.cancelled {
+            return Ok(false);
         }
 
-        // Request not found or already cancelled
-        Ok(false)
+        request.cancelled = true;
+        request.cancel_reason = reason;
+        Ok(true)
     }
 
     /// Check if a request has been cancelled
@@ -321,7 +322,7 @@ mod tests {
 
         // PingResponse should echo back the data as per MCP 2025-06-18 specification
         assert_eq!(
-            format!("{:?}", response),
+            format!("{response:?}"),
             "PingResponse { data: Some(Object {\"test\": String(\"data\")}) }"
         );
     }
@@ -330,6 +331,6 @@ mod tests {
     fn test_ping_response() {
         let response = PingResponse::new();
         // PingResponse is empty as per MCP 2025-06-18 specification
-        assert_eq!(format!("{:?}", response), "PingResponse { data: None }");
+        assert_eq!(format!("{response:?}"), "PingResponse { data: None }");
     }
 }

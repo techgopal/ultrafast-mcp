@@ -5,14 +5,14 @@
 use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::{oneshot, RwLock};
+use tokio::sync::{RwLock, oneshot};
 use tracing::{error, info, warn};
 use ultrafast_mcp_core::{
     config::TimeoutConfig,
     error::{MCPError, MCPResult, ProtocolError, TransportError},
     protocol::{
-        jsonrpc::{JsonRpcMessage, JsonRpcRequest},
         InitializeRequest, InitializeResponse, InitializedNotification, ShutdownRequest,
+        jsonrpc::{JsonRpcMessage, JsonRpcRequest},
     },
     types::{
         client::{ClientCapabilities, ClientInfo},
@@ -432,13 +432,18 @@ impl UltraFastClient {
                                             {
                                                 Ok(response) => {
                                                     // Send the response back to the server
+                                                    let response_params = match serde_json::to_value(response) {
+                                                        Ok(params) => Some(params),
+                                                        Err(e) => {
+                                                            error!("Failed to serialize elicitation response: {}", e);
+                                                            continue;
+                                                        }
+                                                    };
+                                                    
                                                     let response_message = JsonRpcMessage::Request(
                                                         JsonRpcRequest::new(
                                                             "elicitation/respond".to_string(),
-                                                            Some(
-                                                                serde_json::to_value(response)
-                                                                    .unwrap(),
-                                                            ),
+                                                            response_params,
                                                             None, // No ID for elicitation response
                                                         ),
                                                     );
@@ -447,7 +452,10 @@ impl UltraFastClient {
                                                         .send_message(response_message)
                                                         .await
                                                     {
-                                                        error!("Failed to send elicitation response: {}", e);
+                                                        error!(
+                                                            "Failed to send elicitation response: {}",
+                                                            e
+                                                        );
                                                     }
                                                 }
                                                 Err(e) => {
@@ -461,7 +469,9 @@ impl UltraFastClient {
                                             error!("Failed to parse elicitation request");
                                         }
                                     } else {
-                                        warn!("No elicitation handler configured, ignoring elicitation request");
+                                        warn!(
+                                            "No elicitation handler configured, ignoring elicitation request"
+                                        );
                                     }
                                 } else {
                                     warn!(
@@ -1170,8 +1180,7 @@ impl UltraFastClient {
         let state = self.get_state().await;
         if !state.can_operate() {
             return Err(MCPError::Protocol(ProtocolError::InternalError(format!(
-                "Client is not in operating state (current state: {:?})",
-                state
+                "Client is not in operating state (current state: {state:?})"
             ))));
         }
         Ok(())
@@ -1221,9 +1230,11 @@ impl UltraFastClient {
         // Send request
         {
             let mut transport_guard = self.transport.write().await;
-            let transport = transport_guard
-                .as_mut()
-                .expect("Transport should be available");
+            let transport = transport_guard.as_mut().ok_or_else(|| {
+                MCPError::Transport(TransportError::ConnectionFailed(
+                    "Transport not available".to_string(),
+                ))
+            })?;
             transport
                 .send_message(JsonRpcMessage::Request(request))
                 .await
@@ -1233,9 +1244,11 @@ impl UltraFastClient {
         // Try to get immediate response from transport (for HTTP transport)
         let immediate_response = {
             let mut transport_guard = self.transport.write().await;
-            let transport = transport_guard
-                .as_mut()
-                .expect("Transport should be available");
+            let transport = transport_guard.as_mut().ok_or_else(|| {
+                MCPError::Transport(TransportError::ConnectionFailed(
+                    "Transport not available".to_string(),
+                ))
+            })?;
             transport.receive_message().await.ok()
         };
 
@@ -1289,9 +1302,11 @@ impl UltraFastClient {
         let notification = JsonRpcRequest::notification(method.to_string(), params);
 
         let mut transport_guard = self.transport.write().await;
-        let transport = transport_guard
-            .as_mut()
-            .expect("Transport should be available");
+        let transport = transport_guard.as_mut().ok_or_else(|| {
+            MCPError::Transport(TransportError::ConnectionFailed(
+                "Transport not available".to_string(),
+            ))
+        })?;
 
         transport
             .send_message(JsonRpcMessage::Notification(notification))

@@ -385,7 +385,7 @@ use std::sync::Arc;
 use anyhow::Result;
 
 #[cfg(feature = "http")]
-use axum::{routing::get, Router};
+use axum::{Router, routing::get};
 
 pub mod config;
 pub mod exporters;

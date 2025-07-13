@@ -93,7 +93,9 @@ async fn main() -> anyhow::Result<()> {
                 client2.disconnect().await?;
             }
             Err(e) => {
-                println!("⚠️  Bearer token connection failed (expected if server doesn't support auth): {}", e);
+                println!(
+                    "⚠️  Bearer token connection failed (expected if server doesn't support auth): {e}"
+                );
             }
         }
     }
@@ -121,8 +123,7 @@ async fn main() -> anyhow::Result<()> {
             }
             Err(e) => {
                 println!(
-                    "⚠️  API key connection failed (expected if server doesn't support auth): {}",
-                    e
+                    "⚠️  API key connection failed (expected if server doesn't support auth): {e}"
                 );
             }
         }
@@ -153,7 +154,9 @@ async fn main() -> anyhow::Result<()> {
                 client4.disconnect().await?;
             }
             Err(e) => {
-                println!("⚠️  Basic auth connection failed (expected if server doesn't support auth): {}", e);
+                println!(
+                    "⚠️  Basic auth connection failed (expected if server doesn't support auth): {e}"
+                );
             }
         }
     }
@@ -162,7 +165,7 @@ async fn main() -> anyhow::Result<()> {
         println!("⚠️  Basic authentication not available (requires http+oauth features)");
     }
 
-    println!("\n�� Connection Method 5: Client-Level Authentication Integration");
+    println!("\n🔗 Connection Method 5: Client-Level Authentication Integration");
     println!("   Using: client.with_bearer_auth(token).connect_streamable_http(url).await?");
 
     // Method 5: Client-level auth that integrates automatically (new feature)
@@ -178,7 +181,7 @@ async fn main() -> anyhow::Result<()> {
                 client5.disconnect().await?;
             }
             Err(e) => {
-                println!("⚠️  Client-level auth connection failed: {}", e);
+                println!("⚠️  Client-level auth connection failed: {e}");
             }
         }
     }
@@ -239,7 +242,7 @@ async fn test_connection(client: &UltraFastClient, method_name: &str) -> anyhow:
             }
         }
         Err(e) => {
-            println!("   ❌ {} connection test failed: {}", method_name, e);
+            println!("   ❌ {method_name} connection test failed: {e}");
         }
     }
     Ok(())
@@ -274,10 +277,10 @@ async fn run_full_demo(client: &UltraFastClient) -> anyhow::Result<()> {
         for content in &result.content {
             match content {
                 ToolContent::Text { text } => {
-                    println!("  Text: {}", text);
+                    println!("  Text: {text}");
                 }
                 _ => {
-                    println!("  Other content: {:?}", content);
+                    println!("  Other content: {content:?}");
                 }
             }
         }
@@ -336,16 +339,16 @@ async fn run_full_demo(client: &UltraFastClient) -> anyhow::Result<()> {
             for content in &result.content {
                 match content {
                     ToolContent::Text { text } => {
-                        println!("   Response: {}", text);
+                        println!("   Response: {text}");
                     }
                     _ => {
-                        println!("   Other content: {:?}", content);
+                        println!("   Other content: {content:?}");
                     }
                 }
             }
         }
         Err(e) => {
-            println!("❌ Failed to call elicitation tool: {}", e);
+            println!("❌ Failed to call elicitation tool: {e}");
         }
     }
 

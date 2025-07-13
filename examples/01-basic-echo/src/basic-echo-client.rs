@@ -183,8 +183,8 @@ async fn main() -> anyhow::Result<()> {
         if let Some(content) = result.content.first() {
             match content {
                 ToolContent::Text { text } => {
-                    println!("📤 Echo response {}:", i);
-                    println!("{}", text);
+                    println!("📤 Echo response {i}:");
+                    println!("{text}");
                     println!();
                 }
                 _ => {
@@ -214,7 +214,7 @@ async fn main() -> anyhow::Result<()> {
         match content {
             ToolContent::Text { text } => {
                 println!("📤 Echo response (default):");
-                println!("{}", text);
+                println!("{text}");
                 println!();
             }
             _ => {

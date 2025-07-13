@@ -1,17 +1,16 @@
 //! Everything MCP Server Example (Streamable HTTP)
 //! Comprehensive implementation matching the official MCP everything example
 
-use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
+use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
+use ultrafast_mcp::McpCoreError::ResourceError;
 use ultrafast_mcp::types::resources::{
     ListResourceTemplatesRequest, ListResourceTemplatesResponse,
 };
 use ultrafast_mcp::types::roots::RootSecurityValidator;
-use ultrafast_mcp::McpCoreError::ResourceError;
 use ultrafast_mcp::{
-    types::{completion, elicitation, prompts, resources, roots, sampling},
     CompletionHandler,
     ElicitationHandler,
     // Monitoring imports
@@ -39,6 +38,7 @@ use ultrafast_mcp::{
     ToolHandler,
     ToolResult,
     UltraFastServer,
+    types::{completion, elicitation, prompts, resources, roots, sampling},
 };
 
 // Tiny test image (base64 encoded PNG)
@@ -56,7 +56,7 @@ impl ToolHandler for EverythingToolHandler {
                     .and_then(|v| v.as_str().map(|s| s.to_string()))
                     .unwrap_or_else(|| "Hello, World!".to_string());
                 Ok(ToolResult {
-                    content: vec![ToolContent::text(format!("Echo: {}", message))],
+                    content: vec![ToolContent::text(format!("Echo: {message}"))],
                     is_error: Some(false),
                 })
             }
@@ -67,8 +67,7 @@ impl ToolHandler for EverythingToolHandler {
                 let sum = a + b;
                 Ok(ToolResult {
                     content: vec![ToolContent::text(format!(
-                        "The sum of {} and {} is {}.",
-                        a, b, sum
+                        "The sum of {a} and {b} is {sum}."
                     ))],
                     is_error: Some(false),
                 })
@@ -86,13 +85,12 @@ impl ToolHandler for EverythingToolHandler {
                 // In a real implementation, you would send actual progress notifications via the server
                 for i in 1..=steps {
                     tokio::time::sleep(tokio::time::Duration::from_secs_f64(step_duration)).await;
-                    println!("Progress: Step {}/{} completed", i, steps);
+                    println!("Progress: Step {i}/{steps} completed");
                 }
 
                 Ok(ToolResult {
                     content: vec![ToolContent::text(format!(
-                        "Long running operation completed. Duration: {} seconds, Steps: {}. Progress was tracked through {} steps.",
-                        duration, steps, steps
+                        "Long running operation completed. Duration: {duration} seconds, Steps: {steps}. Progress was tracked through {steps} steps."
                     ))],
                     is_error: Some(false),
                 })
@@ -119,8 +117,7 @@ impl ToolHandler for EverythingToolHandler {
 
                 // Simulate LLM sampling
                 let response = format!(
-                    "LLM sampling result for '{}' (max tokens: {}): This is a simulated response.",
-                    prompt, max_tokens
+                    "LLM sampling result for '{prompt}' (max tokens: {max_tokens}): This is a simulated response."
                 );
 
                 Ok(ToolResult {
@@ -184,18 +181,16 @@ impl ToolHandler for EverythingToolHandler {
                 let args = call.arguments.unwrap_or_default();
                 let resource_id = args.get("resourceId").and_then(|v| v.as_u64()).unwrap_or(1);
 
-                let resource_uri = format!("test://static/resource/{}", resource_id);
+                let resource_uri = format!("test://static/resource/{resource_id}");
 
                 Ok(ToolResult {
                     content: vec![
                         ToolContent::text(format!(
-                            "Returning resource reference for Resource {}:",
-                            resource_id
+                            "Returning resource reference for Resource {resource_id}:"
                         )),
                         ToolContent::resource(resource_uri),
                         ToolContent::text(format!(
-                            "You can access this resource using the URI: test://static/resource/{}",
-                            resource_id
+                            "You can access this resource using the URI: test://static/resource/{resource_id}"
                         )),
                     ],
                     is_error: Some(false),
@@ -223,15 +218,13 @@ impl ToolHandler for EverythingToolHandler {
                     // In a real implementation, you would check for cancellation requests here
                     // For now, we'll just simulate periodic checking
                     println!(
-                        "Cancellable operation check #{}: {:.1}/{:.1} seconds",
-                        check_count, elapsed, duration
+                        "Cancellable operation check #{check_count}: {elapsed:.1}/{duration:.1} seconds"
                     );
                 }
 
                 Ok(ToolResult {
                     content: vec![ToolContent::text(format!(
-                        "Cancellable operation completed after {:.1} seconds with {} checks. This operation could be cancelled by sending a cancellation notification.",
-                        elapsed, check_count
+                        "Cancellable operation completed after {elapsed:.1} seconds with {check_count} checks. This operation could be cancelled by sending a cancellation notification."
                     ))],
                     is_error: Some(false),
                 })
@@ -255,8 +248,7 @@ impl ToolHandler for EverythingToolHandler {
 
                 Ok(ToolResult {
                     content: vec![ToolContent::text(format!(
-                        "Notification demo: {}. In a real implementation, this would send a '{}' notification to connected clients.",
-                        message, notification_type
+                        "Notification demo: {message}. In a real implementation, this would send a '{notification_type}' notification to connected clients."
                     ))],
                     is_error: Some(false),
                 })
@@ -266,14 +258,13 @@ impl ToolHandler for EverythingToolHandler {
                 let count = args.get("count").and_then(|v| v.as_u64()).unwrap_or(3);
 
                 let mut content = vec![ToolContent::text(format!(
-                    "Here are {} resource links to resources available in this server:",
-                    count
+                    "Here are {count} resource links to resources available in this server:"
                 ))];
 
                 for i in 1..=count.min(100) {
                     content.push(ToolContent::resource_with_description(
-                        format!("test://static/resource/{}", i),
-                        format!("Resource {}: test resource", i),
+                        format!("test://static/resource/{i}"),
+                        format!("Resource {i}: test resource"),
                     ));
                 }
 
@@ -290,8 +281,7 @@ impl ToolHandler for EverythingToolHandler {
 
                 Ok(ToolResult {
                     content: vec![ToolContent::text(format!(
-                        "Elicitation demo completed! Your selections:\n- Favorite color: {}\n- Favorite number: {}\n- Favorite pets: {}",
-                        color, number, pets
+                        "Elicitation demo completed! Your selections:\n- Favorite color: {color}\n- Favorite number: {number}\n- Favorite pets: {pets}"
                     ))],
                     is_error: Some(false),
                 })
@@ -524,10 +514,10 @@ impl ResourceHandler for EverythingResourceHandler {
             let resource = if resource_id % 2 == 0 {
                 ResourceContent::text(
                     uri.clone(),
-                    format!("Resource {}: This is a plaintext resource", resource_id),
+                    format!("Resource {resource_id}: This is a plaintext resource"),
                 )
             } else {
-                let data = format!("Resource {}: This is a base64 blob", resource_id);
+                let data = format!("Resource {resource_id}: This is a base64 blob");
                 ResourceContent::blob(
                     uri.clone(),
                     BASE64.encode(data.as_bytes()),
@@ -564,8 +554,8 @@ impl ResourceHandler for EverythingResourceHandler {
         let mut resources = vec![];
         for i in start_index..(start_index + page_size).min(100) {
             let resource_id = i + 1;
-            let uri = format!("test://static/resource/{}", resource_id);
-            let name = format!("Resource {}", resource_id);
+            let uri = format!("test://static/resource/{resource_id}");
+            let name = format!("Resource {resource_id}");
 
             let resource = Resource::new(uri, name);
             resources.push(resource);
@@ -618,8 +608,7 @@ impl ResourceHandler for EverythingResourceHandler {
                         .validate_access(root, uri, operation)
                         .map_err(|e| {
                             MCPError::Resource(ResourceError::AccessDenied(format!(
-                                "Root validation failed: {}",
-                                e
+                                "Root validation failed: {e}"
                             )))
                         });
                 } else {
@@ -666,7 +655,7 @@ impl PromptHandler for EverythingPromptHandler {
                 Ok(prompts::GetPromptResponse {
                     description: Some("A prompt with arguments".to_string()),
                     messages: vec![
-                        prompts::PromptMessage::user(prompts::PromptContent::text(format!("This is a complex prompt with arguments: temperature={}, style={}", temperature, style))),
+                        prompts::PromptMessage::user(prompts::PromptContent::text(format!("This is a complex prompt with arguments: temperature={temperature}, style={style}"))),
                         prompts::PromptMessage::assistant(prompts::PromptContent::text("I understand. You've provided a complex prompt with temperature and style arguments. How would you like me to proceed?".to_string())),
                         prompts::PromptMessage::user(prompts::PromptContent::image(MCP_TINY_IMAGE.to_string(), "image/png".to_string())),
                     ],
@@ -692,14 +681,18 @@ impl PromptHandler for EverythingPromptHandler {
                     resource_id
                 };
 
-                let resource_uri = format!("test://static/resource/{}", valid_resource_id);
+                let resource_uri = format!("test://static/resource/{valid_resource_id}");
 
                 Ok(prompts::GetPromptResponse {
-                    description: Some("A prompt that includes an embedded resource reference".to_string()),
+                    description: Some(
+                        "A prompt that includes an embedded resource reference".to_string(),
+                    ),
                     messages: vec![
-                        prompts::PromptMessage::user(prompts::PromptContent::text(format!("This prompt includes Resource {}. Please analyze the following resource:", valid_resource_id))),
+                        prompts::PromptMessage::user(prompts::PromptContent::text(format!(
+                            "This prompt includes Resource {valid_resource_id}. Please analyze the following resource:"
+                        ))),
                         prompts::PromptMessage::user(prompts::PromptContent::resource_link(
-                            format!("Resource {}", valid_resource_id),
+                            format!("Resource {valid_resource_id}"),
                             resource_uri,
                         )),
                     ],
@@ -749,8 +742,13 @@ impl SamplingHandler for EverythingSamplingHandler {
         let temperature = request.temperature.unwrap_or(0.7);
 
         // Simulate LLM response
-        let response_text = format!("Simulated LLM response based on {} messages, system prompt: '{}', max tokens: {}, temperature: {}", 
-            messages.len(), system_prompt, max_tokens, temperature);
+        let response_text = format!(
+            "Simulated LLM response based on {} messages, system prompt: '{}', max tokens: {}, temperature: {}",
+            messages.len(),
+            system_prompt,
+            max_tokens,
+            temperature
+        );
 
         Ok(sampling::CreateMessageResponse {
             role: sampling::SamplingRole::Assistant,
@@ -857,10 +855,14 @@ struct EverythingRootsHandler {
 #[async_trait::async_trait]
 impl RootsHandler for EverythingRootsHandler {
     async fn list_roots(&self) -> MCPResult<Vec<roots::Root>> {
-        Ok(self.roots.lock().unwrap().clone())
+        Ok(self
+            .roots
+            .lock()
+            .expect("Failed to acquire roots lock")
+            .clone())
     }
     async fn set_roots(&self, roots: Vec<roots::Root>) -> MCPResult<()> {
-        *self.roots.lock().unwrap() = roots;
+        *self.roots.lock().expect("Failed to acquire roots lock") = roots;
         Ok(())
     }
 }

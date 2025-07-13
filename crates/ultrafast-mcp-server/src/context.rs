@@ -4,6 +4,7 @@
 //! with the server for progress tracking, logging, and other operations.
 
 use serde_json::Value;
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tracing::{debug, error, info, warn};
@@ -240,7 +241,7 @@ impl Context {
             }
 
             let notification_request = JsonRpcRequest {
-                jsonrpc: "2.0".to_string(),
+                jsonrpc: Cow::Borrowed("2.0"),
                 id: None, // Notifications don't have IDs
                 method: "notifications/progress".to_string(),
                 params: Some(serde_json::to_value(notification)?),
@@ -457,7 +458,7 @@ impl Context {
             // Add level
             data_obj.insert(
                 "level".to_string(),
-                Value::String(format!("{:?}", level).to_lowercase()),
+                Value::String(format!("{level:?}").to_lowercase()),
             );
 
             // Add any structured data
@@ -510,7 +511,7 @@ impl Context {
                     .with_logger(logger_name.to_string());
 
                 let notification_request = JsonRpcRequest {
-                    jsonrpc: "2.0".to_string(),
+                    jsonrpc: Cow::Borrowed("2.0"),
                     id: None, // Notifications don't have IDs
                     method: "notifications/message".to_string(),
                     params: Some(serde_json::to_value(notification)?),

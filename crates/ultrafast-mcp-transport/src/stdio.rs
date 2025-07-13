@@ -57,9 +57,9 @@ impl Transport for StdioTransport {
         // Serialize the message to JSON
         let json_str = serde_json::to_string(&message).map_err(|e| {
             self.health.error_count += 1;
-            self.health.last_error = Some(format!("Serialization error: {}", e));
+            self.health.last_error = Some(format!("Serialization error: {e}"));
             TransportError::SerializationError {
-                message: format!("Failed to serialize message: {}", e),
+                message: format!("Failed to serialize message: {e}"),
             }
         })?;
 
@@ -71,29 +71,29 @@ impl Transport for StdioTransport {
             .await
             .map_err(|e| {
                 self.health.error_count += 1;
-                self.health.last_error = Some(format!("Write error: {}", e));
-                self.health.state = ConnectionState::Failed(format!("Write failed: {}", e));
+                self.health.last_error = Some(format!("Write error: {e}"));
+                self.health.state = ConnectionState::Failed(format!("Write failed: {e}"));
                 TransportError::NetworkError {
-                    message: format!("Failed to write message: {}", e),
+                    message: format!("Failed to write message: {e}"),
                 }
             })?;
 
         // Add newline to delimit the message
         self.stdout.write_all(b"\n").await.map_err(|e| {
             self.health.error_count += 1;
-            self.health.last_error = Some(format!("Write newline error: {}", e));
-            self.health.state = ConnectionState::Failed(format!("Write newline failed: {}", e));
+            self.health.last_error = Some(format!("Write newline error: {e}"));
+            self.health.state = ConnectionState::Failed(format!("Write newline failed: {e}"));
             TransportError::NetworkError {
-                message: format!("Failed to write newline: {}", e),
+                message: format!("Failed to write newline: {e}"),
             }
         })?;
 
         self.stdout.flush().await.map_err(|e| {
             self.health.error_count += 1;
-            self.health.last_error = Some(format!("Flush error: {}", e));
-            self.health.state = ConnectionState::Failed(format!("Flush failed: {}", e));
+            self.health.last_error = Some(format!("Flush error: {e}"));
+            self.health.state = ConnectionState::Failed(format!("Flush failed: {e}"));
             TransportError::NetworkError {
-                message: format!("Failed to flush stdout: {}", e),
+                message: format!("Failed to flush stdout: {e}"),
             }
         })?;
 
@@ -117,9 +117,9 @@ impl Transport for StdioTransport {
         let mut line = String::new();
         let bytes_read = self.stdin.read_line(&mut line).await.map_err(|e| {
             self.health.error_count += 1;
-            self.health.last_error = Some(format!("Read error: {}", e));
+            self.health.last_error = Some(format!("Read error: {e}"));
             TransportError::NetworkError {
-                message: format!("Failed to read line from stdin: {}", e),
+                message: format!("Failed to read line from stdin: {e}"),
             }
         })?;
 
@@ -145,9 +145,9 @@ impl Transport for StdioTransport {
         // Parse the JSON message
         let message: JsonRpcMessage = serde_json::from_str(message_str).map_err(|e| {
             self.health.error_count += 1;
-            self.health.last_error = Some(format!("Parse error: {}", e));
+            self.health.last_error = Some(format!("Parse error: {e}"));
             TransportError::SerializationError {
-                message: format!("Failed to parse JSON message: {}", e),
+                message: format!("Failed to parse JSON message: {e}"),
             }
         })?;
 

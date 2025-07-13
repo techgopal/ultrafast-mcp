@@ -258,8 +258,7 @@ impl MetricsCollector {
                     .as_str(),
             );
             prometheus_output.push_str(&format!(
-                "mcp_requests_by_method_total{{method=\"{}\"}} {}\n",
-                method, count
+                "mcp_requests_by_method_total{{method=\"{method}\"}} {count}\n"
             ));
         }
 

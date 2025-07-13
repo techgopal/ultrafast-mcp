@@ -7,6 +7,7 @@
 mod tests {
     use async_trait::async_trait;
     use serde_json::json;
+    use std::borrow::Cow;
     use std::sync::Arc;
     use std::time::Duration;
     use tokio::sync::mpsc;
@@ -250,7 +251,7 @@ mod tests {
 
         // For now, we test the cancellation notification mechanism
         let cancellation_notification = JsonRpcMessage::Notification(JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: None,
             method: "notifications/cancelled".to_string(),
             params: Some(json!({
@@ -514,7 +515,7 @@ mod tests {
     #[tokio::test]
     async fn test_cancellation_jsonrpc_compliance() {
         let notification = JsonRpcMessage::Notification(JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: None, // Notifications don't have IDs
             method: "notifications/cancelled".to_string(),
             params: Some(json!({
@@ -574,7 +575,7 @@ mod tests {
         for i in 0..1000 {
             let notification = CancelledNotification {
                 request_id: json!(format!("perf-test-{}", i)),
-                reason: Some(format!("Performance test {}", i)),
+                reason: Some(format!("Performance test {i}")),
             };
 
             let _serialized = serde_json::to_string(&notification).unwrap();
@@ -585,10 +586,7 @@ mod tests {
         // Should complete quickly (less than 100ms)
         assert!(elapsed.as_millis() < 100);
 
-        println!(
-            "✅ Cancellation performance test passed! ({:?} for 1000 notifications)",
-            elapsed
-        );
+        println!("✅ Cancellation performance test passed! ({elapsed:?} for 1000 notifications)");
     }
 
     /// Test cancellation notification integration with MCP protocol
@@ -613,10 +611,12 @@ mod tests {
             .unwrap();
 
         assert_eq!(tools_response.tools.len(), 2);
-        assert!(tools_response
-            .tools
-            .iter()
-            .any(|t| t.name == "longRunningOperation"));
+        assert!(
+            tools_response
+                .tools
+                .iter()
+                .any(|t| t.name == "longRunningOperation")
+        );
         assert!(tools_response.tools.iter().any(|t| t.name == "echo"));
 
         println!("✅ Cancellation MCP integration test passed!");
@@ -770,12 +770,12 @@ mod tests {
             let handle = tokio::spawn(async move {
                 let notification = CancelledNotification {
                     request_id: json!(format!("concurrent-test-{}", i)),
-                    reason: Some(format!("Concurrent cancellation {}", i)),
+                    reason: Some(format!("Concurrent cancellation {i}")),
                 };
 
                 let serialized = serde_json::to_string(&notification).unwrap();
-                assert!(serialized.contains(&format!("concurrent-test-{}", i)));
-                assert!(serialized.contains(&format!("Concurrent cancellation {}", i)));
+                assert!(serialized.contains(&format!("concurrent-test-{i}")));
+                assert!(serialized.contains(&format!("Concurrent cancellation {i}")));
 
                 notification
             });
@@ -790,11 +790,11 @@ mod tests {
             let notification = result.unwrap();
             assert_eq!(
                 notification.request_id,
-                json!(format!("concurrent-test-{}", i))
+                json!(format!("concurrent-test-{i}"))
             );
             assert_eq!(
                 notification.reason,
-                Some(format!("Concurrent cancellation {}", i))
+                Some(format!("Concurrent cancellation {i}"))
             );
         }
 
@@ -814,7 +814,7 @@ mod tests {
         for i in 0..1000 {
             let notification = CancelledNotification {
                 request_id: json!(format!("memory-test-{}", i)),
-                reason: Some(format!("Memory test {}", i)),
+                reason: Some(format!("Memory test {i}")),
             };
 
             let _serialized = serde_json::to_string(&notification).unwrap();
@@ -830,8 +830,7 @@ mod tests {
         assert_eq!(count_diff, 1000);
 
         println!(
-            "✅ Cancellation memory usage test passed! (Processed {} notifications)",
-            count_diff
+            "✅ Cancellation memory usage test passed! (Processed {count_diff} notifications)"
         );
     }
 
@@ -854,7 +853,7 @@ mod tests {
 
         // Test JSON-RPC 2.0 compliance
         let jsonrpc_notification = JsonRpcMessage::Notification(JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: None, // Notifications don't have IDs
             method: "notifications/cancelled".to_string(),
             params: Some(serde_json::to_value(notification).unwrap()),
@@ -945,7 +944,7 @@ mod tests {
         assert!(duration < Duration::from_secs(1));
         assert_eq!(response.data, Some(json!({"timeout_test": true})));
 
-        println!("✅ Ping timeout test passed! (Duration: {:?})", duration);
+        println!("✅ Ping timeout test passed! (Duration: {duration:?})");
     }
 
     /// Test ping monitoring on client
@@ -1067,10 +1066,7 @@ mod tests {
         // Should complete 100 pings quickly (less than 1 second)
         assert!(duration < Duration::from_secs(1));
 
-        println!(
-            "✅ Ping performance test passed! (100 pings in {:?})",
-            duration
-        );
+        println!("✅ Ping performance test passed! (100 pings in {duration:?})");
     }
 
     /// Test ping with large data

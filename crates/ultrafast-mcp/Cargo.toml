@@ -20,12 +20,12 @@ targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
 # Internal dependencies
-ultrafast-mcp-core = { path = "../ultrafast-mcp-core", version = "=202506018.1.0-rc.3", optional = true }
-ultrafast-mcp-server = { path = "../ultrafast-mcp-server", version = "=202506018.1.0-rc.3", optional = true }
-ultrafast-mcp-client = { path = "../ultrafast-mcp-client", version = "=202506018.1.0-rc.3", optional = true }
-ultrafast-mcp-transport = { path = "../ultrafast-mcp-transport", version = "=202506018.1.0-rc.3", optional = true }
-ultrafast-mcp-auth = { path = "../ultrafast-mcp-auth", version = "=202506018.1.0-rc.3", optional = true }
-ultrafast-mcp-monitoring = { path = "../ultrafast-mcp-monitoring", version = "=202506018.1.0-rc.3", optional = true }
+ultrafast-mcp-core = { path = "../ultrafast-mcp-core", version = "=202506018.1.0", optional = true }
+ultrafast-mcp-server = { path = "../ultrafast-mcp-server", version = "=202506018.1.0", optional = true }
+ultrafast-mcp-client = { path = "../ultrafast-mcp-client", version = "=202506018.1.0", optional = true }
+ultrafast-mcp-transport = { path = "../ultrafast-mcp-transport", version = "=202506018.1.0", optional = true }
+ultrafast-mcp-auth = { path = "../ultrafast-mcp-auth", version = "=202506018.1.0", optional = true }
+ultrafast-mcp-monitoring = { path = "../ultrafast-mcp-monitoring", version = "=202506018.1.0", optional = true }
 
 # Core runtime dependencies
 tokio = { workspace = true }
@@ -67,7 +67,7 @@ http = [
 ]
 
 # Authentication features
-oauth = ["core", "ultrafast-mcp-auth/oauth"]
+oauth = ["core", "ultrafast-mcp-auth/oauth", "ultrafast-mcp-client/oauth"]
 
 # Monitoring and observability
 monitoring = ["core", "ultrafast-mcp-monitoring/core"]

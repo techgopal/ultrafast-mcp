@@ -1,4 +1,4 @@
-use schemars::{schema_for, JsonSchema};
+use schemars::{JsonSchema, schema_for};
 use serde_json::Value;
 
 /// Generate JSON Schema for a type at runtime
@@ -93,7 +93,7 @@ mod tests {
         let schema = generate_schema_for::<TestStruct>();
         assert!(schema.is_object());
 
-        let schema_obj = schema.as_object().unwrap();
+        let schema_obj = schema.as_object().expect("Schema should be an object");
         assert!(schema_obj.contains_key("type"));
         assert!(schema_obj.contains_key("properties"));
     }

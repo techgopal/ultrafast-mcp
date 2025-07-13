@@ -3,10 +3,10 @@
 //! This module provides comprehensive distributed tracing capabilities for MCP servers
 //! and clients, including OpenTelemetry integration, span management, and trace export.
 
-use tracing::{debug, error, info, warn, Level};
+use tracing::{Level, debug, error, info, warn};
 use tracing_subscriber::{
-    fmt::{format::FmtSpan, time::UtcTime},
     EnvFilter,
+    fmt::{format::FmtSpan, time::UtcTime},
 };
 
 /// Configuration for tracing system
@@ -223,18 +223,12 @@ impl TracingUtils {
         if success {
             info!(
                 "Request completed method={} request_id={} duration_ms={} success={} service=ultrafast-mcp",
-                method,
-                request_id,
-                duration_ms,
-                success
+                method, request_id, duration_ms, success
             );
         } else {
             error!(
                 "Request failed method={} request_id={} duration_ms={} success={} service=ultrafast-mcp",
-                method,
-                request_id,
-                duration_ms,
-                success
+                method, request_id, duration_ms, success
             );
         }
     }
@@ -249,18 +243,12 @@ impl TracingUtils {
         if success {
             info!(
                 "Tool execution completed tool_name={} request_id={} duration_ms={} success={} service=ultrafast-mcp",
-                tool_name,
-                request_id,
-                duration_ms,
-                success
+                tool_name, request_id, duration_ms, success
             );
         } else {
             error!(
                 "Tool execution failed tool_name={} request_id={} duration_ms={} success={} service=ultrafast-mcp",
-                tool_name,
-                request_id,
-                duration_ms,
-                success
+                tool_name, request_id, duration_ms, success
             );
         }
     }
@@ -280,18 +268,12 @@ impl TracingUtils {
         if error.is_some() {
             error!(
                 "Transport event event_type={} transport_type={} bytes={} error={} service=ultrafast-mcp",
-                event_type,
-                transport_type,
-                bytes_str,
-                error_str
+                event_type, transport_type, bytes_str, error_str
             );
         } else {
             debug!(
                 "Transport event event_type={} transport_type={} bytes={} error={} service=ultrafast-mcp",
-                event_type,
-                transport_type,
-                bytes_str,
-                error_str
+                event_type, transport_type, bytes_str, error_str
             );
         }
     }
@@ -364,25 +346,25 @@ mod tests {
     fn test_tracing_utils_spans() {
         let span = TracingUtils::mcp_request_span("test_method", "test_id");
         assert_eq!(
-            span.metadata().expect("span should have metadata").name(),
+            span.metadata().map(|m| m.name()).unwrap_or("unknown"),
             "mcp_request"
         );
 
         let span = TracingUtils::tool_execution_span("test_tool", "test_id");
         assert_eq!(
-            span.metadata().expect("span should have metadata").name(),
+            span.metadata().map(|m| m.name()).unwrap_or("unknown"),
             "tool_execution"
         );
 
         let span = TracingUtils::resource_operation_span("read", "test://uri");
         assert_eq!(
-            span.metadata().expect("span should have metadata").name(),
+            span.metadata().map(|m| m.name()).unwrap_or("unknown"),
             "resource_operation"
         );
 
         let span = TracingUtils::transport_operation_span("send", "http");
         assert_eq!(
-            span.metadata().expect("span should have metadata").name(),
+            span.metadata().map(|m| m.name()).unwrap_or("unknown"),
             "transport_operation"
         );
     }

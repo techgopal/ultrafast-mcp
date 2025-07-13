@@ -92,10 +92,10 @@ async fn list_servers(config: Option<Config>) -> Result<()> {
             println!("No servers configured.");
         } else {
             for (name, server) in config.servers {
-                println!("📡 {}", name);
+                println!("📡 {name}");
                 println!("   Version: {}", server.version);
                 if let Some(transport) = server.transport.config.get("command") {
-                    println!("   Transport: {}", transport);
+                    println!("   Transport: {transport}");
                 }
             }
         }
@@ -217,13 +217,13 @@ async fn start_server(args: StartServerArgs, config: Option<Config>) -> Result<(
                 .and_then(|v| v.as_str())
                 .unwrap_or("");
 
-            println!("📡 Command: {} {}", command, args_str);
+            println!("📡 Command: {command} {args_str}");
 
             // For now, just show what would be executed
             // In a real implementation, this would start the process and track it
             println!("✅ Server '{}' started (simulation)", args.name);
             println!("💡 In production, this would:");
-            println!("   - Start the process: {} {}", command, args_str);
+            println!("   - Start the process: {command} {args_str}");
             println!("   - Track the process ID");
             println!("   - Monitor health");
             println!("   - Store runtime state");

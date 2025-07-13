@@ -20,10 +20,10 @@ targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
 # Internal dependencies
-ultrafast-mcp-core = { path = "../ultrafast-mcp-core", version = "=202506018.1.0-rc.3" }
-ultrafast-mcp-server = { path = "../ultrafast-mcp-server", version = "=202506018.1.0-rc.3" }
-ultrafast-mcp-client = { path = "../ultrafast-mcp-client", version = "=202506018.1.0-rc.3" }
-ultrafast-mcp-transport = { path = "../ultrafast-mcp-transport", version = "=202506018.1.0-rc.3" }
+ultrafast-mcp-core = { path = "../ultrafast-mcp-core", version = "=202506018.1.0" }
+ultrafast-mcp-server = { path = "../ultrafast-mcp-server", version = "=202506018.1.0" }
+ultrafast-mcp-client = { path = "../ultrafast-mcp-client", version = "=202506018.1.0" }
+ultrafast-mcp-transport = { path = "../ultrafast-mcp-transport", version = "=202506018.1.0" }
 
 # Testing dependencies
 tokio = { workspace = true }

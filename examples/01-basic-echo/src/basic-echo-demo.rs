@@ -175,7 +175,7 @@ async fn run_stdio_demo() -> anyhow::Result<()> {
         .await?;
 
     if let Some(ToolContent::Text { text }) = result.content.first() {
-        println!("📤 STDIO Response: {}", text);
+        println!("📤 STDIO Response: {text}");
     }
 
     // Cleanup
@@ -229,7 +229,7 @@ async fn run_http_demo(host: &str, port: u16) -> anyhow::Result<()> {
     tokio::time::sleep(tokio::time::Duration::from_millis(2000)).await;
 
     // Connect via HTTP
-    let url = format!("http://{}:{}", host, port);
+    let url = format!("http://{host}:{port}");
     client
         .connect_streamable_http(&url)
         .await
@@ -249,7 +249,7 @@ async fn run_http_demo(host: &str, port: u16) -> anyhow::Result<()> {
         .await?;
 
     if let Some(ToolContent::Text { text }) = result.content.first() {
-        println!("📤 HTTP Response: {}", text);
+        println!("📤 HTTP Response: {text}");
     }
 
     // Cleanup
@@ -319,7 +319,7 @@ async fn run_integrated_demo(host: &str, port: u16) -> anyhow::Result<()> {
     );
 
     // Connect via HTTP
-    let url = format!("http://{}:{}", host, port);
+    let url = format!("http://{host}:{port}");
     client
         .connect_streamable_http(&url)
         .await
@@ -339,7 +339,7 @@ async fn run_integrated_demo(host: &str, port: u16) -> anyhow::Result<()> {
         .await?;
 
     if let Some(ToolContent::Text { text }) = result.content.first() {
-        println!("📤 Integrated Response: {}", text);
+        println!("📤 Integrated Response: {text}");
     }
 
     // Cleanup

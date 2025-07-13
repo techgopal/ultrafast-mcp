@@ -194,42 +194,30 @@ impl ProgressTracker {
 
     /// Update progress
     pub fn update(&mut self, id: &str, current: u64) -> Option<&Progress> {
-        if let Some(progress) = self.progress_map.get_mut(id) {
-            progress.update(current);
-            Some(progress)
-        } else {
-            None
-        }
+        let progress = self.progress_map.get_mut(id)?;
+        progress.update(current);
+        Some(progress)
     }
 
     /// Complete a progress
     pub fn complete(&mut self, id: &str) -> Option<&Progress> {
-        if let Some(progress) = self.progress_map.get_mut(id) {
-            progress.complete();
-            Some(progress)
-        } else {
-            None
-        }
+        let progress = self.progress_map.get_mut(id)?;
+        progress.complete();
+        Some(progress)
     }
 
     /// Fail a progress
     pub fn fail(&mut self, id: &str, error: Option<String>) -> Option<&Progress> {
-        if let Some(progress) = self.progress_map.get_mut(id) {
-            progress.fail(error);
-            Some(progress)
-        } else {
-            None
-        }
+        let progress = self.progress_map.get_mut(id)?;
+        progress.fail(error);
+        Some(progress)
     }
 
     /// Cancel a progress
     pub fn cancel(&mut self, id: &str) -> Option<&Progress> {
-        if let Some(progress) = self.progress_map.get_mut(id) {
-            progress.cancel();
-            Some(progress)
-        } else {
-            None
-        }
+        let progress = self.progress_map.get_mut(id)?;
+        progress.cancel();
+        Some(progress)
     }
 
     /// Remove a progress

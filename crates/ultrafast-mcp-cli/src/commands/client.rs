@@ -86,7 +86,7 @@ async fn list_clients(config: Option<Config>) -> Result<()> {
             println!("No clients configured.");
         } else {
             for (name, client) in config.clients {
-                println!("👤 {}", name);
+                println!("👤 {name}");
                 println!("   Version: {}", client.version);
                 println!("   Server: {}", client.server.endpoint);
             }
@@ -221,7 +221,7 @@ async fn connect_client(args: ConnectClientArgs, config: Option<Config>) -> Resu
                             println!("  {} - {}", tool.name, tool.description.unwrap_or_default());
                         }
                     }
-                    Err(e) => println!("❌ Error listing tools: {}", e),
+                    Err(e) => println!("❌ Error listing tools: {e}"),
                 },
                 "resources" => match client.list_resources().await {
                     Ok(resources) => {
@@ -230,7 +230,7 @@ async fn connect_client(args: ConnectClientArgs, config: Option<Config>) -> Resu
                             println!("  {} - {}", resource.uri, resource.name.unwrap_or_default());
                         }
                     }
-                    Err(e) => println!("❌ Error listing resources: {}", e),
+                    Err(e) => println!("❌ Error listing resources: {e}"),
                 },
                 "status" => {
                     println!("📊 Connection Status:");
@@ -246,7 +246,9 @@ async fn connect_client(args: ConnectClientArgs, config: Option<Config>) -> Resu
                             match serde_json::from_str(parts[2]) {
                                 Ok(args) => args,
                                 Err(_) => {
-                                    println!("❌ Invalid JSON arguments. Use: call <tool> {{\"key\": \"value\"}}");
+                                    println!(
+                                        "❌ Invalid JSON arguments. Use: call <tool> {{\"key\": \"value\"}}"
+                                    );
                                     continue;
                                 }
                             }
@@ -259,7 +261,7 @@ async fn connect_client(args: ConnectClientArgs, config: Option<Config>) -> Resu
                                 println!("✅ Tool result:");
                                 println!("{}", serde_json::to_string_pretty(&result)?);
                             }
-                            Err(e) => println!("❌ Error calling tool: {}", e),
+                            Err(e) => println!("❌ Error calling tool: {e}"),
                         }
                     } else {
                         println!("Usage: call <tool_name> [json_args]");
@@ -274,7 +276,7 @@ async fn connect_client(args: ConnectClientArgs, config: Option<Config>) -> Resu
                                 println!("📄 Resource content:");
                                 println!("{}", serde_json::to_string_pretty(&content)?);
                             }
-                            Err(e) => println!("❌ Error reading resource: {}", e),
+                            Err(e) => println!("❌ Error reading resource: {e}"),
                         }
                     } else {
                         println!("Usage: read <resource_uri>");
@@ -282,10 +284,7 @@ async fn connect_client(args: ConnectClientArgs, config: Option<Config>) -> Resu
                 }
                 "" => continue,
                 _ => {
-                    println!(
-                        "Unknown command: {}. Type 'help' for available commands.",
-                        input
-                    );
+                    println!("Unknown command: {input}. Type 'help' for available commands.");
                 }
             }
         }
@@ -294,7 +293,7 @@ async fn connect_client(args: ConnectClientArgs, config: Option<Config>) -> Resu
         match test_connection(&args.target, &args.transport, &config).await {
             Ok(()) => println!("✅ Connection test completed successfully"),
             Err(e) => {
-                println!("❌ Connection test failed: {}", e);
+                println!("❌ Connection test failed: {e}");
                 return Err(e);
             }
         }
@@ -318,7 +317,7 @@ async fn create_mcp_client(
 }
 
 async fn test_connection(target: &str, transport: &str, _config: &Option<Config>) -> Result<()> {
-    println!("🧪 Testing connection to {} via {}", target, transport);
+    println!("🧪 Testing connection to {target} via {transport}");
 
     match transport {
         "stdio" => {

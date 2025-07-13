@@ -68,7 +68,7 @@ impl Exporter for JsonExporter {
             debug!("Exported JSON data to file: {}", path);
         } else {
             // Write to stdout
-            println!("{}", data);
+            println!("{data}");
             debug!("Exported JSON data to stdout");
         }
 

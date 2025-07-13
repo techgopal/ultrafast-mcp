@@ -87,7 +87,7 @@ impl Template {
 
         // Read template configuration
         let config_content = fs::read_to_string(&config_path)
-            .with_context(|| format!("Failed to read template config: {:?}", config_path))?;
+            .with_context(|| format!("Failed to read template config: {config_path:?}"))?;
 
         let template_config: TemplateConfig =
             if config_path.extension().unwrap_or_default() == "toml" {
@@ -105,12 +105,12 @@ impl Template {
                 let content = if file_config.is_binary.unwrap_or(false) {
                     // For binary files, read and base64 encode
                     let bytes = fs::read(&file_path)
-                        .with_context(|| format!("Failed to read binary file: {:?}", file_path))?;
+                        .with_context(|| format!("Failed to read binary file: {file_path:?}"))?;
                     base64::engine::general_purpose::STANDARD.encode(&bytes)
                 } else {
                     // For text files, read as string
                     fs::read_to_string(&file_path)
-                        .with_context(|| format!("Failed to read text file: {:?}", file_path))?
+                        .with_context(|| format!("Failed to read text file: {file_path:?}"))?
                 };
 
                 files.push(TemplateFile {
@@ -162,7 +162,7 @@ impl Template {
 
         // Simple variable substitution - in a real implementation you'd use a proper template engine
         for (key, value) in context {
-            let placeholder = format!("{{{{{}}}}}", key);
+            let placeholder = format!("{{{{{key}}}}}");
             result = result.replace(&placeholder, value);
         }
 

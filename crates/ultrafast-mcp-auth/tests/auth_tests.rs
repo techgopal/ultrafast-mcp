@@ -163,11 +163,11 @@ mod error_tests {
 
         for error in errors {
             // Test that all errors can be displayed
-            let error_string = format!("{}", error);
+            let error_string = format!("{error}");
             assert!(!error_string.is_empty());
 
             // Test that errors implement Debug
-            let debug_string = format!("{:?}", error);
+            let debug_string = format!("{error:?}");
             assert!(!debug_string.is_empty());
         }
     }

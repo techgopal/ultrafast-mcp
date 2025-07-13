@@ -102,7 +102,7 @@ impl StreamableHttpClient {
             .timeout(config.timeout)
             .build()
             .map_err(|e| TransportError::InitializationError {
-                message: format!("Failed to create HTTP client: {}", e),
+                message: format!("Failed to create HTTP client: {e}"),
             })?;
 
         let oauth_client = config
@@ -135,7 +135,7 @@ impl StreamableHttpClient {
             // Generate PKCE parameters
             let pkce_params = ultrafast_mcp_auth::generate_pkce_params().map_err(|e| {
                 TransportError::AuthenticationError {
-                    message: format!("Failed to generate PKCE: {}", e),
+                    message: format!("Failed to generate PKCE: {e}"),
                 }
             })?;
 
@@ -147,7 +147,7 @@ impl StreamableHttpClient {
                 .get_authorization_url_with_pkce(state, pkce_params.clone())
                 .await
                 .map_err(|e| TransportError::AuthenticationError {
-                    message: format!("Failed to get auth URL: {}", e),
+                    message: format!("Failed to get auth URL: {e}"),
                 })?;
 
             // In a real implementation, you would:
@@ -157,7 +157,9 @@ impl StreamableHttpClient {
             // For now, we'll simulate this with a placeholder
 
             tracing::info!("OAuth authentication URL: {}", auth_url);
-            tracing::warn!("OAuth authentication requires manual user interaction. Please complete the flow manually.");
+            tracing::warn!(
+                "OAuth authentication requires manual user interaction. Please complete the flow manually."
+            );
 
             // For testing purposes, we'll use a mock token
             self.access_token = Some("mock_oauth_token".to_string());
@@ -187,7 +189,7 @@ impl StreamableHttpClient {
         if let Some(auth_middleware) = &mut self.auth_middleware {
             let auth_headers = auth_middleware.get_headers().await.map_err(|e| {
                 TransportError::AuthenticationError {
-                    message: format!("Failed to get auth headers: {}", e),
+                    message: format!("Failed to get auth headers: {e}"),
                 }
             })?;
 
@@ -198,7 +200,7 @@ impl StreamableHttpClient {
 
             // Add OAuth token if available
             if let Some(token) = &self.access_token {
-                headers.push(("Authorization".to_string(), format!("Bearer {}", token)));
+                headers.push(("Authorization".to_string(), format!("Bearer {token}")));
             }
         }
 
@@ -258,13 +260,13 @@ impl StreamableHttpClient {
             .send()
             .await
             .map_err(|e| TransportError::NetworkError {
-                message: format!("Failed to send message: {}", e),
+                message: format!("Failed to send message: {e}"),
             })?;
 
         if !response.status().is_success() {
             let error_text = response.text().await.unwrap_or_default();
             return Err(TransportError::NetworkError {
-                message: format!("Send failed: {}", error_text),
+                message: format!("Send failed: {error_text}"),
             });
         }
 
@@ -274,7 +276,7 @@ impl StreamableHttpClient {
                 .json()
                 .await
                 .map_err(|e| TransportError::SerializationError {
-                    message: format!("Failed to parse response: {}", e),
+                    message: format!("Failed to parse response: {e}"),
                 })?;
 
         Ok(response_message)
@@ -382,13 +384,13 @@ impl StreamableHttpClient {
             .send()
             .await
             .map_err(|e| TransportError::NetworkError {
-                message: format!("Failed to start SSE stream: {}", e),
+                message: format!("Failed to start SSE stream: {e}"),
             })?;
 
         if !response.status().is_success() {
             let error_text = response.text().await.unwrap_or_default();
             return Err(TransportError::NetworkError {
-                message: format!("SSE stream failed: {}", error_text),
+                message: format!("SSE stream failed: {error_text}"),
             });
         }
 
@@ -426,13 +428,13 @@ impl StreamableHttpClient {
             .send()
             .await
             .map_err(|e| TransportError::NetworkError {
-                message: format!("Failed to resume SSE stream: {}", e),
+                message: format!("Failed to resume SSE stream: {e}"),
             })?;
 
         if !response.status().is_success() {
             let error_text = response.text().await.unwrap_or_default();
             return Err(TransportError::NetworkError {
-                message: format!("SSE stream resume failed: {}", error_text),
+                message: format!("SSE stream resume failed: {error_text}"),
             });
         }
 

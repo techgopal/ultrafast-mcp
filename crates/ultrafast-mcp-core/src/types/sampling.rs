@@ -1407,7 +1407,7 @@ mod tests {
         ModelCapability {
             model_id: id.to_string(),
             provider: "test".to_string(),
-            display_name: format!("Test Model {}", id),
+            display_name: format!("Test Model {id}"),
             version: None,
             cost_per_1k_input_tokens: cost_input,
             cost_per_1k_output_tokens: cost_output,

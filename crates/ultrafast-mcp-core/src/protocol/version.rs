@@ -22,7 +22,7 @@ impl ProtocolVersion {
     pub fn parse(version: &str) -> Result<Self, String> {
         let parts: Vec<&str> = version.split('-').collect();
         if parts.len() != 3 {
-            return Err(format!("Invalid version format: {}", version));
+            return Err(format!("Invalid version format: {version}"));
         }
 
         let year = parts[0]
@@ -37,13 +37,13 @@ impl ProtocolVersion {
 
         // Basic validation
         if !(2020..=2099).contains(&year) {
-            return Err(format!("Invalid year: {}", year));
+            return Err(format!("Invalid year: {year}"));
         }
         if !(1..=12).contains(&month) {
-            return Err(format!("Invalid month: {}", month));
+            return Err(format!("Invalid month: {month}"));
         }
         if !(1..=31).contains(&day) {
-            return Err(format!("Invalid day: {}", day));
+            return Err(format!("Invalid day: {day}"));
         }
 
         Ok(ProtocolVersion { year, month, day })

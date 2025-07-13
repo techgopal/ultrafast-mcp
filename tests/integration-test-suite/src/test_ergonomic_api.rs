@@ -7,7 +7,7 @@
 mod tests {
     use serde::{Deserialize, Serialize};
     use std::sync::Arc;
-    use tokio::time::{timeout, Duration};
+    use tokio::time::{Duration, timeout};
     use ultrafast_mcp::{UltraFastClient, UltraFastServer};
     use ultrafast_mcp_core::types::resources::{
         ListResourceTemplatesRequest, ListResourceTemplatesResponse, ListResourcesRequest,
@@ -248,7 +248,10 @@ mod tests {
 
         // Test tool listing
         let list_request = ListToolsRequest { cursor: None };
-        let list_response = handler.list_tools(list_request).await.unwrap();
+        let list_response = handler
+            .list_tools(list_request)
+            .await
+            .expect("Failed to list tools");
         assert_eq!(list_response.tools.len(), 1);
         assert_eq!(list_response.tools[0].name, "echo");
 
@@ -396,7 +399,7 @@ mod tests {
         };
 
         let error = handler.handle_tool_call(invalid_call).await.unwrap_err();
-        println!("Error: {}", error);
+        println!("Error: {error}");
         assert!(error.to_string().to_lowercase().contains("error"));
 
         println!("✅ Error propagation test passed!");
@@ -532,8 +535,8 @@ mod tests {
         assert!(execution_time < Duration::from_secs(1));
 
         println!("✅ Performance test passed!");
-        println!("   Server creation: {:?}", creation_time);
-        println!("   100 tool calls: {:?}", execution_time);
+        println!("   Server creation: {creation_time:?}");
+        println!("   100 tool calls: {execution_time:?}");
     }
 
     #[tokio::test]
@@ -545,7 +548,7 @@ mod tests {
         for i in 0..100 {
             let server = UltraFastServer::new(
                 ServerInfo {
-                    name: format!("server-{}", i),
+                    name: format!("server-{i}"),
                     version: "1.0.0".to_string(),
                     description: None,
                     authors: None,
@@ -559,7 +562,7 @@ mod tests {
 
             let client = UltraFastClient::new(
                 ClientInfo {
-                    name: format!("client-{}", i),
+                    name: format!("client-{i}"),
                     version: "1.0.0".to_string(),
                     description: None,
                     authors: None,
@@ -577,7 +580,7 @@ mod tests {
 
         // Verify all servers and clients are accessible
         for (i, server) in servers.iter().enumerate() {
-            assert_eq!(server.info().name, format!("server-{}", i));
+            assert_eq!(server.info().name, format!("server-{i}"));
             // Commented out: assert_eq!(server.info().description, None);
         }
 

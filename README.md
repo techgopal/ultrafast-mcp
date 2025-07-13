@@ -10,32 +10,220 @@
 
 > **UltraFast MCP** is a high-performance, developer-friendly MCP framework in the Rust ecosystem. Built with performance, safety, and ergonomics in mind, it enables robust MCP servers and clients with minimal boilerplate while maintaining full MCP 2025-06-18 specification compliance.
 
-## ⚠️ Release Candidate Status
+## 📋 Table of Contents
 
-This is **Release Candidate 2 (v20250618.1.0-rc.2)** of UltraFast MCP. While the framework is feature-complete and well-tested, it should be considered **pre-production** software. We recommend thorough testing in your environment before deploying to production.
+- [Overview](#overview)
+- [Architecture](#architecture)
+- [Crates](#crates)
+- [Features](#features)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [Examples](#examples)
+- [API Reference](#api-reference)
+- [Contributing](#contributing)
+- [License](#license)
 
-## 🏗️ Architecture Overview
+## 🎯 Overview
 
-UltraFast MCP is built as a modular, high-performance framework with the following core components:
+UltraFast MCP is designed to be the definitive Rust implementation of the Model Context Protocol, providing:
 
-### Core Crates
+- **🚀 High Performance**: Optimized for throughput and low latency with async/await
+- **🛡️ Type Safety**: Compile-time guarantees for protocol compliance
+- **🎨 Ergonomic APIs**: Simple, intuitive interfaces with minimal boilerplate
+- **📦 Modular Design**: Independent crates for different concerns
+- **🔧 Production Ready**: Comprehensive error handling, logging, and monitoring
+- **🔐 Security First**: OAuth 2.1, PKCE, and secure token management
+- **📊 Observability**: Metrics, health checks, and distributed tracing
 
-- **`ultrafast-mcp-core`**: Foundation types, protocol implementation, and utilities
-- **`ultrafast-mcp-server`**: High-performance server implementation with handler traits
-- **`ultrafast-mcp-client`**: Async client with connection management and retry logic
-- **`ultrafast-mcp-transport`**: Transport layer with STDIO and HTTP support
-- **`ultrafast-mcp-auth`**: OAuth 2.1 authentication with PKCE support
-- **`ultrafast-mcp-monitoring`**: Metrics, health checks, and OpenTelemetry integration
-- **`ultrafast-mcp-cli`**: Command-line tools for development and testing
-- **`ultrafast-mcp-test-utils`**: Testing utilities and fixtures
+## 🏗️ Architecture
 
-### Key Design Principles
+UltraFast MCP follows a modular architecture with clear separation of concerns:
 
-- **Type Safety**: Compile-time guarantees for protocol compliance
-- **Async-First**: Built on `tokio` for high-performance async operations
-- **Modular Design**: Independent crates for different concerns
-- **Production Ready**: Comprehensive error handling, logging, and monitoring
-- **Developer Experience**: Ergonomic APIs with minimal boilerplate
+```text
+┌─────────────────────────────────────────────────────────────┐
+│                    UltraFast MCP                            │
+├─────────────────────────────────────────────────────────────┤
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐        │
+│  │    CLI      │  │  Monitoring │  │    Auth     │        │
+│  │   Tools     │  │  & Metrics  │  │   OAuth     │        │
+│  └─────────────┘  └─────────────┘  └─────────────┘        │
+├─────────────────────────────────────────────────────────────┤
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐        │
+│  │   Server    │  │   Client    │  │  Transport  │        │
+│  │  Handler    │  │  Connection │  │   Layer     │        │
+│  │  System     │  │  Management │  │  HTTP/STDIO │        │
+│  └─────────────┘  └─────────────┘  └─────────────┘        │
+├─────────────────────────────────────────────────────────────┤
+│                    Core Protocol                            │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐        │
+│  │   Types     │  │  Protocol   │  │  Utilities  │        │
+│  │  & Traits   │  │  Messages   │  │  & Helpers  │        │
+│  └─────────────┘  └─────────────┘  └─────────────┘        │
+└─────────────────────────────────────────────────────────────┘
+```
+
+## 📦 Crates
+
+UltraFast MCP is organized into specialized crates, each focusing on specific functionality:
+
+### 🎯 Core Crates
+
+#### `ultrafast-mcp-core` - Foundation Layer
+**Purpose**: Core protocol implementation and foundational types
+
+**Key Components**:
+- **Protocol Types**: Complete MCP 2025-06-18 type definitions
+- **Message Handling**: JSON-RPC message serialization/deserialization
+- **Schema Generation**: Automatic JSON Schema generation and validation
+- **Error Handling**: Comprehensive error types and result handling
+- **Utilities**: URI handling, pagination, progress tracking, and identifiers
+
+**Features**:
+- Full MCP specification compliance
+- Type-safe protocol implementation
+- Automatic schema generation
+- Comprehensive error handling
+- Utility functions for common operations
+
+#### `ultrafast-mcp-server` - Server Implementation
+**Purpose**: High-performance server with ergonomic handler system
+
+**Key Components**:
+- **UltraFastServer**: Main server implementation with fluent API
+- **Handler Traits**: ToolHandler, ResourceHandler, PromptHandler, etc.
+- **State Management**: Thread-safe server state and context management
+- **Lifecycle Management**: Connection initialization, shutdown, and state transitions
+- **Capability Negotiation**: Feature discovery and negotiation
+
+**Features**:
+- Ergonomic server creation and configuration
+- Trait-based handler system for extensibility
+- Comprehensive state management
+- Built-in timeout and error handling
+- Support for all MCP capabilities
+
+#### `ultrafast-mcp-client` - Client Implementation
+**Purpose**: Async client with connection management and retry logic
+
+**Key Components**:
+- **UltraFastClient**: Main client implementation with async/await
+- **Connection Management**: Automatic connection handling and recovery
+- **Request Management**: Pending request tracking and timeout handling
+- **State Management**: Client state transitions and capability checking
+- **Elicitation Handling**: User input collection and validation
+
+**Features**:
+- Async/await client API
+- Automatic connection recovery
+- Request timeout management
+- State-aware operations
+- Elicitation support
+
+#### `ultrafast-mcp-transport` - Transport Layer
+**Purpose**: Flexible transport layer with multiple protocols
+
+**Key Components**:
+- **Transport Trait**: Abstract transport interface
+- **STDIO Transport**: Local communication with minimal overhead
+- **HTTP Transport**: Web-based communication with session management
+- **Streamable HTTP**: High-performance HTTP transport (recommended)
+- **Recovery System**: Automatic reconnection with exponential backoff
+
+**Features**:
+- Multiple transport protocols (STDIO, HTTP, Streamable HTTP)
+- Connection pooling and management
+- Automatic recovery and retry logic
+- Health monitoring and diagnostics
+- Extensible transport architecture
+
+### 🔐 Authentication & Security
+
+#### `ultrafast-mcp-auth` - Authentication System
+**Purpose**: Comprehensive authentication and authorization support
+
+**Key Components**:
+- **OAuth 2.1**: Complete OAuth implementation with PKCE
+- **Token Management**: Secure token storage, validation, and rotation
+- **PKCE Support**: Proof Key for Code Exchange for enhanced security
+- **Session Management**: Secure session handling and management
+- **Validation**: Comprehensive token and credential validation
+
+**Features**:
+- OAuth 2.1 authorization code flow
+- PKCE for public client security
+- JWT token validation
+- Automatic token refresh
+- CSRF protection with state validation
+
+### 📊 Monitoring & Observability
+
+#### `ultrafast-mcp-monitoring` - Monitoring System
+**Purpose**: Comprehensive monitoring and observability
+
+**Key Components**:
+- **Metrics Collection**: Request, transport, and system metrics
+- **Health Checking**: Application and system health monitoring
+- **Distributed Tracing**: OpenTelemetry integration
+- **Performance Monitoring**: Response times and throughput tracking
+- **Exporters**: Prometheus, JSON, and custom metric exporters
+
+**Features**:
+- Real-time metrics collection
+- Custom health checks
+- OpenTelemetry tracing
+- Performance monitoring
+- Multiple export formats
+
+### 🛠️ Development Tools
+
+#### `ultrafast-mcp-cli` - Command Line Interface
+**Purpose**: Development tools and project management
+
+**Key Components**:
+- **Project Management**: Initialize, build, and manage MCP projects
+- **Development Tools**: Development servers, hot reloading, and debugging
+- **Testing Utilities**: Connection testing, schema validation, and integration tests
+- **Code Generation**: Scaffolding, templates, and boilerplate generation
+- **Configuration Management**: Server and client configuration management
+
+**Features**:
+- Project scaffolding and templates
+- Development server with hot reloading
+- Testing and validation tools
+- Code generation utilities
+- Configuration management
+
+#### `ultrafast-mcp-test-utils` - Testing Utilities
+**Purpose**: Common test fixtures and utilities
+
+**Key Components**:
+- **Test Fixtures**: Pre-configured test data and scenarios
+- **Mock Implementations**: Mock handlers and transport implementations
+- **Assertions**: Test assertions and validation helpers
+- **Test Utilities**: Common testing patterns and utilities
+
+**Features**:
+- Reusable test fixtures
+- Mock implementations
+- Test assertions
+- Common testing patterns
+
+### 🎯 Main Crate
+
+#### `ultrafast-mcp` - Primary API
+**Purpose**: Convenient re-exports and feature management
+
+**Key Components**:
+- **Re-exports**: Convenient access to all major types and traits
+- **Feature Management**: Feature flag organization and combinations
+- **Prelude Module**: Common imports for quick development
+- **Documentation**: Comprehensive examples and usage patterns
+
+**Features**:
+- Convenient re-exports
+- Feature flag combinations
+- Comprehensive documentation
+- Quick start examples
 
 ## ✨ Features
 
@@ -94,7 +282,7 @@ cargo add ultrafast-mcp --features="http,oauth"
 
 ```toml
 [dependencies]
-ultrafast-mcp = { version = "20250618.1.0-rc.2", features = [
+ultrafast-mcp = { version = "202506018.1.0", features = [
     "http",                    # HTTP/HTTPS transport
     "oauth",                   # OAuth 2.1 authentication
     "monitoring-full",         # Complete monitoring suite
@@ -142,14 +330,6 @@ cargo add ultrafast-mcp --features="http-with-auth,monitoring-full"
 # All features enabled
 cargo add ultrafast-mcp --features="full"
 ```
-
-### Feature Benefits
-
-- **`minimal`**: Core + STDIO for basic functionality
-- **`http`**: HTTP transport + STDIO fallback + core functionality
-- **`http-with-auth`**: HTTP + OAuth + STDIO fallback + core functionality
-- **`monitoring-full`**: Complete monitoring suite with all exporters
-- **`full`**: Everything enabled for maximum functionality
 
 ## 🚀 Quick Start
 
@@ -295,308 +475,228 @@ async fn main() -> anyhow::Result<()> {
 }
 ```
 
-## 🔧 Advanced Examples
-
-### HTTP Server with OAuth
-
-```rust
-use ultrafast_mcp::prelude::*;
-use std::sync::Arc;
-
-struct SecureToolHandler;
-
-#[async_trait::async_trait]
-impl ToolHandler for SecureToolHandler {
-    async fn handle_tool_call(&self, call: ToolCall) -> MCPResult<ToolResult> {
-        // Your secure tool implementation
-        Ok(ToolResult {
-            content: vec![ToolContent::text("Secure operation completed".to_string())],
-            is_error: Some(false),
-        })
-    }
-
-    async fn list_tools(&self, _request: ListToolsRequest) -> MCPResult<ListToolsResponse> {
-        Ok(ListToolsResponse {
-            tools: vec![Tool {
-                name: "secure_operation".to_string(),
-                description: "Perform a secure operation".to_string(),
-                input_schema: serde_json::json!({
-                    "type": "object",
-                    "properties": {
-                        "data": {"type": "string"}
-                    },
-                    "required": ["data"]
-                }),
-                output_schema: None,
-            }],
-            next_cursor: None,
-        })
-    }
-}
-
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    let server_info = ServerInfo {
-        name: "secure-server".to_string(),
-        version: "1.0.0".to_string(),
-        description: Some("A secure MCP server".to_string()),
-        authors: None,
-        homepage: None,
-        license: None,
-        repository: None,
-    };
-
-    let capabilities = ServerCapabilities {
-        tools: Some(ToolsCapability { list_changed: Some(true) }),
-        ..Default::default()
-    };
-
-    let server = UltraFastServer::new(server_info, capabilities)
-        .with_tool_handler(Arc::new(SecureToolHandler));
-
-    // Run with HTTP transport
-    server.run_streamable_http("127.0.0.1", 8080).await?;
-
-    Ok(())
-}
-```
-
-### Resource Management
-
-```rust
-use ultrafast_mcp::prelude::*;
-use std::sync::Arc;
-
-struct FileResourceHandler;
-
-#[async_trait::async_trait]
-impl ResourceHandler for FileResourceHandler {
-    async fn read_resource(&self, request: ReadResourceRequest) -> MCPResult<ReadResourceResponse> {
-        // Implement file reading logic
-        let content = std::fs::read_to_string(&request.uri)?;
-        
-        Ok(ReadResourceResponse {
-            contents: vec![ResourceContent::text(
-                request.uri,
-                content
-            )],
-        })
-    }
-
-    async fn list_resources(&self, _request: ListResourcesRequest) -> MCPResult<ListResourcesResponse> {
-        Ok(ListResourcesResponse {
-            resources: vec![],
-            next_cursor: None,
-        })
-    }
-
-    async fn list_resource_templates(&self, _request: ListResourceTemplatesRequest) -> MCPResult<ListResourceTemplatesResponse> {
-        Ok(ListResourceTemplatesResponse {
-            resource_templates: vec![],
-            next_cursor: None,
-        })
-    }
-}
-
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    let server_info = ServerInfo {
-        name: "file-server".to_string(),
-        version: "1.0.0".to_string(),
-        description: Some("A file resource server".to_string()),
-        authors: None,
-        homepage: None,
-        license: None,
-        repository: None,
-    };
-
-    let capabilities = ServerCapabilities {
-        resources: Some(ResourcesCapability { list_changed: Some(true) }),
-        ..Default::default()
-    };
-
-    let server = UltraFastServer::new(server_info, capabilities)
-        .with_resource_handler(Arc::new(FileResourceHandler));
-
-    server.run_stdio().await?;
-
-    Ok(())
-}
-```
-
-## 🛠️ Development Tools
-
-### CLI Commands
-
-```bash
-# Install the CLI
-cargo install ultrafast-mcp-cli
-
-# Initialize a new project
-mcp init my-server --template server
-
-# Start development server
-mcp dev --watch
-
-# Test connections
-mcp test --server http://localhost:8080
-
-# Validate schemas
-mcp validate
-
-# Generate shell completions
-mcp completions bash > ~/.bash_completion
-```
-
-### Project Structure
-
-```
-my-mcp-server/
-├── Cargo.toml
-├── src/
-│   ├── main.rs
-│   ├── handlers/
-│   │   ├── mod.rs
-│   │   ├── tools.rs
-│   │   └── resources.rs
-│   └── config.rs
-├── tests/
-│   └── integration_tests.rs
-└── README.md
-```
-
-## 📊 Monitoring & Observability
-
-### Basic Monitoring Setup
-
-```rust
-use ultrafast_mcp_monitoring::{MonitoringSystem, MonitoringConfig};
-
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    // Initialize monitoring
-    let monitoring = MonitoringSystem::init(MonitoringConfig::default()).await?;
-    
-    // Use monitoring in your application
-    let metrics = monitoring.metrics();
-    let timer = RequestTimer::start("tools/call", metrics.clone());
-    
-    // ... perform your operation ...
-    
-    // Record the request completion
-    timer.finish(true).await;
-    
-    Ok(())
-}
-```
-
-### Health Checks
-
-```rust
-use ultrafast_mcp_monitoring::{HealthChecker, HealthStatus};
-
-async fn check_health(health_checker: &HealthChecker) {
-    match health_checker.check_all().await {
-        HealthStatus::Healthy => println!("All systems healthy"),
-        HealthStatus::Degraded(warnings) => {
-            println!("System degraded: {:?}", warnings);
-        }
-        HealthStatus::Unhealthy(errors) => {
-            println!("System unhealthy: {:?}", errors);
-        }
-    }
-}
-```
-
-## 🔐 Authentication
-
-### OAuth 2.1 Setup
-
-```rust
-use ultrafast_mcp_auth::{OAuthClient, OAuthConfig, generate_pkce_params};
-
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    let config = OAuthConfig {
-        client_id: "your-client-id".to_string(),
-        client_secret: "your-client-secret".to_string(),
-        auth_url: "https://auth.example.com/oauth/authorize".to_string(),
-        token_url: "https://auth.example.com/oauth/token".to_string(),
-        redirect_uri: "http://localhost:8080/callback".to_string(),
-        scopes: vec!["read".to_string(), "write".to_string()],
-    };
-
-    let client = OAuthClient::from_config(config);
-    let pkce_params = generate_pkce_params()?;
-
-    // Create authorization URL
-    let auth_url = client.get_authorization_url_with_pkce("state", pkce_params.clone()).await?;
-    println!("Authorization URL: {}", auth_url);
-
-    Ok(())
-}
-```
-
-## 🧪 Testing
-
-### Integration Tests
-
-```rust
-use ultrafast_mcp_test_utils::*;
-use ultrafast_mcp::prelude::*;
-
-#[tokio::test]
-async fn test_tool_execution() {
-    // Create test server
-    let server = create_test_server().await;
-    
-    // Create test client
-    let client = create_test_client().await;
-    
-    // Test tool call
-    let result = client.call_tool(ToolCall {
-        name: "test_tool".to_string(),
-        arguments: Some(serde_json::json!({"input": "test"})),
-    }).await;
-    
-    assert!(result.is_ok());
-}
-```
-
 ## 📚 Examples
 
-The repository includes comprehensive examples:
+UltraFast MCP includes comprehensive examples demonstrating various use cases:
 
-- **01-basic-echo**: Simple echo server and client with Streamable HTTP transport
-- **02-file-operations**: File reading, writing, and management tools with directory operations
-- **03-everything-server**: Complete MCP implementation with tools, resources, and prompts
-- **04-authentication-example**: Comprehensive authentication methods and middleware (OAuth, Bearer, API Key, Basic)
+### 1. [Basic Echo](./examples/01-basic-echo/) - Getting Started
+**Difficulty**: Beginner  
+**Focus**: Basic server and client setup with high-performance HTTP transport
 
-Run examples with:
+**Key Features**:
+- Ergonomic API with one-line server startup
+- Streamable HTTP transport for high performance
+- Type-safe tool calling with serde serialization
+- Comprehensive error handling and logging
 
-```bash
-# Run basic echo server
-cargo run --example basic-echo-server
+### 2. [File Operations](./examples/02-file-operations/) - File System Integration
+**Difficulty**: Intermediate  
+**Focus**: File system operations and complex tool handling
 
-# Run file operations server
-cargo run --example file-ops-server
+**Key Features**:
+- Multiple file operations (read, write, list, delete, search, move)
+- Complex tool handler implementation with 12+ tools
+- Error handling and path validation
+- File metadata handling and directory tree generation
 
-# Run everything server
-cargo run --example everything-server
+### 3. [Everything Server](./examples/03-everything-server/) - Complete MCP Implementation
+**Difficulty**: Advanced  
+**Focus**: Complete MCP feature set with all capabilities
 
-# Run authentication example
-cargo run --example authentication-example
+**Key Features**:
+- Multiple trait implementations (ToolHandler, ResourceHandler, PromptHandler)
+- Advanced data generation and processing
+- Text analysis capabilities
+- Dynamic resource management
+- Complete MCP protocol implementation
+
+### 4. [Authentication Example](./examples/04-authentication-example/) - Authentication Methods
+**Difficulty**: Intermediate  
+**Focus**: Comprehensive authentication support
+
+**Key Features**:
+- Multiple authentication methods (Bearer, API Key, Basic, OAuth)
+- Server-side validation with JWT
+- Client-side authentication middleware
+- HTTP transport authentication integration
+- Security best practices
+
+## 🔧 API Reference
+
+### Server API
+
+#### Core Server Types
+```rust
+// Main server implementation
+pub struct UltraFastServer { ... }
+
+// Server information
+pub struct ServerInfo {
+    pub name: String,
+    pub version: String,
+    pub description: Option<String>,
+    // ... other fields
+}
+
+// Server capabilities
+pub struct ServerCapabilities {
+    pub tools: Option<ToolsCapability>,
+    pub resources: Option<ResourcesCapability>,
+    pub prompts: Option<PromptsCapability>,
+    // ... other capabilities
+}
+```
+
+#### Handler Traits
+```rust
+// Tool execution handler
+#[async_trait]
+pub trait ToolHandler: Send + Sync {
+    async fn handle_tool_call(&self, call: ToolCall) -> MCPResult<ToolResult>;
+    async fn list_tools(&self, request: ListToolsRequest) -> MCPResult<ListToolsResponse>;
+}
+
+// Resource management handler
+#[async_trait]
+pub trait ResourceHandler: Send + Sync {
+    async fn read_resource(&self, request: ReadResourceRequest) -> MCPResult<ReadResourceResponse>;
+    async fn list_resources(&self, request: ListResourcesRequest) -> MCPResult<ListResourcesResponse>;
+}
+
+// Prompt generation handler
+#[async_trait]
+pub trait PromptHandler: Send + Sync {
+    async fn get_prompt(&self, request: GetPromptRequest) -> MCPResult<GetPromptResponse>;
+    async fn list_prompts(&self, request: ListPromptsRequest) -> MCPResult<ListPromptsResponse>;
+}
+```
+
+### Client API
+
+#### Core Client Types
+```rust
+// Main client implementation
+pub struct UltraFastClient { ... }
+
+// Client information
+pub struct ClientInfo {
+    pub name: String,
+    pub version: String,
+    pub description: Option<String>,
+    // ... other fields
+}
+
+// Client capabilities
+pub struct ClientCapabilities {
+    // ... capability fields
+}
+```
+
+#### Client Methods
+```rust
+impl UltraFastClient {
+    // Connection methods
+    pub async fn connect_stdio(&self) -> MCPResult<()>;
+    pub async fn connect_streamable_http(&self, url: &str) -> MCPResult<()>;
+    
+    // Tool operations
+    pub async fn call_tool(&self, tool_call: ToolCall) -> MCPResult<ToolResult>;
+    pub async fn list_tools(&self, request: ListToolsRequest) -> MCPResult<ListToolsResponse>;
+    
+    // Resource operations
+    pub async fn read_resource(&self, request: ReadResourceRequest) -> MCPResult<ReadResourceResponse>;
+    pub async fn list_resources(&self, request: ListResourcesRequest) -> MCPResult<ListResourcesResponse>;
+    
+    // Lifecycle methods
+    pub async fn initialize(&self) -> MCPResult<()>;
+    pub async fn shutdown(&self, reason: Option<String>) -> MCPResult<()>;
+    pub async fn disconnect(&self) -> MCPResult<()>;
+}
+```
+
+### Transport API
+
+#### Transport Types
+```rust
+// Abstract transport trait
+#[async_trait]
+pub trait Transport: Send + Sync {
+    async fn send_message(&mut self, message: JsonRpcMessage) -> Result<()>;
+    async fn receive_message(&mut self) -> Result<JsonRpcMessage>;
+    async fn close(&mut self) -> Result<()>;
+    fn get_state(&self) -> ConnectionState;
+}
+
+// Connection state
+pub enum ConnectionState {
+    Disconnected,
+    Connecting,
+    Connected,
+    Reconnecting,
+    ShuttingDown,
+    Failed(String),
+}
+```
+
+### Authentication API
+
+#### OAuth Types
+```rust
+// OAuth configuration
+pub struct OAuthConfig {
+    pub client_id: String,
+    pub client_secret: String,
+    pub auth_url: String,
+    pub token_url: String,
+    pub redirect_uri: String,
+    pub scopes: Vec<String>,
+}
+
+// OAuth client
+pub struct OAuthClient {
+    // ... implementation
+}
+
+// Token response
+pub struct TokenResponse {
+    pub access_token: String,
+    pub refresh_token: Option<String>,
+    pub expires_in: Option<u64>,
+    pub token_type: String,
+}
+```
+
+### Monitoring API
+
+#### Monitoring Types
+```rust
+// Monitoring system
+pub struct MonitoringSystem {
+    pub metrics_collector: Arc<MetricsCollector>,
+    pub health_checker: Arc<HealthChecker>,
+    pub config: MonitoringConfig,
+}
+
+// Health checker
+pub struct HealthChecker {
+    // ... implementation
+}
+
+// Metrics collector
+pub struct MetricsCollector {
+    // ... implementation
+}
 ```
 
 ## 🤝 Contributing
 
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
+We welcome contributions! Please see our [Contributing Guide](./CONTRIBUTING.md) for details.
 
 ### Development Setup
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-repo/ultrafast-mcp
+git clone https://github.com/techgopal/ultrafast-mcp.git
 cd ultrafast-mcp
 
 # Install dependencies
@@ -605,32 +705,34 @@ cargo build
 # Run tests
 cargo test
 
-# Run benchmarks
-cargo bench
-
-# Check formatting
-cargo fmt
-
-# Run clippy
-cargo clippy
+# Run examples
+cargo run --example basic-echo
 ```
+
+### Code Style
+
+- Follow Rust formatting guidelines (`cargo fmt`)
+- Run clippy for linting (`cargo clippy`)
+- Ensure all tests pass (`cargo test`)
+- Add tests for new functionality
 
 ## 📄 License
 
 This project is licensed under either of
 
-- Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or https://www.apache.org/licenses/LICENSE-2.0)
-- MIT license ([LICENSE-MIT](LICENSE-MIT) or https://opensource.org/licenses/MIT)
+- Apache License, Version 2.0, ([LICENSE-APACHE](./LICENSE-APACHE) or https://www.apache.org/licenses/LICENSE-2.0)
+- MIT license ([LICENSE-MIT](./LICENSE-MIT) or https://opensource.org/licenses/MIT)
 
 at your option.
 
+## 🙏 Acknowledgments
 
-## 📞 Support
-
-- **Documentation**: [docs.rs/ultrafast-mcp](https://docs.rs/ultrafast-mcp)
-- **Issues**: [GitHub Issues](https://github.com/your-repo/ultrafast-mcp/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/your-repo/ultrafast-mcp/discussions)
+- [Model Context Protocol](https://modelcontextprotocol.io/) for the specification
+- [Rust Community](https://www.rust-lang.org/community) for the amazing ecosystem
+- [Tokio](https://tokio.rs/) for the async runtime
+- [Serde](https://serde.rs/) for serialization
+- [OpenTelemetry](https://opentelemetry.io/) for observability
 
 ---
 
-**UltraFast MCP** - Making MCP development fast, safe, and enjoyable! 🚀
+**UltraFast MCP** - Building the future of AI communication, one protocol at a time! 🚀

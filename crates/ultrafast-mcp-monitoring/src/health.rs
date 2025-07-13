@@ -341,10 +341,10 @@ impl HealthChecker {
         for (name, result) in results.iter() {
             match &result.status {
                 HealthStatus::Unhealthy(messages) => {
-                    errors.extend(messages.iter().map(|msg| format!("{}: {}", name, msg)));
+                    errors.extend(messages.iter().map(|msg| format!("{name}: {msg}")));
                 }
                 HealthStatus::Degraded(messages) => {
-                    warnings.extend(messages.iter().map(|msg| format!("{}: {}", name, msg)));
+                    warnings.extend(messages.iter().map(|msg| format!("{name}: {msg}")));
                 }
                 HealthStatus::Healthy => {}
             }

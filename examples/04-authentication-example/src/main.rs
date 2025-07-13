@@ -443,7 +443,7 @@ async fn example_working_auth_demo() -> Result<()> {
 
             if !output.status.success() {
                 let stderr = String::from_utf8_lossy(&output.stderr);
-                eprintln!("Server error: {}", stderr);
+                eprintln!("Server error: {stderr}");
             }
         });
 

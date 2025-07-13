@@ -10,13 +10,13 @@ use serde_json::json;
 use std::sync::Arc;
 use ultrafast_mcp_client::UltraFastClient;
 use ultrafast_mcp_core::{
+    MCPResult,
     protocol::capabilities::ToolsCapability,
     types::{
         client::{ClientCapabilities, ClientInfo},
         server::{ServerCapabilities, ServerInfo},
         tools::{ListToolsRequest, ListToolsResponse, Tool, ToolCall, ToolContent, ToolResult},
     },
-    MCPResult,
 };
 use ultrafast_mcp_server::{ToolHandler, UltraFastServer};
 
@@ -49,7 +49,7 @@ pub fn create_test_server_with_name(name: &str) -> UltraFastServer {
     let server_info = ServerInfo {
         name: name.to_string(),
         version: "1.0.0".to_string(),
-        description: Some(format!("A test MCP server: {}", name)),
+        description: Some(format!("A test MCP server: {name}")),
         authors: Some(vec!["Test Author".to_string()]),
         homepage: Some("https://test.example.com".to_string()),
         license: Some("MIT".to_string()),
@@ -90,7 +90,7 @@ pub fn create_test_client_with_name(name: &str) -> UltraFastClient {
     let client_info = ClientInfo {
         name: name.to_string(),
         version: "1.0.0".to_string(),
-        description: Some(format!("A test MCP client: {}", name)),
+        description: Some(format!("A test MCP client: {name}")),
         authors: Some(vec!["Test Author".to_string()]),
         homepage: Some("https://test.example.com".to_string()),
         license: Some("MIT".to_string()),
@@ -196,7 +196,7 @@ pub fn create_test_server_info(name: &str) -> ServerInfo {
     ServerInfo {
         name: name.to_string(),
         version: "1.0.0".to_string(),
-        description: Some(format!("Test server: {}", name)),
+        description: Some(format!("Test server: {name}")),
         authors: Some(vec!["Test Author".to_string()]),
         homepage: Some("https://test.example.com".to_string()),
         license: Some("MIT".to_string()),
@@ -209,7 +209,7 @@ pub fn create_test_client_info(name: &str) -> ClientInfo {
     ClientInfo {
         name: name.to_string(),
         version: "1.0.0".to_string(),
-        description: Some(format!("Test client: {}", name)),
+        description: Some(format!("Test client: {name}")),
         authors: Some(vec!["Test Author".to_string()]),
         homepage: Some("https://test.example.com".to_string()),
         license: Some("MIT".to_string()),

@@ -613,9 +613,11 @@ mod tests {
         let root = create_test_root("file:///tmp/root", Some(security_config));
 
         // Test valid access
-        assert!(validator
-            .validate_access(&root, "file:///tmp/root/test.txt", RootOperation::Read)
-            .is_ok());
+        assert!(
+            validator
+                .validate_access(&root, "file:///tmp/root/test.txt", RootOperation::Read)
+                .is_ok()
+        );
     }
 
     #[test]
@@ -624,9 +626,11 @@ mod tests {
         let root = create_test_root("file:///tmp", None);
 
         // Path within depth limit should pass
-        assert!(validator
-            .validate_access(&root, "file:///tmp/a/b/c.txt", RootOperation::Read)
-            .is_ok());
+        assert!(
+            validator
+                .validate_access(&root, "file:///tmp/a/b/c.txt", RootOperation::Read)
+                .is_ok()
+        );
 
         // Path exceeding depth limit should fail
         let err = validator
@@ -665,9 +669,11 @@ mod tests {
         assert!(matches!(err, RootSecurityError::BlockedFileExtension(_)));
 
         // Safe extension should pass
-        assert!(validator
-            .validate_access(&root, "file:///tmp/root/document.txt", RootOperation::Read)
-            .is_ok());
+        assert!(
+            validator
+                .validate_access(&root, "file:///tmp/root/document.txt", RootOperation::Read)
+                .is_ok()
+        );
     }
 
     #[test]
@@ -683,9 +689,11 @@ mod tests {
         let root = create_test_root("file:///tmp/root", Some(security_config));
 
         // Allowed extension should pass
-        assert!(validator
-            .validate_access(&root, "file:///tmp/root/document.txt", RootOperation::Read)
-            .is_ok());
+        assert!(
+            validator
+                .validate_access(&root, "file:///tmp/root/document.txt", RootOperation::Read)
+                .is_ok()
+        );
 
         // Non-allowed extension should fail
         let err = validator
@@ -712,9 +720,11 @@ mod tests {
         assert!(matches!(err, RootSecurityError::BlockedDirectory(_)));
 
         // Safe directory should pass
-        assert!(validator
-            .validate_access(&root, "file:///tmp/root/src/main.rs", RootOperation::Read)
-            .is_ok());
+        assert!(
+            validator
+                .validate_access(&root, "file:///tmp/root/src/main.rs", RootOperation::Read)
+                .is_ok()
+        );
     }
 
     #[test]
@@ -730,9 +740,11 @@ mod tests {
         let root = create_test_root("file:///tmp/root", Some(security_config));
 
         // Read operation should pass
-        assert!(validator
-            .validate_access(&root, "file:///tmp/root/file.txt", RootOperation::Read)
-            .is_ok());
+        assert!(
+            validator
+                .validate_access(&root, "file:///tmp/root/file.txt", RootOperation::Read)
+                .is_ok()
+        );
 
         // Write operation should fail
         let err = validator
@@ -762,7 +774,7 @@ mod tests {
 
         for path in &test_cases {
             let result = validator.validate_access(&root, path, RootOperation::Read);
-            assert!(result.is_err(), "Path {} should be blocked", path);
+            assert!(result.is_err(), "Path {path} should be blocked");
         }
     }
 
@@ -827,22 +839,32 @@ mod tests {
         let root = create_test_root("file:///tmp/safe", Some(security_config));
 
         // Valid file should pass all checks
-        assert!(validator
-            .validate_access(&root, "file:///tmp/safe/doc.txt", RootOperation::Read)
-            .is_ok());
+        assert!(
+            validator
+                .validate_access(&root, "file:///tmp/safe/doc.txt", RootOperation::Read)
+                .is_ok()
+        );
 
         // Test multiple failure scenarios
-        assert!(validator
-            .validate_access(&root, "file:///etc/passwd", RootOperation::Read)
-            .is_err());
-        assert!(validator
-            .validate_access(&root, "file:///tmp/safe/malware.exe", RootOperation::Read)
-            .is_err());
-        assert!(validator
-            .validate_access(&root, "file:///tmp/safe/.git/config", RootOperation::Read)
-            .is_err());
-        assert!(validator
-            .validate_access(&root, "file:///tmp/safe/doc.txt", RootOperation::Write)
-            .is_err());
+        assert!(
+            validator
+                .validate_access(&root, "file:///etc/passwd", RootOperation::Read)
+                .is_err()
+        );
+        assert!(
+            validator
+                .validate_access(&root, "file:///tmp/safe/malware.exe", RootOperation::Read)
+                .is_err()
+        );
+        assert!(
+            validator
+                .validate_access(&root, "file:///tmp/safe/.git/config", RootOperation::Read)
+                .is_err()
+        );
+        assert!(
+            validator
+                .validate_access(&root, "file:///tmp/safe/doc.txt", RootOperation::Write)
+                .is_err()
+        );
     }
 }

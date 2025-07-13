@@ -99,7 +99,7 @@ impl ToolHandler for EchoToolHandler {
 
         let request: EchoRequest = serde_json::from_value(arguments).map_err(|e| {
             error!("Failed to parse echo request: {}", e);
-            MCPError::invalid_params(format!("Invalid request format: {}", e))
+            MCPError::invalid_params(format!("Invalid request format: {e}"))
         })?;
 
         // Validate input

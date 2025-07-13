@@ -166,32 +166,35 @@ mod performance_tests {
 
 #[cfg(test)]
 mod validation_middleware_tests {
-    use serde_json::{json, Value};
+    use serde_json::{Value, json};
+    use std::borrow::Cow;
 
     use ultrafast_mcp_core::protocol::{JsonRpcMessage, JsonRpcRequest, RequestId};
-    use ultrafast_mcp_transport::middleware::{TransportMiddleware, ValidationMiddleware};
+    use ultrafast_mcp_transport::streamable_http::middleware::{TransportMiddleware, ValidationMiddleware};
 
     #[tokio::test]
     async fn test_validation_middleware_basic() {
         let middleware = ValidationMiddleware::new();
         let mut valid_request = JsonRpcMessage::Request(JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: Some(RequestId::from("1".to_string())),
             method: "tools/list".to_string(),
             params: None,
             meta: std::collections::HashMap::new(),
         });
-        assert!(middleware
-            .process_outgoing(&mut valid_request)
-            .await
-            .is_ok());
+        assert!(
+            middleware
+                .process_outgoing(&mut valid_request)
+                .await
+                .is_ok()
+        );
     }
 
     #[tokio::test]
     async fn test_validation_middleware_invalid_method() {
         let middleware = ValidationMiddleware::new();
         let mut invalid_request = JsonRpcMessage::Request(JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: Some(RequestId::from("1".to_string())),
             method: "invalid/method".to_string(),
             params: None,
@@ -199,17 +202,19 @@ mod validation_middleware_tests {
         });
         let result = middleware.process_outgoing(&mut invalid_request).await;
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("Method 'invalid/method' not allowed"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("Method 'invalid/method' not allowed")
+        );
     }
 
     #[tokio::test]
     async fn test_validation_middleware_invalid_jsonrpc_version() {
         let middleware = ValidationMiddleware::new();
         let mut invalid_request = JsonRpcMessage::Request(JsonRpcRequest {
-            jsonrpc: "1.0".to_string(),
+            jsonrpc: Cow::Borrowed("1.0"),
             id: Some(RequestId::from("1".to_string())),
             method: "tools/list".to_string(),
             params: None,
@@ -217,33 +222,37 @@ mod validation_middleware_tests {
         });
         let result = middleware.process_outgoing(&mut invalid_request).await;
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("Invalid JSON-RPC version"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("Invalid JSON-RPC version")
+        );
     }
 
     #[tokio::test]
     async fn test_validation_middleware_null_request_id() {
         let middleware = ValidationMiddleware::new();
         let mut invalid_request = JsonRpcMessage::Request(JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: None,
             method: "tools/list".to_string(),
             params: None,
             meta: std::collections::HashMap::new(),
         });
-        assert!(middleware
-            .process_outgoing(&mut invalid_request)
-            .await
-            .is_ok());
+        assert!(
+            middleware
+                .process_outgoing(&mut invalid_request)
+                .await
+                .is_ok()
+        );
     }
 
     #[tokio::test]
     async fn test_validation_middleware_strict_mode() {
         let middleware = ValidationMiddleware::strict();
         let mut invalid_request = JsonRpcMessage::Request(JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: None,
             method: "tools/list".to_string(),
             params: None,
@@ -251,17 +260,19 @@ mod validation_middleware_tests {
         });
         let result = middleware.process_outgoing(&mut invalid_request).await;
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("Request ID required in strict mode"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("Request ID required in strict mode")
+        );
     }
 
     #[tokio::test]
     async fn test_validation_middleware_string_sanitization() {
         let middleware = ValidationMiddleware::new();
         let mut request_with_nulls = JsonRpcMessage::Request(JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: Some(RequestId::from("1".to_string())),
             method: "tools/call".to_string(),
             params: Some(json!({
@@ -272,10 +283,12 @@ mod validation_middleware_tests {
             })),
             meta: std::collections::HashMap::new(),
         });
-        assert!(middleware
-            .process_outgoing(&mut request_with_nulls)
-            .await
-            .is_ok());
+        assert!(
+            middleware
+                .process_outgoing(&mut request_with_nulls)
+                .await
+                .is_ok()
+        );
         if let JsonRpcMessage::Request(req) = &request_with_nulls {
             if let Some(params) = &req.params {
                 if let Some(input) = params.get("arguments").and_then(|a| a.get("input")) {
@@ -290,7 +303,7 @@ mod validation_middleware_tests {
         let middleware = ValidationMiddleware::new();
         let large_array: Vec<Value> = (0..10001).map(|i| json!(i)).collect();
         let mut request_with_large_array = JsonRpcMessage::Request(JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: Some(RequestId::from("1".to_string())),
             method: "tools/call".to_string(),
             params: Some(json!({
@@ -305,10 +318,12 @@ mod validation_middleware_tests {
             .process_outgoing(&mut request_with_large_array)
             .await;
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("Array parameter too large"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("Array parameter too large")
+        );
     }
 
     #[tokio::test]
@@ -316,10 +331,10 @@ mod validation_middleware_tests {
         let middleware = ValidationMiddleware::new();
         let mut large_object = serde_json::Map::new();
         for i in 0..1001 {
-            large_object.insert(format!("key_{}", i), json!(i));
+            large_object.insert(format!("key_{i}"), json!(i));
         }
         let mut request_with_large_object = JsonRpcMessage::Request(JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: Some(RequestId::from("1".to_string())),
             method: "tools/call".to_string(),
             params: Some(Value::Object(large_object)),
@@ -329,17 +344,19 @@ mod validation_middleware_tests {
             .process_outgoing(&mut request_with_large_object)
             .await;
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("Object parameter too large"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("Object parameter too large")
+        );
     }
 
     #[tokio::test]
     async fn test_validation_middleware_reserved_key_names() {
         let middleware = ValidationMiddleware::new();
         let mut request_with_reserved_key = JsonRpcMessage::Request(JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: Some(RequestId::from("1".to_string())),
             method: "tools/call".to_string(),
             params: Some(json!({
@@ -352,17 +369,19 @@ mod validation_middleware_tests {
             .process_outgoing(&mut request_with_reserved_key)
             .await;
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("Reserved key name '_internal' not allowed"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("Reserved key name '_internal' not allowed")
+        );
     }
 
     #[tokio::test]
     async fn test_validation_middleware_meta_key_allowed() {
         let middleware = ValidationMiddleware::new();
         let mut request_with_meta = JsonRpcMessage::Request(JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: Some(RequestId::from("1".to_string())),
             method: "tools/call".to_string(),
             params: Some(json!({
@@ -373,17 +392,19 @@ mod validation_middleware_tests {
             })),
             meta: std::collections::HashMap::new(),
         });
-        assert!(middleware
-            .process_outgoing(&mut request_with_meta)
-            .await
-            .is_ok());
+        assert!(
+            middleware
+                .process_outgoing(&mut request_with_meta)
+                .await
+                .is_ok()
+        );
     }
 
     #[tokio::test]
     async fn test_validation_middleware_uri_validation() {
         let middleware = ValidationMiddleware::new();
         let mut request_with_valid_uri = JsonRpcMessage::Request(JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: Some(RequestId::from("1".to_string())),
             method: "resources/read".to_string(),
             params: Some(json!({
@@ -391,12 +412,14 @@ mod validation_middleware_tests {
             })),
             meta: std::collections::HashMap::new(),
         });
-        assert!(middleware
-            .process_outgoing(&mut request_with_valid_uri)
-            .await
-            .is_ok());
+        assert!(
+            middleware
+                .process_outgoing(&mut request_with_valid_uri)
+                .await
+                .is_ok()
+        );
         let mut request_with_invalid_uri = JsonRpcMessage::Request(JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: Some(RequestId::from("1".to_string())),
             method: "resources/read".to_string(),
             params: Some(json!({
@@ -408,17 +431,19 @@ mod validation_middleware_tests {
             .process_outgoing(&mut request_with_invalid_uri)
             .await;
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("URI contains path traversal attempt"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("URI contains path traversal attempt")
+        );
     }
 
     #[tokio::test]
     async fn test_validation_middleware_protocol_version_validation() {
         let middleware = ValidationMiddleware::new();
         let mut request_with_valid_version = JsonRpcMessage::Request(JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: Some(RequestId::from("1".to_string())),
             method: "initialize".to_string(),
             params: Some(json!({
@@ -427,12 +452,14 @@ mod validation_middleware_tests {
             })),
             meta: std::collections::HashMap::new(),
         });
-        assert!(middleware
-            .process_outgoing(&mut request_with_valid_version)
-            .await
-            .is_ok());
+        assert!(
+            middleware
+                .process_outgoing(&mut request_with_valid_version)
+                .await
+                .is_ok()
+        );
         let mut request_with_invalid_version = JsonRpcMessage::Request(JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: Some(RequestId::from("1".to_string())),
             method: "initialize".to_string(),
             params: Some(json!({
@@ -445,17 +472,19 @@ mod validation_middleware_tests {
             .process_outgoing(&mut request_with_invalid_version)
             .await;
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("Unsupported protocol version"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("Unsupported protocol version")
+        );
     }
 
     #[tokio::test]
     async fn test_validation_middleware_tool_name_validation() {
         let middleware = ValidationMiddleware::new();
         let mut request_with_valid_tool = JsonRpcMessage::Request(JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: Some(RequestId::from("1".to_string())),
             method: "tools/call".to_string(),
             params: Some(json!({
@@ -463,12 +492,14 @@ mod validation_middleware_tests {
             })),
             meta: std::collections::HashMap::new(),
         });
-        assert!(middleware
-            .process_outgoing(&mut request_with_valid_tool)
-            .await
-            .is_ok());
+        assert!(
+            middleware
+                .process_outgoing(&mut request_with_valid_tool)
+                .await
+                .is_ok()
+        );
         let mut request_with_invalid_tool = JsonRpcMessage::Request(JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: Some(RequestId::from("1".to_string())),
             method: "tools/call".to_string(),
             params: Some(json!({
@@ -480,17 +511,19 @@ mod validation_middleware_tests {
             .process_outgoing(&mut request_with_invalid_tool)
             .await;
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("Tool name cannot start with underscore"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("Tool name cannot start with underscore")
+        );
     }
 
     #[tokio::test]
     async fn test_validation_middleware_log_level_validation() {
         let middleware = ValidationMiddleware::new();
         let mut request_with_valid_level = JsonRpcMessage::Request(JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: Some(RequestId::from("1".to_string())),
             method: "logging/log".to_string(),
             params: Some(json!({
@@ -499,12 +532,14 @@ mod validation_middleware_tests {
             })),
             meta: std::collections::HashMap::new(),
         });
-        assert!(middleware
-            .process_outgoing(&mut request_with_valid_level)
-            .await
-            .is_ok());
+        assert!(
+            middleware
+                .process_outgoing(&mut request_with_valid_level)
+                .await
+                .is_ok()
+        );
         let mut request_with_invalid_level = JsonRpcMessage::Request(JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: Some(RequestId::from("1".to_string())),
             method: "logging/log".to_string(),
             params: Some(json!({
@@ -517,10 +552,12 @@ mod validation_middleware_tests {
             .process_outgoing(&mut request_with_invalid_level)
             .await;
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("Invalid log level"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("Invalid log level")
+        );
     }
 
     #[tokio::test]
@@ -529,7 +566,7 @@ mod validation_middleware_tests {
 
         // Test with a message that should be under the limit
         let mut small_request = JsonRpcMessage::Request(JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: Some(RequestId::from("1".to_string())),
             method: "tools/call".to_string(),
             params: Some(json!({
@@ -538,15 +575,17 @@ mod validation_middleware_tests {
             })),
             meta: std::collections::HashMap::new(),
         });
-        assert!(middleware
-            .process_incoming(&mut small_request)
-            .await
-            .is_ok());
+        assert!(
+            middleware
+                .process_incoming(&mut small_request)
+                .await
+                .is_ok()
+        );
 
         // Create a huge message that definitely exceeds the 10MB limit
         let huge_string = "x".repeat(15 * 1024 * 1024); // 15MB string
         let mut huge_request = JsonRpcMessage::Request(JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: Some(RequestId::from("1".to_string())),
             method: "tools/call".to_string(),
             params: Some(json!({
@@ -570,7 +609,7 @@ mod validation_middleware_tests {
             deep_object = json!({ "nested": deep_object });
         }
         let mut request_with_deep_object = JsonRpcMessage::Request(JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: Some(RequestId::from("1".to_string())),
             method: "tools/call".to_string(),
             params: Some(json!({
@@ -583,10 +622,12 @@ mod validation_middleware_tests {
             .process_outgoing(&mut request_with_deep_object)
             .await;
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("Parameter depth exceeds maximum"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("Parameter depth exceeds maximum")
+        );
     }
 
     #[tokio::test]
@@ -596,18 +637,20 @@ mod validation_middleware_tests {
             .with_max_params_depth(3)
             .with_allowed_methods(vec!["custom/method".to_string()]);
         let mut request_with_custom_method = JsonRpcMessage::Request(JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: Some(RequestId::from("1".to_string())),
             method: "custom/method".to_string(),
             params: None,
             meta: std::collections::HashMap::new(),
         });
-        assert!(middleware
-            .process_outgoing(&mut request_with_custom_method)
-            .await
-            .is_ok());
+        assert!(
+            middleware
+                .process_outgoing(&mut request_with_custom_method)
+                .await
+                .is_ok()
+        );
         let mut request_with_standard_method = JsonRpcMessage::Request(JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: Cow::Borrowed("2.0"),
             id: Some(RequestId::from("1".to_string())),
             method: "tools/list".to_string(),
             params: None,
@@ -617,10 +660,12 @@ mod validation_middleware_tests {
             .process_outgoing(&mut request_with_standard_method)
             .await;
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("Method 'tools/list' not allowed"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("Method 'tools/list' not allowed")
+        );
     }
 }
 
@@ -629,10 +674,10 @@ mod validation_middleware_tests {
 mod transport_compliance_tests {
 
     use axum::{
+        Json,
         body::Bytes,
         http::{HeaderMap, StatusCode},
         response::{IntoResponse, Response},
-        Json,
     };
     use serde_json::json;
     use std::sync::Arc;
@@ -874,7 +919,7 @@ mod transport_compliance_tests {
                     Json(JsonRpcResponse::error(
                         JsonRpcError::new(
                             -32000,
-                            format!("Unsupported protocol version: {}", protocol_version),
+                            format!("Unsupported protocol version: {protocol_version}"),
                         ),
                         None,
                     )),

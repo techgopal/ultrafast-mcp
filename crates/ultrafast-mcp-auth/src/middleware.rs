@@ -1,4 +1,4 @@
-use crate::{error::AuthError, types::TokenClaims, AuthMethod, TokenValidator};
+use crate::{AuthMethod, TokenValidator, error::AuthError, types::TokenClaims};
 use base64::Engine;
 use std::collections::HashMap;
 use std::sync::Arc;
