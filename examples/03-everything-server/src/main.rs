@@ -855,7 +855,11 @@ struct EverythingRootsHandler {
 #[async_trait::async_trait]
 impl RootsHandler for EverythingRootsHandler {
     async fn list_roots(&self) -> MCPResult<Vec<roots::Root>> {
-        Ok(self.roots.lock().expect("Failed to acquire roots lock").clone())
+        Ok(self
+            .roots
+            .lock()
+            .expect("Failed to acquire roots lock")
+            .clone())
     }
     async fn set_roots(&self, roots: Vec<roots::Root>) -> MCPResult<()> {
         *self.roots.lock().expect("Failed to acquire roots lock") = roots;

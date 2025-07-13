@@ -10,7 +10,6 @@ use std::fmt;
 use thiserror::Error;
 use ultrafast_mcp_core::protocol::JsonRpcMessage;
 
-pub mod middleware;
 pub mod stdio;
 
 #[cfg(feature = "http")]

@@ -7,10 +7,7 @@ use ultrafast_mcp_core::MCPResult;
 pub fn assert_mcp_error<T: Debug>(result: MCPResult<T>, expected_error_contains: &str) {
     match result {
         Ok(value) => {
-            assert!(
-                false,
-                "Expected error containing '{expected_error_contains}', but got Ok({value:?})"
-            );
+            panic!("Expected error containing '{expected_error_contains}', but got Ok({value:?})");
         }
         Err(error) => {
             let error_string = error.to_string();
@@ -26,10 +23,7 @@ pub fn assert_mcp_error<T: Debug>(result: MCPResult<T>, expected_error_contains:
 pub fn assert_mcp_error_variant<T: Debug>(result: MCPResult<T>, variant_name: &str) {
     match result {
         Ok(value) => {
-            assert!(
-                false,
-                "Expected {variant_name} error, but got Ok({value:?})"
-            );
+            panic!("Expected {variant_name} error, but got Ok({value:?})");
         }
         Err(error) => {
             let error_debug = format!("{error:?}");
@@ -46,8 +40,7 @@ pub fn assert_mcp_success<T: Debug>(result: MCPResult<T>) -> T {
     match result {
         Ok(value) => value,
         Err(error) => {
-            assert!(false, "Expected success, but got error: {error}");
-            unreachable!()
+            panic!("Expected success, but got error: {error}");
         }
     }
 }
@@ -56,12 +49,9 @@ pub fn assert_mcp_success<T: Debug>(result: MCPResult<T>) -> T {
 pub fn assert_json_eq(left: &serde_json::Value, right: &serde_json::Value) {
     if left != right {
         let left_str = serde_json::to_string_pretty(left).unwrap_or_else(|_| format!("{left:?}"));
-        let right_str = serde_json::to_string_pretty(right).unwrap_or_else(|_| format!("{right:?}"));
-        assert!(
-            false,
-            "JSON values are not equal:\nLeft:  {}\nRight: {}",
-            left_str, right_str
-        );
+        let right_str =
+            serde_json::to_string_pretty(right).unwrap_or_else(|_| format!("{right:?}"));
+        panic!("JSON values are not equal:\nLeft:  {left_str}\nRight: {right_str}");
     }
 }
 

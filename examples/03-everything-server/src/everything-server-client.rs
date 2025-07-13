@@ -94,8 +94,7 @@ async fn main() -> anyhow::Result<()> {
             }
             Err(e) => {
                 println!(
-                    "⚠️  Bearer token connection failed (expected if server doesn't support auth): {}",
-                    e
+                    "⚠️  Bearer token connection failed (expected if server doesn't support auth): {e}"
                 );
             }
         }
@@ -124,8 +123,7 @@ async fn main() -> anyhow::Result<()> {
             }
             Err(e) => {
                 println!(
-                    "⚠️  API key connection failed (expected if server doesn't support auth): {}",
-                    e
+                    "⚠️  API key connection failed (expected if server doesn't support auth): {e}"
                 );
             }
         }
@@ -157,8 +155,7 @@ async fn main() -> anyhow::Result<()> {
             }
             Err(e) => {
                 println!(
-                    "⚠️  Basic auth connection failed (expected if server doesn't support auth): {}",
-                    e
+                    "⚠️  Basic auth connection failed (expected if server doesn't support auth): {e}"
                 );
             }
         }
@@ -168,7 +165,7 @@ async fn main() -> anyhow::Result<()> {
         println!("⚠️  Basic authentication not available (requires http+oauth features)");
     }
 
-    println!("\n�� Connection Method 5: Client-Level Authentication Integration");
+    println!("\n🔗 Connection Method 5: Client-Level Authentication Integration");
     println!("   Using: client.with_bearer_auth(token).connect_streamable_http(url).await?");
 
     // Method 5: Client-level auth that integrates automatically (new feature)
@@ -184,7 +181,7 @@ async fn main() -> anyhow::Result<()> {
                 client5.disconnect().await?;
             }
             Err(e) => {
-                println!("⚠️  Client-level auth connection failed: {}", e);
+                println!("⚠️  Client-level auth connection failed: {e}");
             }
         }
     }

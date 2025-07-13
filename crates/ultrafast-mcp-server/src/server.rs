@@ -3032,10 +3032,13 @@ mod tests {
                     "call-id"
                 ))
             );
-            let content = result.get("content").and_then(|c| c.as_array()).expect("Expected content array");
+            let content = result
+                .get("content")
+                .and_then(|c| c.as_array())
+                .expect("Expected content array");
             assert_eq!(content.len(), 1);
         } else {
-            assert!(false, "Expected success response for tools/call");
+            panic!("Expected success response for tools/call");
         }
 
         // Step 4: Verify tool still exists in registry

@@ -1,7 +1,7 @@
 use crate::error::{MCPResult, ToolError};
 use serde_json::{Value, json};
-use std::collections::HashSet;
 use std::borrow::Cow;
+use std::collections::HashSet;
 
 /// Enhanced schema validation with comprehensive JSON Schema support
 pub fn validate_against_schema(data: &Value, schema: &Value) -> MCPResult<()> {

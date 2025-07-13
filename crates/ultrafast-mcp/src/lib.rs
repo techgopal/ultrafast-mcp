@@ -483,8 +483,8 @@ pub use ultrafast_mcp_transport::{
     TransportConfig,
     create_recovering_transport,
     create_transport,
-    // Middleware
-    middleware::{
+    // Middleware (moved to streamable_http module)
+    streamable_http::middleware::{
         LoggingMiddleware, MiddlewareTransport, ProgressMiddleware, RateLimitMiddleware,
         TransportMiddleware, ValidationMiddleware,
     },

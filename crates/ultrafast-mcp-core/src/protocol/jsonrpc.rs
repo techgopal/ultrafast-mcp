@@ -411,7 +411,8 @@ mod tests {
         );
 
         let serialized = serde_json::to_string(&request).expect("Failed to serialize request");
-        let deserialized: JsonRpcRequest = serde_json::from_str(&serialized).expect("Failed to deserialize request");
+        let deserialized: JsonRpcRequest =
+            serde_json::from_str(&serialized).expect("Failed to deserialize request");
 
         assert_eq!(request, deserialized);
     }

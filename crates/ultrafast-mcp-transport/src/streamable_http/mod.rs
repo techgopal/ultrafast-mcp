@@ -4,13 +4,14 @@
 //! It follows the MCP specification for stateless request/response communication.
 
 pub mod client;
+pub mod middleware;
 pub mod server;
 
 pub use client::{StreamableHttpClient, StreamableHttpClientConfig};
 pub use server::{HttpTransportConfig, HttpTransportServer, HttpTransportState};
 
 // Re-export middleware types for convenience
-pub use crate::middleware::{
+pub use middleware::{
     LoggingMiddleware, MiddlewareTransport, ProgressMiddleware, RateLimitMiddleware,
     TransportMiddleware, ValidationMiddleware,
 };

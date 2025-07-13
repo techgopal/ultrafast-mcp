@@ -7,6 +7,7 @@
 mod tests {
     use async_trait::async_trait;
     use serde_json::json;
+    use std::borrow::Cow;
     use std::sync::Arc;
     use std::time::Duration;
     use tokio::sync::mpsc;
@@ -16,15 +17,14 @@ mod tests {
         ServerCapabilities, ServerInfo, Tool, ToolCall, ToolContent, ToolHandler, ToolResult,
         UltraFastClient, UltraFastServer,
     };
-    use std::borrow::Cow;
-use ultrafast_mcp_core::{
-    protocol::{
-        capabilities::{PromptsCapability, ResourcesCapability, ToolsCapability},
-        jsonrpc::{JsonRpcMessage, JsonRpcRequest},
-        lifecycle::InitializeRequest,
-    },
-    types::notifications::{CancelledNotification, PingRequest},
-};
+    use ultrafast_mcp_core::{
+        protocol::{
+            capabilities::{PromptsCapability, ResourcesCapability, ToolsCapability},
+            jsonrpc::{JsonRpcMessage, JsonRpcRequest},
+            lifecycle::InitializeRequest,
+        },
+        types::notifications::{CancelledNotification, PingRequest},
+    };
 
     // Mock tool handler that supports cancellation
     struct CancellableToolHandler {

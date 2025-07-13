@@ -167,10 +167,10 @@ mod performance_tests {
 #[cfg(test)]
 mod validation_middleware_tests {
     use serde_json::{Value, json};
-use std::borrow::Cow;
+    use std::borrow::Cow;
 
-use ultrafast_mcp_core::protocol::{JsonRpcMessage, JsonRpcRequest, RequestId};
-use ultrafast_mcp_transport::middleware::{TransportMiddleware, ValidationMiddleware};
+    use ultrafast_mcp_core::protocol::{JsonRpcMessage, JsonRpcRequest, RequestId};
+    use ultrafast_mcp_transport::streamable_http::middleware::{TransportMiddleware, ValidationMiddleware};
 
     #[tokio::test]
     async fn test_validation_middleware_basic() {
