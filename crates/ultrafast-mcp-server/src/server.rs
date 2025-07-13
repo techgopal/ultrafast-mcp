@@ -17,7 +17,7 @@ use ultrafast_mcp_core::{
     types::{
         notifications::{LogLevel, LogLevelSetRequest, LogLevelSetResponse},
         prompts::Prompt,
-        resources::{Resource, ResourceTemplate, SubscribeResponse},
+        resources::{Resource, SubscribeResponse},
         roots::{RootsListChangedNotification, SetRootsRequest, SetRootsResponse},
         server::ServerInfo,
         tools::Tool,
@@ -106,11 +106,7 @@ pub struct UltraFastServer {
     capabilities: ServerCapabilities,
     state: Arc<RwLock<ServerState>>,
     tools: Arc<RwLock<HashMap<String, Tool>>>,
-    #[allow(dead_code)]
     resources: Arc<RwLock<HashMap<String, Resource>>>,
-    #[allow(dead_code)]
-    resource_templates: Arc<RwLock<HashMap<String, ResourceTemplate>>>,
-    #[allow(dead_code)]
     prompts: Arc<RwLock<HashMap<String, Prompt>>>,
     tool_handler: Option<Arc<dyn ToolHandler>>,
     resource_handler: Option<Arc<dyn ResourceHandler>>,
@@ -128,15 +124,10 @@ pub struct UltraFastServer {
     logging_config: Arc<RwLock<ServerLoggingConfig>>,
 
     #[cfg(feature = "monitoring")]
-    #[allow(dead_code)]
     monitoring_system: Option<Arc<crate::MonitoringSystem>>,
 
     // Advanced handlers
     advanced_sampling_handler: Option<Arc<dyn AdvancedSamplingHandler>>,
-
-    // Monitoring
-    #[allow(dead_code)]
-    monitoring_enabled: bool,
 
     // Timeout configuration (MCP 2025-06-18 compliance)
     timeout_config: Arc<TimeoutConfig>,
@@ -161,7 +152,6 @@ impl UltraFastServer {
             state: Arc::new(RwLock::new(ServerState::Uninitialized)),
             tools: Arc::new(RwLock::new(HashMap::new())),
             resources: Arc::new(RwLock::new(HashMap::new())),
-            resource_templates: Arc::new(RwLock::new(HashMap::new())),
             prompts: Arc::new(RwLock::new(HashMap::new())),
             tool_handler: None,
             resource_handler: None,
@@ -181,9 +171,6 @@ impl UltraFastServer {
 
             // Advanced handlers
             advanced_sampling_handler: None,
-
-            // Monitoring
-            monitoring_enabled: false,
 
             // Timeout configuration (MCP 2025-06-18 compliance)
             timeout_config: Arc::new(TimeoutConfig::default()),

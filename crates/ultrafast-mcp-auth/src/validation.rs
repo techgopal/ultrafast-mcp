@@ -111,7 +111,7 @@ pub fn extract_bearer_token(auth_header: &str) -> Result<&str, AuthError> {
     if !auth_header.starts_with("Bearer ") {
         return Err(AuthError::InvalidToken("Not a Bearer token".to_string()));
     }
-    let token = auth_header.strip_prefix("Bearer ").unwrap();
+    let token = auth_header.strip_prefix("Bearer ").expect("Bearer prefix should be present");
     let token = token.trim();
     if token.is_empty() {
         return Err(AuthError::InvalidToken("Empty token".to_string()));

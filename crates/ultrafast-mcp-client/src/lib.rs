@@ -432,13 +432,18 @@ impl UltraFastClient {
                                             {
                                                 Ok(response) => {
                                                     // Send the response back to the server
+                                                    let response_params = match serde_json::to_value(response) {
+                                                        Ok(params) => Some(params),
+                                                        Err(e) => {
+                                                            error!("Failed to serialize elicitation response: {}", e);
+                                                            continue;
+                                                        }
+                                                    };
+                                                    
                                                     let response_message = JsonRpcMessage::Request(
                                                         JsonRpcRequest::new(
                                                             "elicitation/respond".to_string(),
-                                                            Some(
-                                                                serde_json::to_value(response)
-                                                                    .unwrap(),
-                                                            ),
+                                                            response_params,
                                                             None, // No ID for elicitation response
                                                         ),
                                                     );
