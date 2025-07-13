@@ -7,7 +7,7 @@
 mod tests {
     use serde::{Deserialize, Serialize};
     use std::sync::Arc;
-    use tokio::time::{timeout, Duration};
+    use tokio::time::{Duration, timeout};
     use ultrafast_mcp::{UltraFastClient, UltraFastServer};
     use ultrafast_mcp_core::types::resources::{
         ListResourceTemplatesRequest, ListResourceTemplatesResponse, ListResourcesRequest,

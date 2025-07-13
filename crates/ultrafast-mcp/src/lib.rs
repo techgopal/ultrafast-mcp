@@ -390,6 +390,9 @@
 // Re-export core protocol types, errors, schema, and utilities
 #[cfg(feature = "core")]
 pub use ultrafast_mcp_core::{
+    // Re-export specific error types
+    MCPError,
+    MCPResult,
     // Errors (re-export as McpCoreError to avoid conflicts)
     error as McpCoreError,
     // Protocol types
@@ -400,9 +403,6 @@ pub use ultrafast_mcp_core::{
     types,
     // Utils
     utils,
-    // Re-export specific error types
-    MCPError,
-    MCPResult,
 };
 
 // Re-export utility functions from core
@@ -479,6 +479,8 @@ pub use ultrafast_mcp_client::{ClientElicitationHandler, UltraFastClient};
 // =========================
 #[cfg(feature = "stdio")]
 pub use ultrafast_mcp_transport::{
+    Transport,
+    TransportConfig,
     create_recovering_transport,
     create_transport,
     // Middleware
@@ -488,8 +490,6 @@ pub use ultrafast_mcp_transport::{
     },
     // STDIO
     stdio::StdioTransport,
-    Transport,
-    TransportConfig,
 };
 
 // Streamable HTTP (feature = "http")
@@ -499,10 +499,10 @@ pub use ultrafast_mcp_transport::streamable_http;
 // Streamable HTTP (feature = "http")
 #[cfg(feature = "http")]
 pub use ultrafast_mcp_transport::streamable_http::{
-    create_streamable_http_client_default, create_streamable_http_client_with_middleware,
-    create_streamable_http_server_default, create_streamable_http_server_with_middleware,
     HttpTransportConfig, HttpTransportServer, HttpTransportState, StreamableHttpClient,
-    StreamableHttpClientConfig,
+    StreamableHttpClientConfig, create_streamable_http_client_default,
+    create_streamable_http_client_with_middleware, create_streamable_http_server_default,
+    create_streamable_http_server_with_middleware,
 };
 
 // =========================
@@ -510,14 +510,6 @@ pub use ultrafast_mcp_transport::streamable_http::{
 // =========================
 #[cfg(feature = "oauth")]
 pub use ultrafast_mcp_auth::{
-    // Re-export auth types (avoiding conflicts with core types)
-    error as McpAuthError,
-    extract_bearer_token,
-    generate_pkce_params,
-    oauth,
-    pkce,
-    types as AuthTypes,
-    validation,
     ApiKeyAuth,
     AuthContext,
     AuthError,
@@ -540,6 +532,14 @@ pub use ultrafast_mcp_auth::{
     TokenClaims,
     TokenResponse,
     TokenValidator,
+    // Re-export auth types (avoiding conflicts with core types)
+    error as McpAuthError,
+    extract_bearer_token,
+    generate_pkce_params,
+    oauth,
+    pkce,
+    types as AuthTypes,
+    validation,
 };
 
 // =========================
@@ -547,6 +547,7 @@ pub use ultrafast_mcp_auth::{
 // =========================
 #[cfg(feature = "monitoring")]
 pub use ultrafast_mcp_monitoring::{
+    MonitoringSystem,
     config::MonitoringConfig,
     // Re-export specific modules
     exporters,
@@ -555,7 +556,6 @@ pub use ultrafast_mcp_monitoring::{
     metrics::{MetricsCollector, RequestMetrics, RequestTimer, SystemMetrics, TransportMetrics},
     middleware,
     tracing,
-    MonitoringSystem,
 };
 
 // =========================

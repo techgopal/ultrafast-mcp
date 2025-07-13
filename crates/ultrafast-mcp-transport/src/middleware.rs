@@ -128,10 +128,12 @@ impl RateLimitMiddleware {
 
         let minute_timestamp = now / 60;
 
-        let mut count_data = self.request_count.lock()
-            .map_err(|_| TransportError::InternalError {
-                message: "Failed to acquire rate limit lock".to_string(),
-            })?;
+        let mut count_data =
+            self.request_count
+                .lock()
+                .map_err(|_| TransportError::InternalError {
+                    message: "Failed to acquire rate limit lock".to_string(),
+                })?;
         let (last_minute, count) = *count_data;
 
         if last_minute == minute_timestamp {

@@ -195,7 +195,7 @@ mod handler_tests {
 #[cfg(test)]
 mod integration_tests {
     use super::*;
-    use tokio::time::{timeout, Duration};
+    use tokio::time::{Duration, timeout};
 
     #[tokio::test]
     async fn test_server_builder_pattern() {
@@ -240,7 +240,7 @@ mod integration_tests {
             let server_clone = Arc::clone(&server);
             let handle = tokio::spawn(async move {
                 // Test concurrent access to server info
-                
+
                 server_clone.info().name.clone()
             });
             handles.push(handle);

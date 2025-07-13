@@ -1,5 +1,5 @@
 use crate::{error::AuthError, types::TokenClaims};
-use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
+use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode};
 
 /// Token validator for JWT access tokens
 #[derive(Clone)]

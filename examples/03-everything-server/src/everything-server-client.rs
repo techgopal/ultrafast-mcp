@@ -93,7 +93,10 @@ async fn main() -> anyhow::Result<()> {
                 client2.disconnect().await?;
             }
             Err(e) => {
-                println!("⚠️  Bearer token connection failed (expected if server doesn't support auth): {}", e);
+                println!(
+                    "⚠️  Bearer token connection failed (expected if server doesn't support auth): {}",
+                    e
+                );
             }
         }
     }
@@ -153,7 +156,10 @@ async fn main() -> anyhow::Result<()> {
                 client4.disconnect().await?;
             }
             Err(e) => {
-                println!("⚠️  Basic auth connection failed (expected if server doesn't support auth): {}", e);
+                println!(
+                    "⚠️  Basic auth connection failed (expected if server doesn't support auth): {}",
+                    e
+                );
             }
         }
     }

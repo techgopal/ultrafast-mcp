@@ -375,7 +375,7 @@ pub use handlers::*;
 pub use server::{ServerLoggingConfig, ServerState, ToolRegistrationError, UltraFastServer};
 
 // Re-export transport types for convenience
-pub use ultrafast_mcp_transport::{create_transport, Transport, TransportConfig};
+pub use ultrafast_mcp_transport::{Transport, TransportConfig, create_transport};
 
 #[cfg(feature = "http")]
 pub use ultrafast_mcp_transport::streamable_http::server::HttpTransportConfig;

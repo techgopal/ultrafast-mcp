@@ -246,7 +246,9 @@ async fn connect_client(args: ConnectClientArgs, config: Option<Config>) -> Resu
                             match serde_json::from_str(parts[2]) {
                                 Ok(args) => args,
                                 Err(_) => {
-                                    println!("❌ Invalid JSON arguments. Use: call <tool> {{\"key\": \"value\"}}");
+                                    println!(
+                                        "❌ Invalid JSON arguments. Use: call <tool> {{\"key\": \"value\"}}"
+                                    );
                                     continue;
                                 }
                             }
@@ -282,9 +284,7 @@ async fn connect_client(args: ConnectClientArgs, config: Option<Config>) -> Resu
                 }
                 "" => continue,
                 _ => {
-                    println!(
-                        "Unknown command: {input}. Type 'help' for available commands."
-                    );
+                    println!("Unknown command: {input}. Type 'help' for available commands.");
                 }
             }
         }

@@ -1,5 +1,5 @@
 use crate::error::{MCPResult, ToolError};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::collections::HashSet;
 
 /// Enhanced schema validation with comprehensive JSON Schema support
@@ -617,9 +617,7 @@ fn validate_object(data: &Value, schema: &Value) -> MCPResult<()> {
         for key in obj.keys() {
             let key_value = Value::String(key.clone());
             validate_against_schema(&key_value, property_names).map_err(|e| {
-                ToolError::SchemaValidation(format!(
-                    "Property name '{key}' validation failed: {e}"
-                ))
+                ToolError::SchemaValidation(format!("Property name '{key}' validation failed: {e}"))
             })?;
         }
     }
@@ -921,17 +919,13 @@ fn validate_schema_complexity(
     if complexity > MAX_SCHEMA_COMPLEXITY {
         report.add_error(ValidationError::new(
             format!("{context}_complexity"),
-            format!(
-                "Schema complexity {complexity} exceeds maximum {MAX_SCHEMA_COMPLEXITY}"
-            ),
+            format!("Schema complexity {complexity} exceeds maximum {MAX_SCHEMA_COMPLEXITY}"),
             ErrorSeverity::High,
         ));
     } else if complexity > WARN_SCHEMA_COMPLEXITY {
         report.add_warning(ValidationWarning::new(
             format!("{context}_complexity"),
-            format!(
-                "Schema complexity {complexity} is high, consider simplifying"
-            ),
+            format!("Schema complexity {complexity} is high, consider simplifying"),
         ));
     }
 
@@ -940,9 +934,7 @@ fn validate_schema_complexity(
     if depth > MAX_SCHEMA_DEPTH {
         report.add_error(ValidationError::new(
             format!("{context}_depth"),
-            format!(
-                "Schema nesting depth {depth} exceeds maximum {MAX_SCHEMA_DEPTH}"
-            ),
+            format!("Schema nesting depth {depth} exceeds maximum {MAX_SCHEMA_DEPTH}"),
             ErrorSeverity::High,
         ));
     }
@@ -2599,9 +2591,7 @@ impl MCPMessageValidator {
             if s.contains(pattern) {
                 report.add_warning(ValidationWarning::new(
                     path.clone(),
-                    format!(
-                        "String contains suspicious pattern '{pattern}': {description}"
-                    ),
+                    format!("String contains suspicious pattern '{pattern}': {description}"),
                 ));
             }
         }
@@ -2772,9 +2762,11 @@ mod mcp_message_validator_tests {
         let report = result.unwrap();
         assert!(!report.is_valid());
         assert_eq!(report.errors.len(), 1);
-        assert!(report.errors[0]
-            .message
-            .contains("Invalid JSON-RPC version"));
+        assert!(
+            report.errors[0]
+                .message
+                .contains("Invalid JSON-RPC version")
+        );
     }
 
     #[test]
@@ -2793,10 +2785,12 @@ mod mcp_message_validator_tests {
         assert!(result.is_ok());
         let report = result.unwrap();
         assert!(!report.is_valid());
-        assert!(report
-            .errors
-            .iter()
-            .any(|e| e.message.contains("unsafe patterns")));
+        assert!(
+            report
+                .errors
+                .iter()
+                .any(|e| e.message.contains("unsafe patterns"))
+        );
     }
 
     #[test]
@@ -2818,10 +2812,12 @@ mod mcp_message_validator_tests {
         assert!(result.is_ok());
         let report = result.unwrap();
         assert!(!report.is_valid());
-        assert!(report
-            .errors
-            .iter()
-            .any(|e| e.message.contains("blocked pattern")));
+        assert!(
+            report
+                .errors
+                .iter()
+                .any(|e| e.message.contains("blocked pattern"))
+        );
     }
 
     #[test]
@@ -2843,10 +2839,12 @@ mod mcp_message_validator_tests {
         assert!(result.is_ok());
         let report = result.unwrap();
         assert!(!report.is_valid());
-        assert!(report
-            .errors
-            .iter()
-            .any(|e| e.message.contains("unsafe characters")));
+        assert!(
+            report
+                .errors
+                .iter()
+                .any(|e| e.message.contains("unsafe characters"))
+        );
     }
 
     #[test]
@@ -2868,10 +2866,12 @@ mod mcp_message_validator_tests {
         assert!(result.is_ok());
         let report = result.unwrap();
         assert!(!report.is_valid());
-        assert!(report
-            .errors
-            .iter()
-            .any(|e| e.message.contains("Unsupported protocol version")));
+        assert!(
+            report
+                .errors
+                .iter()
+                .any(|e| e.message.contains("Unsupported protocol version"))
+        );
     }
 
     #[test]
@@ -2890,10 +2890,12 @@ mod mcp_message_validator_tests {
         assert!(result.is_ok());
         let report = result.unwrap();
         assert!(!report.is_valid());
-        assert!(report
-            .errors
-            .iter()
-            .any(|e| e.message.contains("cannot have both result and error")));
+        assert!(
+            report
+                .errors
+                .iter()
+                .any(|e| e.message.contains("cannot have both result and error"))
+        );
     }
 
     #[test]
@@ -2913,10 +2915,12 @@ mod mcp_message_validator_tests {
         assert!(result.is_ok());
         let report = result.unwrap();
         assert!(!report.is_valid());
-        assert!(report
-            .errors
-            .iter()
-            .any(|e| e.message.contains("Array too large")));
+        assert!(
+            report
+                .errors
+                .iter()
+                .any(|e| e.message.contains("Array too large"))
+        );
     }
 
     #[test]
@@ -2942,10 +2946,12 @@ mod mcp_message_validator_tests {
         assert!(result.is_ok());
         let report = result.unwrap();
         assert!(!report.is_valid());
-        assert!(report
-            .errors
-            .iter()
-            .any(|e| e.message.contains("depth") && e.message.contains("exceeds maximum")));
+        assert!(
+            report
+                .errors
+                .iter()
+                .any(|e| e.message.contains("depth") && e.message.contains("exceeds maximum"))
+        );
     }
 
     #[test]
@@ -2966,10 +2972,12 @@ mod mcp_message_validator_tests {
         assert!(result.is_ok());
         let report = result.unwrap();
         assert!(!report.is_valid());
-        assert!(report
-            .errors
-            .iter()
-            .any(|e| e.message.contains("path traversal")));
+        assert!(
+            report
+                .errors
+                .iter()
+                .any(|e| e.message.contains("path traversal"))
+        );
     }
 
     #[test]
@@ -2989,10 +2997,12 @@ mod mcp_message_validator_tests {
         assert!(result.is_ok());
         let report = result.unwrap();
         assert!(!report.is_valid());
-        assert!(report
-            .errors
-            .iter()
-            .any(|e| e.message.contains("String too long")));
+        assert!(
+            report
+                .errors
+                .iter()
+                .any(|e| e.message.contains("String too long"))
+        );
     }
 
     #[test]
@@ -3013,10 +3023,12 @@ mod mcp_message_validator_tests {
         assert!(result.is_ok());
         let report = result.unwrap();
         assert!(!report.is_valid());
-        assert!(report
-            .errors
-            .iter()
-            .any(|e| e.message.contains("blocked pattern")));
+        assert!(
+            report
+                .errors
+                .iter()
+                .any(|e| e.message.contains("blocked pattern"))
+        );
     }
 
     #[test]
@@ -3088,10 +3100,12 @@ mod tests {
         let result = validator.validate_resource_unsubscribe_params(&invalid_params, &mut report);
         assert!(result.is_ok());
         assert!(!report.errors.is_empty());
-        assert!(report
-            .errors
-            .iter()
-            .any(|e| e.path == "resources/unsubscribe.uri"));
+        assert!(
+            report
+                .errors
+                .iter()
+                .any(|e| e.path == "resources/unsubscribe.uri")
+        );
 
         // Test non-string URI
         let mut report = ValidationReport::new("test".to_string());
@@ -3101,9 +3115,11 @@ mod tests {
         let result = validator.validate_resource_unsubscribe_params(&invalid_params, &mut report);
         assert!(result.is_ok());
         assert!(!report.errors.is_empty());
-        assert!(report
-            .errors
-            .iter()
-            .any(|e| e.path == "resources/unsubscribe.uri"));
+        assert!(
+            report
+                .errors
+                .iter()
+                .any(|e| e.path == "resources/unsubscribe.uri")
+        );
     }
 }

@@ -170,9 +170,11 @@ mod tests {
     #[tokio::test]
     async fn test_notification_handler() {
         let handler = TestNotificationHandler;
-        assert!(handler
-            .handle_notification("test notification".to_string())
-            .await
-            .is_ok());
+        assert!(
+            handler
+                .handle_notification("test notification".to_string())
+                .await
+                .is_ok()
+        );
     }
 }

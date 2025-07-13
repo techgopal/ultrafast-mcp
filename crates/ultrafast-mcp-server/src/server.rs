@@ -3,7 +3,7 @@
 //! This module contains the main server implementation with all the core functionality.
 
 use std::{collections::HashMap, sync::Arc};
-use tokio::sync::{broadcast, RwLock};
+use tokio::sync::{RwLock, broadcast};
 use tracing::{error, info, warn};
 
 use ultrafast_mcp_core::{
@@ -26,7 +26,7 @@ use ultrafast_mcp_core::{
 };
 #[cfg(feature = "http")]
 use ultrafast_mcp_transport::streamable_http::server::{HttpTransportConfig, HttpTransportServer};
-use ultrafast_mcp_transport::{create_transport, Transport, TransportConfig};
+use ultrafast_mcp_transport::{Transport, TransportConfig, create_transport};
 
 use crate::context::{Context, LoggerConfig};
 use crate::handlers::*;
@@ -339,7 +339,9 @@ impl UltraFastServer {
     }
     #[cfg(not(feature = "monitoring"))]
     pub fn with_health_checks(self) -> Self {
-        warn!("Health checks require monitoring feature. Add 'monitoring' feature to enable health checks.");
+        warn!(
+            "Health checks require monitoring feature. Add 'monitoring' feature to enable health checks."
+        );
         self
     }
 
@@ -401,7 +403,9 @@ impl UltraFastServer {
     }
     #[cfg(not(feature = "monitoring"))]
     pub fn with_full_monitoring(self) -> Self {
-        warn!("Full monitoring requires monitoring feature. Add 'monitoring' feature to enable all monitoring features.");
+        warn!(
+            "Full monitoring requires monitoring feature. Add 'monitoring' feature to enable all monitoring features."
+        );
         self
     }
 
@@ -432,7 +436,9 @@ impl UltraFastServer {
 
     /// Enable Bearer token authentication (feature removed)
     pub fn with_bearer_auth(self, _secret: String, _required_scopes: Vec<String>) -> Self {
-        warn!("Bearer authentication feature has been removed. Use ultrafast-mcp-auth crate directly.");
+        warn!(
+            "Bearer authentication feature has been removed. Use ultrafast-mcp-auth crate directly."
+        );
         self
     }
 
@@ -634,8 +640,8 @@ impl UltraFastServer {
         arguments: &serde_json::Value,
     ) -> Result<(), MCPError> {
         let tool = self.get_tool(tool_name).await;
-        let tool = tool
-            .ok_or_else(|| MCPError::invalid_request(format!("Tool '{tool_name}' not found")))?;
+        let tool =
+            tool.ok_or_else(|| MCPError::invalid_request(format!("Tool '{tool_name}' not found")))?;
 
         ultrafast_mcp_core::schema::validation::validate_tool_input(arguments, &tool.input_schema)
             .map_err(|e| {
@@ -1208,9 +1214,7 @@ impl UltraFastServer {
                                 .send_message(JsonRpcMessage::Response(response))
                                 .await
                                 .map_err(|e| {
-                                    MCPError::internal_error(format!(
-                                        "Failed to send message: {e}"
-                                    ))
+                                    MCPError::internal_error(format!("Failed to send message: {e}"))
                                 })?;
                         }
                         Err(_) => {
@@ -1406,10 +1410,7 @@ impl UltraFastServer {
                             Ok(result) => match serde_json::to_value(result) {
                                 Ok(value) => JsonRpcResponse::success(value, request.id),
                                 Err(e) => JsonRpcResponse::error(
-                                    JsonRpcError::new(
-                                        -32603,
-                                        format!("Serialization error: {e}"),
-                                    ),
+                                    JsonRpcError::new(-32603, format!("Serialization error: {e}")),
                                     request.id,
                                 ),
                             },
@@ -1441,10 +1442,7 @@ impl UltraFastServer {
                             Ok(result) => match serde_json::to_value(result) {
                                 Ok(value) => JsonRpcResponse::success(value, request.id),
                                 Err(e) => JsonRpcResponse::error(
-                                    JsonRpcError::new(
-                                        -32603,
-                                        format!("Serialization error: {e}"),
-                                    ),
+                                    JsonRpcError::new(-32603, format!("Serialization error: {e}")),
                                     request.id,
                                 ),
                             },
@@ -1541,10 +1539,7 @@ impl UltraFastServer {
                             }
                             Err(e) => {
                                 return JsonRpcResponse::error(
-                                    JsonRpcError::new(
-                                        -32603,
-                                        format!("Failed to get roots: {e}"),
-                                    ),
+                                    JsonRpcError::new(-32603, format!("Failed to get roots: {e}")),
                                     request.id,
                                 );
                             }
@@ -1637,10 +1632,7 @@ impl UltraFastServer {
                             }
                             Err(e) => {
                                 return JsonRpcResponse::error(
-                                    JsonRpcError::new(
-                                        -32603,
-                                        format!("Failed to get roots: {e}"),
-                                    ),
+                                    JsonRpcError::new(-32603, format!("Failed to get roots: {e}")),
                                     request.id,
                                 );
                             }
@@ -1689,10 +1681,7 @@ impl UltraFastServer {
                     match handler.unsubscribe(unsubscribe_request.uri).await {
                         Ok(_) => JsonRpcResponse::success(serde_json::Value::Null, request.id),
                         Err(e) => JsonRpcResponse::error(
-                            JsonRpcError::new(
-                                -32603,
-                                format!("Resource unsubscribe failed: {e}"),
-                            ),
+                            JsonRpcError::new(-32603, format!("Resource unsubscribe failed: {e}")),
                             request.id,
                         ),
                     }
@@ -1901,10 +1890,7 @@ impl UltraFastServer {
                     Ok(response) => response,
                     Err(e) => {
                         return JsonRpcResponse::error(
-                            JsonRpcError::new(
-                                -32602,
-                                format!("Invalid elicitation response: {e}"),
-                            ),
+                            JsonRpcError::new(-32602, format!("Invalid elicitation response: {e}")),
                             request.id,
                         );
                     }
@@ -2946,7 +2932,7 @@ mod tests {
                 ))
             );
             assert_eq!(error.code, -32602); // Invalid params
-                                            // The actual error message format has changed to include more context
+            // The actual error message format has changed to include more context
             assert!(error.message.contains("Invalid parameters"));
         } else {
             panic!("Expected error response");

@@ -1,4 +1,4 @@
-use schemars::{schema_for, JsonSchema};
+use schemars::{JsonSchema, schema_for};
 use serde_json::Value;
 
 /// Generate JSON Schema for a type at runtime

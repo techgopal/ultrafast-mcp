@@ -7,6 +7,7 @@ use async_trait::async_trait;
 use ultrafast_mcp_core::{
     error::{MCPError, MCPResult},
     types::{
+        ServerInfo,
         completion::{CompleteRequest, CompleteResponse},
         elicitation::{ElicitationRequest, ElicitationResponse},
         prompts::{GetPromptRequest, GetPromptResponse, ListPromptsRequest, ListPromptsResponse},
@@ -20,7 +21,6 @@ use ultrafast_mcp_core::{
             SamplingResponse, SamplingRole, ServerContextInfo, StopReason, ToolContextInfo,
         },
         tools::{ListToolsRequest, ListToolsResponse, ToolCall, ToolResult},
-        ServerInfo,
     },
 };
 

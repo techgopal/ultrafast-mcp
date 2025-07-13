@@ -904,9 +904,7 @@ mod tests {
         assert!(result.is_err());
         match result {
             Err(TemplateError::PathTraversal) | Err(TemplateError::BlockedExpandedUri(_)) => {}
-            _ => panic!(
-                "Expected PathTraversal or BlockedExpandedUri error, got: {result:?}"
-            ),
+            _ => panic!("Expected PathTraversal or BlockedExpandedUri error, got: {result:?}"),
         }
     }
 
@@ -1007,9 +1005,7 @@ mod tests {
         assert!(result.is_err());
         match result {
             Err(TemplateError::NestedTemplatesNotAllowed) => {}
-            _ => panic!(
-                "Expected NestedTemplatesNotAllowed error, got: {result:?}"
-            ),
+            _ => panic!("Expected NestedTemplatesNotAllowed error, got: {result:?}"),
         }
     }
 
@@ -1035,9 +1031,7 @@ mod tests {
         assert!(result.is_err());
         match result {
             Err(TemplateError::ScriptInjection) | Err(TemplateError::BlockedExpandedUri(_)) => {}
-            _ => panic!(
-                "Expected ScriptInjection or BlockedExpandedUri error, got: {result:?}"
-            ),
+            _ => panic!("Expected ScriptInjection or BlockedExpandedUri error, got: {result:?}"),
         }
     }
 

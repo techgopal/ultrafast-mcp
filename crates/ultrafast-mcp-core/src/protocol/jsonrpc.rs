@@ -284,10 +284,7 @@ impl JsonRpcError {
     }
 
     pub fn invalid_uri(uri: String) -> Self {
-        Self::new(
-            mcp_error_codes::INVALID_URI,
-            format!("Invalid URI: {uri}"),
-        )
+        Self::new(mcp_error_codes::INVALID_URI, format!("Invalid URI: {uri}"))
     }
 
     pub fn access_denied(resource: String) -> Self {

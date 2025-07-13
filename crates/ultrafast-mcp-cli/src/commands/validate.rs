@@ -378,9 +378,7 @@ fn validate_dependencies(
                     result.issues.push(ValidationIssue {
                         level: ValidationLevel::Warning,
                         file: None,
-                        message: format!(
-                            "Wildcard version for dependency '{name}' in {section}"
-                        ),
+                        message: format!("Wildcard version for dependency '{name}' in {section}"),
                         suggestion: Some("Use specific version constraints".to_string()),
                     });
                 }

@@ -228,9 +228,7 @@ mod tests {{
     println!("✅ Generated tool template at {file_path}");
     println!("📝 Updated {mod_file_path}");
     println!("\n🔧 To register this tool in your server, add:");
-    println!(
-        "   .tool(\"{tool_name}\", tools::{snake_case_name}::{snake_case_name});"
-    );
+    println!("   .tool(\"{tool_name}\", tools::{snake_case_name}::{snake_case_name});");
 
     Ok(())
 }

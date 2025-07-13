@@ -3,7 +3,7 @@ use anyhow::{Context, Result};
 use clap::Args;
 use colored::*;
 use std::path::PathBuf;
-use tokio::time::{sleep, Duration};
+use tokio::time::{Duration, sleep};
 
 /// Run a development server with hot reload
 #[derive(Debug, Args)]

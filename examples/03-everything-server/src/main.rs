@@ -1,17 +1,16 @@
 //! Everything MCP Server Example (Streamable HTTP)
 //! Comprehensive implementation matching the official MCP everything example
 
-use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
+use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
+use ultrafast_mcp::McpCoreError::ResourceError;
 use ultrafast_mcp::types::resources::{
     ListResourceTemplatesRequest, ListResourceTemplatesResponse,
 };
 use ultrafast_mcp::types::roots::RootSecurityValidator;
-use ultrafast_mcp::McpCoreError::ResourceError;
 use ultrafast_mcp::{
-    types::{completion, elicitation, prompts, resources, roots, sampling},
     CompletionHandler,
     ElicitationHandler,
     // Monitoring imports
@@ -39,6 +38,7 @@ use ultrafast_mcp::{
     ToolHandler,
     ToolResult,
     UltraFastServer,
+    types::{completion, elicitation, prompts, resources, roots, sampling},
 };
 
 // Tiny test image (base64 encoded PNG)
@@ -684,9 +684,13 @@ impl PromptHandler for EverythingPromptHandler {
                 let resource_uri = format!("test://static/resource/{valid_resource_id}");
 
                 Ok(prompts::GetPromptResponse {
-                    description: Some("A prompt that includes an embedded resource reference".to_string()),
+                    description: Some(
+                        "A prompt that includes an embedded resource reference".to_string(),
+                    ),
                     messages: vec![
-                        prompts::PromptMessage::user(prompts::PromptContent::text(format!("This prompt includes Resource {valid_resource_id}. Please analyze the following resource:"))),
+                        prompts::PromptMessage::user(prompts::PromptContent::text(format!(
+                            "This prompt includes Resource {valid_resource_id}. Please analyze the following resource:"
+                        ))),
                         prompts::PromptMessage::user(prompts::PromptContent::resource_link(
                             format!("Resource {valid_resource_id}"),
                             resource_uri,
@@ -738,8 +742,13 @@ impl SamplingHandler for EverythingSamplingHandler {
         let temperature = request.temperature.unwrap_or(0.7);
 
         // Simulate LLM response
-        let response_text = format!("Simulated LLM response based on {} messages, system prompt: '{}', max tokens: {}, temperature: {}", 
-            messages.len(), system_prompt, max_tokens, temperature);
+        let response_text = format!(
+            "Simulated LLM response based on {} messages, system prompt: '{}', max tokens: {}, temperature: {}",
+            messages.len(),
+            system_prompt,
+            max_tokens,
+            temperature
+        );
 
         Ok(sampling::CreateMessageResponse {
             role: sampling::SamplingRole::Assistant,

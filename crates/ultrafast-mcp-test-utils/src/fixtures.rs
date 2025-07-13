@@ -10,13 +10,13 @@ use serde_json::json;
 use std::sync::Arc;
 use ultrafast_mcp_client::UltraFastClient;
 use ultrafast_mcp_core::{
+    MCPResult,
     protocol::capabilities::ToolsCapability,
     types::{
         client::{ClientCapabilities, ClientInfo},
         server::{ServerCapabilities, ServerInfo},
         tools::{ListToolsRequest, ListToolsResponse, Tool, ToolCall, ToolContent, ToolResult},
     },
-    MCPResult,
 };
 use ultrafast_mcp_server::{ToolHandler, UltraFastServer};
 

@@ -6,9 +6,9 @@ use ultrafast_mcp_core::MCPResult;
 /// Assert that a result is an MCP error of a specific type
 pub fn assert_mcp_error<T: Debug>(result: MCPResult<T>, expected_error_contains: &str) {
     match result {
-        Ok(value) => panic!(
-            "Expected error containing '{expected_error_contains}', but got Ok({value:?})"
-        ),
+        Ok(value) => {
+            panic!("Expected error containing '{expected_error_contains}', but got Ok({value:?})")
+        }
         Err(error) => {
             let error_string = error.to_string();
             assert!(
@@ -123,7 +123,7 @@ pub fn assert_not_empty<T>(collection: &[T]) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ultrafast_mcp_core::{error::ProtocolError, MCPError};
+    use ultrafast_mcp_core::{MCPError, error::ProtocolError};
 
     #[test]
     fn test_assert_mcp_error() {

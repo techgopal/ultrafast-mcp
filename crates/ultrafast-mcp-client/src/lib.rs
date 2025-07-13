@@ -5,14 +5,14 @@
 use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::{oneshot, RwLock};
+use tokio::sync::{RwLock, oneshot};
 use tracing::{error, info, warn};
 use ultrafast_mcp_core::{
     config::TimeoutConfig,
     error::{MCPError, MCPResult, ProtocolError, TransportError},
     protocol::{
-        jsonrpc::{JsonRpcMessage, JsonRpcRequest},
         InitializeRequest, InitializeResponse, InitializedNotification, ShutdownRequest,
+        jsonrpc::{JsonRpcMessage, JsonRpcRequest},
     },
     types::{
         client::{ClientCapabilities, ClientInfo},
@@ -447,7 +447,10 @@ impl UltraFastClient {
                                                         .send_message(response_message)
                                                         .await
                                                     {
-                                                        error!("Failed to send elicitation response: {}", e);
+                                                        error!(
+                                                            "Failed to send elicitation response: {}",
+                                                            e
+                                                        );
                                                     }
                                                 }
                                                 Err(e) => {
@@ -461,7 +464,9 @@ impl UltraFastClient {
                                             error!("Failed to parse elicitation request");
                                         }
                                     } else {
-                                        warn!("No elicitation handler configured, ignoring elicitation request");
+                                        warn!(
+                                            "No elicitation handler configured, ignoring elicitation request"
+                                        );
                                     }
                                 } else {
                                     warn!(

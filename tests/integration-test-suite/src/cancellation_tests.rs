@@ -585,9 +585,7 @@ mod tests {
         // Should complete quickly (less than 100ms)
         assert!(elapsed.as_millis() < 100);
 
-        println!(
-            "✅ Cancellation performance test passed! ({elapsed:?} for 1000 notifications)"
-        );
+        println!("✅ Cancellation performance test passed! ({elapsed:?} for 1000 notifications)");
     }
 
     /// Test cancellation notification integration with MCP protocol
@@ -612,10 +610,12 @@ mod tests {
             .unwrap();
 
         assert_eq!(tools_response.tools.len(), 2);
-        assert!(tools_response
-            .tools
-            .iter()
-            .any(|t| t.name == "longRunningOperation"));
+        assert!(
+            tools_response
+                .tools
+                .iter()
+                .any(|t| t.name == "longRunningOperation")
+        );
         assert!(tools_response.tools.iter().any(|t| t.name == "echo"));
 
         println!("✅ Cancellation MCP integration test passed!");
@@ -1065,9 +1065,7 @@ mod tests {
         // Should complete 100 pings quickly (less than 1 second)
         assert!(duration < Duration::from_secs(1));
 
-        println!(
-            "✅ Ping performance test passed! (100 pings in {duration:?})"
-        );
+        println!("✅ Ping performance test passed! (100 pings in {duration:?})");
     }
 
     /// Test ping with large data

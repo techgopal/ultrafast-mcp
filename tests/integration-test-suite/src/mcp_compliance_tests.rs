@@ -11,6 +11,7 @@ mod tests {
     use ultrafast_mcp::UltraFastServer;
     use ultrafast_mcp_core::types::tools::{ListToolsRequest, ListToolsResponse};
     use ultrafast_mcp_core::{
+        RequestId,
         error::{MCPError, MCPResult},
         protocol::{
             capabilities::{ClientCapabilities, ServerCapabilities, ToolsCapability},
@@ -23,7 +24,6 @@ mod tests {
             server::ServerInfo,
             tools::{Tool, ToolCall, ToolContent, ToolResult},
         },
-        RequestId,
     };
     use ultrafast_mcp_server::ToolHandler;
 

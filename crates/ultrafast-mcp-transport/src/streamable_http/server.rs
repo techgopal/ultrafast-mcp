@@ -4,11 +4,11 @@
 //! that follows the MCP specification for stateless request/response communication.
 
 use axum::{
-    extract::State,
-    http::{header::HeaderMap, StatusCode},
-    response::{sse::Event, IntoResponse, Response, Sse},
-    routing::Router,
     Json,
+    extract::State,
+    http::{StatusCode, header::HeaderMap},
+    response::{IntoResponse, Response, Sse, sse::Event},
+    routing::Router,
 };
 use bytes::Bytes;
 use futures::stream::{self, Stream};

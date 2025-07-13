@@ -157,7 +157,9 @@ impl StreamableHttpClient {
             // For now, we'll simulate this with a placeholder
 
             tracing::info!("OAuth authentication URL: {}", auth_url);
-            tracing::warn!("OAuth authentication requires manual user interaction. Please complete the flow manually.");
+            tracing::warn!(
+                "OAuth authentication requires manual user interaction. Please complete the flow manually."
+            );
 
             // For testing purposes, we'll use a mock token
             self.access_token = Some("mock_oauth_token".to_string());

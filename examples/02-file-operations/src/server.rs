@@ -872,9 +872,11 @@ impl FileOperationsHandler {
             .await
             .map_err(|e| MCPError::internal_error(format!("Failed to read directory: {e}")))?;
 
-        while let Some(entry) = entries_iter.next_entry().await.map_err(|e| {
-            MCPError::internal_error(format!("Failed to read directory entry: {e}"))
-        })? {
+        while let Some(entry) = entries_iter
+            .next_entry()
+            .await
+            .map_err(|e| MCPError::internal_error(format!("Failed to read directory entry: {e}")))?
+        {
             let metadata = entry.metadata().await.map_err(|e| {
                 MCPError::internal_error(format!("Failed to get file metadata: {e}"))
             })?;
@@ -946,9 +948,11 @@ impl FileOperationsHandler {
             .await
             .map_err(|e| MCPError::internal_error(format!("Failed to read directory: {e}")))?;
 
-        while let Some(entry) = entries_iter.next_entry().await.map_err(|e| {
-            MCPError::internal_error(format!("Failed to read directory entry: {e}"))
-        })? {
+        while let Some(entry) = entries_iter
+            .next_entry()
+            .await
+            .map_err(|e| MCPError::internal_error(format!("Failed to read directory entry: {e}")))?
+        {
             let metadata = entry.metadata().await.map_err(|e| {
                 MCPError::internal_error(format!("Failed to get file metadata: {e}"))
             })?;
@@ -1029,9 +1033,11 @@ impl FileOperationsHandler {
             .await
             .map_err(|e| MCPError::internal_error(format!("Failed to read directory: {e}")))?;
 
-        while let Some(entry) = entries_iter.next_entry().await.map_err(|e| {
-            MCPError::internal_error(format!("Failed to read directory entry: {e}"))
-        })? {
+        while let Some(entry) = entries_iter
+            .next_entry()
+            .await
+            .map_err(|e| MCPError::internal_error(format!("Failed to read directory entry: {e}")))?
+        {
             let metadata = entry.metadata().await.map_err(|e| {
                 MCPError::internal_error(format!("Failed to get file metadata: {e}"))
             })?;
@@ -1114,9 +1120,7 @@ impl FileOperationsHandler {
             source: request.source,
             destination: request.destination,
             success: true,
-            message: format!(
-                "Successfully moved file from {source_clone} to {dest_clone}"
-            ),
+            message: format!("Successfully moved file from {source_clone} to {dest_clone}"),
         };
 
         let response_text = serde_json::to_string_pretty(&response)
@@ -1151,9 +1155,11 @@ impl FileOperationsHandler {
             .await
             .map_err(|e| MCPError::internal_error(format!("Failed to read directory: {e}")))?;
 
-        while let Some(entry) = entries_iter.next_entry().await.map_err(|e| {
-            MCPError::internal_error(format!("Failed to read directory entry: {e}"))
-        })? {
+        while let Some(entry) = entries_iter
+            .next_entry()
+            .await
+            .map_err(|e| MCPError::internal_error(format!("Failed to read directory entry: {e}")))?
+        {
             let _metadata = entry.metadata().await.map_err(|e| {
                 MCPError::internal_error(format!("Failed to get file metadata: {e}"))
             })?;

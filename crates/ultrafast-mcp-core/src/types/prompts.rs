@@ -1062,9 +1062,11 @@ mod tests {
     fn test_prompt_creation_and_validation() {
         let prompt = Prompt::new("test_prompt".to_string())
             .with_description("A test prompt".to_string())
-            .with_arguments(vec![PromptArgument::new("context".to_string())
-                .with_description("Context data".to_string())
-                .required(true)]);
+            .with_arguments(vec![
+                PromptArgument::new("context".to_string())
+                    .with_description("Context data".to_string())
+                    .required(true),
+            ]);
 
         assert_eq!(prompt.name, "test_prompt");
         assert_eq!(prompt.description, Some("A test prompt".to_string()));
