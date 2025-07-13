@@ -113,17 +113,12 @@ jobs:
         WORKSPACE_VERSION=$(grep '^version = ' Cargo.toml | cut -d'"' -f2)
         echo "Checking if ${{ matrix.crate }}@$WORKSPACE_VERSION already exists..."
         
-        # Debug: Show the search results
-        echo "Search results for ${{ matrix.crate }}:"
-        SEARCH_OUTPUT=$(cargo search "${{ matrix.crate }}" --limit 10)
-        echo "$SEARCH_OUTPUT"
+        # Use direct crates.io API check for more reliable version detection
+        API_RESPONSE=$(curl -s "https://crates.io/api/v1/crates/${{ matrix.crate }}/versions" | jq -r '.versions[] | select(.num == "'$WORKSPACE_VERSION'") | .num' 2>/dev/null || echo "")
         
-        # Debug: Show the pattern we're looking for
-        PATTERN="${{ matrix.crate }} = \"$WORKSPACE_VERSION\""
-        echo "Looking for pattern: '$PATTERN'"
+        echo "API response for version $WORKSPACE_VERSION: '$API_RESPONSE'"
         
-        # Check if the exact version exists with better pattern matching
-        if echo "$SEARCH_OUTPUT" | grep -F "$PATTERN" > /dev/null; then
+        if [ "$API_RESPONSE" = "$WORKSPACE_VERSION" ]; then
           echo "skip=true" >> $GITHUB_OUTPUT
           echo "Skipping ${{ matrix.crate }} - version $WORKSPACE_VERSION already exists"
         else
@@ -210,17 +205,12 @@ jobs:
         WORKSPACE_VERSION=$(grep '^version = ' Cargo.toml | cut -d'"' -f2)
         echo "Checking if ${{ matrix.crate }}@$WORKSPACE_VERSION already exists..."
         
-        # Debug: Show the search results
-        echo "Search results for ${{ matrix.crate }}:"
-        SEARCH_OUTPUT=$(cargo search "${{ matrix.crate }}" --limit 10)
-        echo "$SEARCH_OUTPUT"
+        # Use direct crates.io API check for more reliable version detection
+        API_RESPONSE=$(curl -s "https://crates.io/api/v1/crates/${{ matrix.crate }}/versions" | jq -r '.versions[] | select(.num == "'$WORKSPACE_VERSION'") | .num' 2>/dev/null || echo "")
         
-        # Debug: Show the pattern we're looking for
-        PATTERN="${{ matrix.crate }} = \"$WORKSPACE_VERSION\""
-        echo "Looking for pattern: '$PATTERN'"
+        echo "API response for version $WORKSPACE_VERSION: '$API_RESPONSE'"
         
-        # Check if the exact version exists with better pattern matching
-        if echo "$SEARCH_OUTPUT" | grep -F "$PATTERN" > /dev/null; then
+        if [ "$API_RESPONSE" = "$WORKSPACE_VERSION" ]; then
           echo "skip=true" >> $GITHUB_OUTPUT
           echo "Skipping ${{ matrix.crate }} - version $WORKSPACE_VERSION already exists"
         else
@@ -306,17 +296,12 @@ jobs:
         WORKSPACE_VERSION=$(grep '^version = ' Cargo.toml | cut -d'"' -f2)
         echo "Checking if ${{ matrix.crate }}@$WORKSPACE_VERSION already exists..."
         
-        # Debug: Show the search results
-        echo "Search results for ${{ matrix.crate }}:"
-        SEARCH_OUTPUT=$(cargo search "${{ matrix.crate }}" --limit 10)
-        echo "$SEARCH_OUTPUT"
+        # Use direct crates.io API check for more reliable version detection
+        API_RESPONSE=$(curl -s "https://crates.io/api/v1/crates/${{ matrix.crate }}/versions" | jq -r '.versions[] | select(.num == "'$WORKSPACE_VERSION'") | .num' 2>/dev/null || echo "")
         
-        # Debug: Show the pattern we're looking for
-        PATTERN="${{ matrix.crate }} = \"$WORKSPACE_VERSION\""
-        echo "Looking for pattern: '$PATTERN'"
+        echo "API response for version $WORKSPACE_VERSION: '$API_RESPONSE'"
         
-        # Check if the exact version exists with better pattern matching
-        if echo "$SEARCH_OUTPUT" | grep -F "$PATTERN" > /dev/null; then
+        if [ "$API_RESPONSE" = "$WORKSPACE_VERSION" ]; then
           echo "skip=true" >> $GITHUB_OUTPUT
           echo "Skipping ${{ matrix.crate }} - version $WORKSPACE_VERSION already exists"
         else
@@ -404,17 +389,12 @@ jobs:
         WORKSPACE_VERSION=$(grep '^version = ' Cargo.toml | cut -d'"' -f2)
         echo "Checking if ${{ matrix.crate }}@$WORKSPACE_VERSION already exists..."
         
-        # Debug: Show the search results
-        echo "Search results for ${{ matrix.crate }}:"
-        SEARCH_OUTPUT=$(cargo search "${{ matrix.crate }}" --limit 10)
-        echo "$SEARCH_OUTPUT"
+        # Use direct crates.io API check for more reliable version detection
+        API_RESPONSE=$(curl -s "https://crates.io/api/v1/crates/${{ matrix.crate }}/versions" | jq -r '.versions[] | select(.num == "'$WORKSPACE_VERSION'") | .num' 2>/dev/null || echo "")
         
-        # Debug: Show the pattern we're looking for
-        PATTERN="${{ matrix.crate }} = \"$WORKSPACE_VERSION\""
-        echo "Looking for pattern: '$PATTERN'"
+        echo "API response for version $WORKSPACE_VERSION: '$API_RESPONSE'"
         
-        # Check if the exact version exists with better pattern matching
-        if echo "$SEARCH_OUTPUT" | grep -F "$PATTERN" > /dev/null; then
+        if [ "$API_RESPONSE" = "$WORKSPACE_VERSION" ]; then
           echo "skip=true" >> $GITHUB_OUTPUT
           echo "Skipping ${{ matrix.crate }} - version $WORKSPACE_VERSION already exists"
         else
@@ -494,17 +474,12 @@ jobs:
         WORKSPACE_VERSION=$(grep '^version = ' Cargo.toml | cut -d'"' -f2)
         echo "Checking if ultrafast-mcp@$WORKSPACE_VERSION already exists..."
         
-        # Debug: Show the search results
-        echo "Search results for ultrafast-mcp:"
-        SEARCH_OUTPUT=$(cargo search "ultrafast-mcp" --limit 10)
-        echo "$SEARCH_OUTPUT"
+        # Use direct crates.io API check for more reliable version detection
+        API_RESPONSE=$(curl -s "https://crates.io/api/v1/crates/ultrafast-mcp/versions" | jq -r '.versions[] | select(.num == "'$WORKSPACE_VERSION'") | .num' 2>/dev/null || echo "")
         
-        # Debug: Show the pattern we're looking for
-        PATTERN="ultrafast-mcp = \"$WORKSPACE_VERSION\""
-        echo "Looking for pattern: '$PATTERN'"
+        echo "API response for version $WORKSPACE_VERSION: '$API_RESPONSE'"
         
-        # Check if the exact version exists with better pattern matching
-        if echo "$SEARCH_OUTPUT" | grep -F "$PATTERN" > /dev/null; then
+        if [ "$API_RESPONSE" = "$WORKSPACE_VERSION" ]; then
           echo "skip=true" >> $GITHUB_OUTPUT
           echo "Skipping ultrafast-mcp - version $WORKSPACE_VERSION already exists"
         else
@@ -584,17 +559,12 @@ jobs:
         WORKSPACE_VERSION=$(grep '^version = ' Cargo.toml | cut -d'"' -f2)
         echo "Checking if ultrafast-mcp-cli@$WORKSPACE_VERSION already exists..."
         
-        # Debug: Show the search results
-        echo "Search results for ultrafast-mcp-cli:"
-        SEARCH_OUTPUT=$(cargo search "ultrafast-mcp-cli" --limit 10)
-        echo "$SEARCH_OUTPUT"
+        # Use direct crates.io API check for more reliable version detection
+        API_RESPONSE=$(curl -s "https://crates.io/api/v1/crates/ultrafast-mcp-cli/versions" | jq -r '.versions[] | select(.num == "'$WORKSPACE_VERSION'") | .num' 2>/dev/null || echo "")
         
-        # Debug: Show the pattern we're looking for
-        PATTERN="ultrafast-mcp-cli = \"$WORKSPACE_VERSION\""
-        echo "Looking for pattern: '$PATTERN'"
+        echo "API response for version $WORKSPACE_VERSION: '$API_RESPONSE'"
         
-        # Check if the exact version exists with better pattern matching
-        if echo "$SEARCH_OUTPUT" | grep -F "$PATTERN" > /dev/null; then
+        if [ "$API_RESPONSE" = "$WORKSPACE_VERSION" ]; then
           echo "skip=true" >> $GITHUB_OUTPUT
           echo "Skipping ultrafast-mcp-cli - version $WORKSPACE_VERSION already exists"
         else
