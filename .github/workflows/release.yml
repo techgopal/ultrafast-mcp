@@ -113,9 +113,13 @@ jobs:
         WORKSPACE_VERSION=$(grep '^version = ' Cargo.toml | cut -d'"' -f2)
         echo "Checking if ${{ matrix.crate }}@$WORKSPACE_VERSION already exists..."
         
-        # FIXED: Use exact version matching instead of substring matching
-        # This prevents false positives with release candidates like "202506018.1.0-rc.3"
-        if cargo search "${{ matrix.crate }}" --limit 10 | grep -E "${{ matrix.crate }} = \"$WORKSPACE_VERSION\"" > /dev/null; then
+        # Debug: Show the search results
+        echo "Search results for ${{ matrix.crate }}:"
+        SEARCH_OUTPUT=$(cargo search "${{ matrix.crate }}" --limit 10)
+        echo "$SEARCH_OUTPUT"
+        
+        # Check if the exact version exists
+        if echo "$SEARCH_OUTPUT" | grep -q "${{ matrix.crate }} = \"$WORKSPACE_VERSION\""; then
           echo "skip=true" >> $GITHUB_OUTPUT
           echo "Skipping ${{ matrix.crate }} - version $WORKSPACE_VERSION already exists"
         else
@@ -202,9 +206,13 @@ jobs:
         WORKSPACE_VERSION=$(grep '^version = ' Cargo.toml | cut -d'"' -f2)
         echo "Checking if ${{ matrix.crate }}@$WORKSPACE_VERSION already exists..."
         
-        # FIXED: Use exact version matching instead of substring matching
-        # This prevents false positives with release candidates like "202506018.1.0-rc.3"
-        if cargo search "${{ matrix.crate }}" --limit 10 | grep -E "${{ matrix.crate }} = \"$WORKSPACE_VERSION\"" > /dev/null; then
+        # Debug: Show the search results
+        echo "Search results for ${{ matrix.crate }}:"
+        SEARCH_OUTPUT=$(cargo search "${{ matrix.crate }}" --limit 10)
+        echo "$SEARCH_OUTPUT"
+        
+        # Check if the exact version exists
+        if echo "$SEARCH_OUTPUT" | grep -q "${{ matrix.crate }} = \"$WORKSPACE_VERSION\""; then
           echo "skip=true" >> $GITHUB_OUTPUT
           echo "Skipping ${{ matrix.crate }} - version $WORKSPACE_VERSION already exists"
         else
@@ -290,9 +298,13 @@ jobs:
         WORKSPACE_VERSION=$(grep '^version = ' Cargo.toml | cut -d'"' -f2)
         echo "Checking if ${{ matrix.crate }}@$WORKSPACE_VERSION already exists..."
         
-        # FIXED: Use exact version matching instead of substring matching
-        # This prevents false positives with release candidates like "202506018.1.0-rc.3"
-        if cargo search "${{ matrix.crate }}" --limit 10 | grep -E "${{ matrix.crate }} = \"$WORKSPACE_VERSION\"" > /dev/null; then
+        # Debug: Show the search results
+        echo "Search results for ${{ matrix.crate }}:"
+        SEARCH_OUTPUT=$(cargo search "${{ matrix.crate }}" --limit 10)
+        echo "$SEARCH_OUTPUT"
+        
+        # Check if the exact version exists
+        if echo "$SEARCH_OUTPUT" | grep -q "${{ matrix.crate }} = \"$WORKSPACE_VERSION\""; then
           echo "skip=true" >> $GITHUB_OUTPUT
           echo "Skipping ${{ matrix.crate }} - version $WORKSPACE_VERSION already exists"
         else
@@ -380,9 +392,13 @@ jobs:
         WORKSPACE_VERSION=$(grep '^version = ' Cargo.toml | cut -d'"' -f2)
         echo "Checking if ${{ matrix.crate }}@$WORKSPACE_VERSION already exists..."
         
-        # FIXED: Use exact version matching instead of substring matching
-        # This prevents false positives with release candidates like "202506018.1.0-rc.3"
-        if cargo search "${{ matrix.crate }}" --limit 10 | grep -E "${{ matrix.crate }} = \"$WORKSPACE_VERSION\"" > /dev/null; then
+        # Debug: Show the search results
+        echo "Search results for ${{ matrix.crate }}:"
+        SEARCH_OUTPUT=$(cargo search "${{ matrix.crate }}" --limit 10)
+        echo "$SEARCH_OUTPUT"
+        
+        # Check if the exact version exists
+        if echo "$SEARCH_OUTPUT" | grep -q "${{ matrix.crate }} = \"$WORKSPACE_VERSION\""; then
           echo "skip=true" >> $GITHUB_OUTPUT
           echo "Skipping ${{ matrix.crate }} - version $WORKSPACE_VERSION already exists"
         else
@@ -462,9 +478,13 @@ jobs:
         WORKSPACE_VERSION=$(grep '^version = ' Cargo.toml | cut -d'"' -f2)
         echo "Checking if ultrafast-mcp@$WORKSPACE_VERSION already exists..."
         
-        # FIXED: Use exact version matching instead of substring matching
-        # This prevents false positives with release candidates like "202506018.1.0-rc.3"
-        if cargo search "ultrafast-mcp" --limit 10 | grep -E "ultrafast-mcp = \"$WORKSPACE_VERSION\"" > /dev/null; then
+        # Debug: Show the search results
+        echo "Search results for ultrafast-mcp:"
+        SEARCH_OUTPUT=$(cargo search "ultrafast-mcp" --limit 10)
+        echo "$SEARCH_OUTPUT"
+        
+        # Check if the exact version exists
+        if echo "$SEARCH_OUTPUT" | grep -q "ultrafast-mcp = \"$WORKSPACE_VERSION\""; then
           echo "skip=true" >> $GITHUB_OUTPUT
           echo "Skipping ultrafast-mcp - version $WORKSPACE_VERSION already exists"
         else
@@ -544,9 +564,13 @@ jobs:
         WORKSPACE_VERSION=$(grep '^version = ' Cargo.toml | cut -d'"' -f2)
         echo "Checking if ultrafast-mcp-cli@$WORKSPACE_VERSION already exists..."
         
-        # FIXED: Use exact version matching instead of substring matching
-        # This prevents false positives with release candidates like "202506018.1.0-rc.3"
-        if cargo search "ultrafast-mcp-cli" --limit 10 | grep -E "ultrafast-mcp-cli = \"$WORKSPACE_VERSION\"" > /dev/null; then
+        # Debug: Show the search results
+        echo "Search results for ultrafast-mcp-cli:"
+        SEARCH_OUTPUT=$(cargo search "ultrafast-mcp-cli" --limit 10)
+        echo "$SEARCH_OUTPUT"
+        
+        # Check if the exact version exists
+        if echo "$SEARCH_OUTPUT" | grep -q "ultrafast-mcp-cli = \"$WORKSPACE_VERSION\""; then
           echo "skip=true" >> $GITHUB_OUTPUT
           echo "Skipping ultrafast-mcp-cli - version $WORKSPACE_VERSION already exists"
         else
