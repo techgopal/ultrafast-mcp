@@ -96,8 +96,7 @@ pub fn validate_against_schema(data: &Value, schema: &Value) -> MCPResult<()> {
             if let Ok(regex) = regex::Regex::new(pattern) {
                 if !regex.is_match(string_value) {
                     return Err(ToolError::SchemaValidation(format!(
-                        "String '{}' does not match pattern '{}'",
-                        string_value, pattern
+                        "String '{string_value}' does not match pattern '{pattern}'"
                     ))
                     .into());
                 }
@@ -118,15 +117,13 @@ pub fn validate_against_schema(data: &Value, schema: &Value) -> MCPResult<()> {
             if exclusive {
                 if number_value <= minimum {
                     return Err(ToolError::SchemaValidation(format!(
-                        "Number {} must be greater than {}",
-                        number_value, minimum
+                        "Number {number_value} must be greater than {minimum}"
                     ))
                     .into());
                 }
             } else if number_value < minimum {
                 return Err(ToolError::SchemaValidation(format!(
-                    "Number {} must be greater than or equal to {}",
-                    number_value, minimum
+                    "Number {number_value} must be greater than or equal to {minimum}"
                 ))
                 .into());
             }
@@ -139,15 +136,13 @@ pub fn validate_against_schema(data: &Value, schema: &Value) -> MCPResult<()> {
             if exclusive {
                 if number_value >= maximum {
                     return Err(ToolError::SchemaValidation(format!(
-                        "Number {} must be less than {}",
-                        number_value, maximum
+                        "Number {number_value} must be less than {maximum}"
                     ))
                     .into());
                 }
             } else if number_value > maximum {
                 return Err(ToolError::SchemaValidation(format!(
-                    "Number {} must be less than or equal to {}",
-                    number_value, maximum
+                    "Number {number_value} must be less than or equal to {maximum}"
                 ))
                 .into());
             }
@@ -155,8 +150,7 @@ pub fn validate_against_schema(data: &Value, schema: &Value) -> MCPResult<()> {
         if let Some(multiple_of) = schema.get("multipleOf").and_then(|v| v.as_f64()) {
             if multiple_of != 0.0 && (number_value % multiple_of).abs() > f64::EPSILON {
                 return Err(ToolError::SchemaValidation(format!(
-                    "Number {} must be a multiple of {}",
-                    number_value, multiple_of
+                    "Number {number_value} must be a multiple of {multiple_of}"
                 ))
                 .into());
             }
@@ -175,15 +169,13 @@ pub fn validate_against_schema(data: &Value, schema: &Value) -> MCPResult<()> {
             if exclusive {
                 if integer_value <= minimum {
                     return Err(ToolError::SchemaValidation(format!(
-                        "Integer {} must be greater than {}",
-                        integer_value, minimum
+                        "Integer {integer_value} must be greater than {minimum}"
                     ))
                     .into());
                 }
             } else if integer_value < minimum {
                 return Err(ToolError::SchemaValidation(format!(
-                    "Integer {} must be greater than or equal to {}",
-                    integer_value, minimum
+                    "Integer {integer_value} must be greater than or equal to {minimum}"
                 ))
                 .into());
             }
@@ -196,15 +188,13 @@ pub fn validate_against_schema(data: &Value, schema: &Value) -> MCPResult<()> {
             if exclusive {
                 if integer_value >= maximum {
                     return Err(ToolError::SchemaValidation(format!(
-                        "Integer {} must be less than {}",
-                        integer_value, maximum
+                        "Integer {integer_value} must be less than {maximum}"
                     ))
                     .into());
                 }
             } else if integer_value > maximum {
                 return Err(ToolError::SchemaValidation(format!(
-                    "Integer {} must be less than or equal to {}",
-                    integer_value, maximum
+                    "Integer {integer_value} must be less than or equal to {maximum}"
                 ))
                 .into());
             }
@@ -212,8 +202,7 @@ pub fn validate_against_schema(data: &Value, schema: &Value) -> MCPResult<()> {
         if let Some(multiple_of) = schema.get("multipleOf").and_then(|v| v.as_i64()) {
             if multiple_of != 0 && integer_value % multiple_of != 0 {
                 return Err(ToolError::SchemaValidation(format!(
-                    "Integer {} must be a multiple of {}",
-                    integer_value, multiple_of
+                    "Integer {integer_value} must be a multiple of {multiple_of}"
                 ))
                 .into());
             }
@@ -284,8 +273,7 @@ fn validate_string(data: &Value, schema: &Value) -> MCPResult<()> {
         if let Ok(regex) = regex::Regex::new(pattern) {
             if !regex.is_match(string_value) {
                 return Err(ToolError::SchemaValidation(format!(
-                    "String '{}' does not match pattern '{}'",
-                    string_value, pattern
+                    "String '{string_value}' does not match pattern '{pattern}'"
                 ))
                 .into());
             }
@@ -320,15 +308,13 @@ fn validate_number(data: &Value, schema: &Value) -> MCPResult<()> {
         if exclusive {
             if number_value <= minimum {
                 return Err(ToolError::SchemaValidation(format!(
-                    "Number {} must be greater than {}",
-                    number_value, minimum
+                    "Number {number_value} must be greater than {minimum}"
                 ))
                 .into());
             }
         } else if number_value < minimum {
             return Err(ToolError::SchemaValidation(format!(
-                "Number {} must be greater than or equal to {}",
-                number_value, minimum
+                "Number {number_value} must be greater than or equal to {minimum}"
             ))
             .into());
         }
@@ -342,15 +328,13 @@ fn validate_number(data: &Value, schema: &Value) -> MCPResult<()> {
         if exclusive {
             if number_value >= maximum {
                 return Err(ToolError::SchemaValidation(format!(
-                    "Number {} must be less than {}",
-                    number_value, maximum
+                    "Number {number_value} must be less than {maximum}"
                 ))
                 .into());
             }
         } else if number_value > maximum {
             return Err(ToolError::SchemaValidation(format!(
-                "Number {} must be less than or equal to {}",
-                number_value, maximum
+                "Number {number_value} must be less than or equal to {maximum}"
             ))
             .into());
         }
@@ -360,8 +344,7 @@ fn validate_number(data: &Value, schema: &Value) -> MCPResult<()> {
     if let Some(multiple_of) = schema.get("multipleOf").and_then(|v| v.as_f64()) {
         if multiple_of != 0.0 && (number_value % multiple_of).abs() > f64::EPSILON {
             return Err(ToolError::SchemaValidation(format!(
-                "Number {} must be a multiple of {}",
-                number_value, multiple_of
+                "Number {number_value} must be a multiple of {multiple_of}"
             ))
             .into());
         }
@@ -392,15 +375,13 @@ fn validate_integer(data: &Value, schema: &Value) -> MCPResult<()> {
         if exclusive {
             if integer_value <= minimum {
                 return Err(ToolError::SchemaValidation(format!(
-                    "Integer {} must be greater than {}",
-                    integer_value, minimum
+                    "Integer {integer_value} must be greater than {minimum}"
                 ))
                 .into());
             }
         } else if integer_value < minimum {
             return Err(ToolError::SchemaValidation(format!(
-                "Integer {} must be greater than or equal to {}",
-                integer_value, minimum
+                "Integer {integer_value} must be greater than or equal to {minimum}"
             ))
             .into());
         }
@@ -414,15 +395,13 @@ fn validate_integer(data: &Value, schema: &Value) -> MCPResult<()> {
         if exclusive {
             if integer_value >= maximum {
                 return Err(ToolError::SchemaValidation(format!(
-                    "Integer {} must be less than {}",
-                    integer_value, maximum
+                    "Integer {integer_value} must be less than {maximum}"
                 ))
                 .into());
             }
         } else if integer_value > maximum {
             return Err(ToolError::SchemaValidation(format!(
-                "Integer {} must be less than or equal to {}",
-                integer_value, maximum
+                "Integer {integer_value} must be less than or equal to {maximum}"
             ))
             .into());
         }
@@ -432,8 +411,7 @@ fn validate_integer(data: &Value, schema: &Value) -> MCPResult<()> {
     if let Some(multiple_of) = schema.get("multipleOf").and_then(|v| v.as_i64()) {
         if multiple_of != 0 && integer_value % multiple_of != 0 {
             return Err(ToolError::SchemaValidation(format!(
-                "Integer {} must be a multiple of {}",
-                integer_value, multiple_of
+                "Integer {integer_value} must be a multiple of {multiple_of}"
             ))
             .into());
         }
@@ -616,15 +594,13 @@ fn validate_object(data: &Value, schema: &Value) -> MCPResult<()> {
                         if let Some(additional_schema) = additional_properties.as_object() {
                             if additional_schema.is_empty() {
                                 return Err(ToolError::SchemaValidation(format!(
-                                    "Additional property '{}' not allowed",
-                                    key
+                                    "Additional property '{key}' not allowed"
                                 ))
                                 .into());
                             }
                         } else if !additional_properties.as_bool().unwrap_or(true) {
                             return Err(ToolError::SchemaValidation(format!(
-                                "Additional property '{}' not allowed",
-                                key
+                                "Additional property '{key}' not allowed"
                             ))
                             .into());
                         } else {
@@ -642,8 +618,7 @@ fn validate_object(data: &Value, schema: &Value) -> MCPResult<()> {
             let key_value = Value::String(key.clone());
             validate_against_schema(&key_value, property_names).map_err(|e| {
                 ToolError::SchemaValidation(format!(
-                    "Property name '{}' validation failed: {e}",
-                    key
+                    "Property name '{key}' validation failed: {e}"
                 ))
             })?;
         }
@@ -660,8 +635,7 @@ fn validate_object(data: &Value, schema: &Value) -> MCPResult<()> {
                                 if let Some(prop_name) = req_prop.as_str() {
                                     if !obj.contains_key(prop_name) {
                                         return Err(ToolError::SchemaValidation(format!(
-                                            "Property '{}' requires property '{}'",
-                                            property, prop_name
+                                            "Property '{property}' requires property '{prop_name}'"
                                         ))
                                         .into());
                                     }
@@ -913,7 +887,7 @@ pub fn validate_tool_definition_comprehensive(
     if let Err(e) = tool.validate() {
         report.add_error(ValidationError::new(
             "basic_validation".to_string(),
-            format!("Basic tool validation failed: {}", e),
+            format!("Basic tool validation failed: {e}"),
             ErrorSeverity::High,
         ));
         return Ok(report);
@@ -946,19 +920,17 @@ fn validate_schema_complexity(
     // Check maximum complexity
     if complexity > MAX_SCHEMA_COMPLEXITY {
         report.add_error(ValidationError::new(
-            format!("{}_complexity", context),
+            format!("{context}_complexity"),
             format!(
-                "Schema complexity {} exceeds maximum {}",
-                complexity, MAX_SCHEMA_COMPLEXITY
+                "Schema complexity {complexity} exceeds maximum {MAX_SCHEMA_COMPLEXITY}"
             ),
             ErrorSeverity::High,
         ));
     } else if complexity > WARN_SCHEMA_COMPLEXITY {
         report.add_warning(ValidationWarning::new(
-            format!("{}_complexity", context),
+            format!("{context}_complexity"),
             format!(
-                "Schema complexity {} is high, consider simplifying",
-                complexity
+                "Schema complexity {complexity} is high, consider simplifying"
             ),
         ));
     }
@@ -967,10 +939,9 @@ fn validate_schema_complexity(
     let depth = calculate_schema_depth(schema, 0);
     if depth > MAX_SCHEMA_DEPTH {
         report.add_error(ValidationError::new(
-            format!("{}_depth", context),
+            format!("{context}_depth"),
             format!(
-                "Schema nesting depth {} exceeds maximum {}",
-                depth, MAX_SCHEMA_DEPTH
+                "Schema nesting depth {depth} exceeds maximum {MAX_SCHEMA_DEPTH}"
             ),
             ErrorSeverity::High,
         ));
@@ -1084,8 +1055,7 @@ fn validate_tool_security(
                 report.add_warning(ValidationWarning::new(
                     "sensitive_parameter".to_string(),
                     format!(
-                        "Parameter '{}' may contain sensitive data, ensure proper handling",
-                        prop_name
+                        "Parameter '{prop_name}' may contain sensitive data, ensure proper handling"
                     ),
                 ));
             }
@@ -1909,7 +1879,7 @@ impl MCPMessageValidator {
                 {
                     report.add_error(ValidationError::new(
                         "initialize.protocolVersion".to_string(),
-                        format!("Unsupported protocol version: {}", version_str),
+                        format!("Unsupported protocol version: {version_str}"),
                         ErrorSeverity::High,
                     ));
                 }
@@ -2229,7 +2199,7 @@ impl MCPMessageValidator {
                     self.validate_value(
                         message,
                         report,
-                        format!("sampling/createMessage.messages[{}]", i),
+                        format!("sampling/createMessage.messages[{i}]"),
                         0,
                     )?;
                 }
@@ -2320,8 +2290,7 @@ impl MCPMessageValidator {
                     report.add_error(ValidationError::new(
                         "logging/log.level".to_string(),
                         format!(
-                            "Invalid log level: {} (must be one of: {:?})",
-                            level_str, valid_levels
+                            "Invalid log level: {level_str} (must be one of: {valid_levels:?})"
                         ),
                         ErrorSeverity::Medium,
                     ));
@@ -2432,7 +2401,7 @@ impl MCPMessageValidator {
 
             // Validate each capability
             for (key, value) in obj {
-                self.validate_value(value, report, format!("{}.{}", path, key), 0)?;
+                self.validate_value(value, report, format!("{path}.{key}"), 0)?;
             }
         } else {
             report.add_error(ValidationError::new(
@@ -2480,13 +2449,13 @@ impl MCPMessageValidator {
                 if !self.allow_dangerous_content {
                     report.add_error(ValidationError::new(
                         "uri".to_string(),
-                        format!("Potentially dangerous URI scheme: {}", scheme),
+                        format!("Potentially dangerous URI scheme: {scheme}"),
                         ErrorSeverity::High,
                     ));
                 } else {
                     report.add_warning(ValidationWarning::new(
                         "uri".to_string(),
-                        format!("Dangerous URI scheme detected: {}", scheme),
+                        format!("Dangerous URI scheme detected: {scheme}"),
                     ));
                 }
             }
@@ -2631,8 +2600,7 @@ impl MCPMessageValidator {
                 report.add_warning(ValidationWarning::new(
                     path.clone(),
                     format!(
-                        "String contains suspicious pattern '{}': {}",
-                        pattern, description
+                        "String contains suspicious pattern '{pattern}': {description}"
                     ),
                 ));
             }
@@ -2664,7 +2632,7 @@ impl MCPMessageValidator {
 
         // Validate each element
         for (i, item) in arr.iter().enumerate() {
-            self.validate_value(item, report, format!("{}[{}]", path, i), depth + 1)?;
+            self.validate_value(item, report, format!("{path}[{i}]"), depth + 1)?;
         }
 
         Ok(())
@@ -2714,15 +2682,15 @@ impl MCPMessageValidator {
             if key.starts_with('_') && key != "_meta" {
                 report.add_warning(ValidationWarning::new(
                     path.clone(),
-                    format!("Private key detected: {}", key),
+                    format!("Private key detected: {key}"),
                 ));
             }
 
             // Validate key security
-            self.validate_string_security(key, report, format!("{}.{}", path, key))?;
+            self.validate_string_security(key, report, format!("{path}.{key}"))?;
 
             // Validate value
-            self.validate_value(value, report, format!("{}.{}", path, key), depth + 1)?;
+            self.validate_value(value, report, format!("{path}.{key}"), depth + 1)?;
         }
 
         Ok(())

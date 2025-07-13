@@ -144,7 +144,7 @@ mod tests {
     #[async_trait]
     impl RequestHandler<String, String> for TestRequestHandler {
         async fn handle(&self, request: String) -> MCPResult<String> {
-            Ok(format!("Handled: {}", request))
+            Ok(format!("Handled: {request}"))
         }
     }
 

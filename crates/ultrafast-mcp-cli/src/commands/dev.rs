@@ -48,7 +48,7 @@ pub async fn execute(args: DevArgs, config: Option<Config>) -> Result<()> {
     println!("🚀 Transport: {}", args.transport);
 
     if args.transport != "stdio" {
-        println!("🌐 Port: {}", port);
+        println!("🌐 Port: {port}");
     }
 
     // Check if project has a valid MCP configuration
@@ -72,7 +72,7 @@ pub async fn execute(args: DevArgs, config: Option<Config>) -> Result<()> {
 
         tokio::spawn(async move {
             if let Err(e) = start_file_watcher(project_dir_clone, watch_dirs).await {
-                eprintln!("File watcher error: {}", e);
+                eprintln!("File watcher error: {e}");
             }
         });
     }
@@ -132,12 +132,12 @@ async fn start_mcp_server(project_dir: &PathBuf, transport: &str, port: u16) -> 
         }
         "http" => {
             // Start HTTP server
-            println!("🌐 Starting HTTP server on port {}...", port);
+            println!("🌐 Starting HTTP server on port {port}...");
 
             // For now, just simulate an HTTP server
             // In a real implementation, this would start an actual HTTP server
             loop {
-                println!("🔄 Server running on http://localhost:{}", port);
+                println!("🔄 Server running on http://localhost:{port}");
                 sleep(Duration::from_secs(30)).await;
             }
         }
@@ -188,7 +188,7 @@ async fn start_file_watcher(project_dir: PathBuf, watch_dirs: Vec<PathBuf>) -> R
         if changed {
             println!("🔄 Rebuilding project...");
             if let Err(e) = build_project(&project_dir).await {
-                eprintln!("❌ Build failed: {}", e);
+                eprintln!("❌ Build failed: {e}");
             } else {
                 println!("✅ Rebuild completed");
             }

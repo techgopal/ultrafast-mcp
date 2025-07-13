@@ -57,7 +57,7 @@ pub async fn execute(args: InfoArgs, config: Option<Config>) -> Result<()> {
         println!("   Project: {}", config.project.name);
         println!("   Version: {}", config.project.version);
         if let Some(desc) = config.project.description {
-            println!("   Description: {}", desc);
+            println!("   Description: {desc}");
         }
         println!("   Servers: {}", config.servers.len());
         println!("   Clients: {}", config.clients.len());

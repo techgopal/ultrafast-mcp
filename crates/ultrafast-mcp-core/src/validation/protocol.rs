@@ -12,8 +12,7 @@ use crate::protocol::version::PROTOCOL_VERSION;
 pub fn validate_protocol_version(version: &str) -> MCPResult<()> {
     if version != PROTOCOL_VERSION {
         return Err(ProtocolError::InvalidVersion(format!(
-            "Expected protocol version {}, got {}",
-            PROTOCOL_VERSION, version
+            "Expected protocol version {PROTOCOL_VERSION}, got {version}"
         ))
         .into());
     }
@@ -41,8 +40,7 @@ pub fn validate_method_name(method: &str) -> MCPResult<()> {
         .all(|c| c.is_alphanumeric() || c == '/' || c == '_')
     {
         return Err(ProtocolError::InvalidRequest(format!(
-            "Invalid method name: {}. Method names can only contain alphanumeric characters, '/', and '_'",
-            method
+            "Invalid method name: {method}. Method names can only contain alphanumeric characters, '/', and '_'"
         )).into());
     }
 

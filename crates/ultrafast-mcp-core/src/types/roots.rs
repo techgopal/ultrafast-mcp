@@ -762,7 +762,7 @@ mod tests {
 
         for path in &test_cases {
             let result = validator.validate_access(&root, path, RootOperation::Read);
-            assert!(result.is_err(), "Path {} should be blocked", path);
+            assert!(result.is_err(), "Path {path} should be blocked");
         }
     }
 

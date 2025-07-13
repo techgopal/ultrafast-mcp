@@ -85,7 +85,7 @@ impl OAuthClient {
                 issuer.trim_end_matches('/')
             )
         } else {
-            format!("{}/.well-known/authorization-server", issuer)
+            format!("{issuer}/.well-known/authorization-server")
         };
 
         let response = self
@@ -123,7 +123,7 @@ impl OAuthClient {
         if !response.status().is_success() {
             let error_body = response.text().await.unwrap_or_default();
             return Err(AuthError::AuthorizationServerError {
-                error: format!("Client registration failed: {}", error_body),
+                error: format!("Client registration failed: {error_body}"),
             });
         }
 
@@ -187,7 +187,7 @@ impl OAuthClient {
         if !response.status().is_success() {
             let error_body = response.text().await.unwrap_or_default();
             return Err(AuthError::TokenExchangeError {
-                error: format!("Token exchange failed: {}", error_body),
+                error: format!("Token exchange failed: {error_body}"),
             });
         }
 
@@ -226,7 +226,7 @@ impl OAuthClient {
         if !response.status().is_success() {
             let error_body = response.text().await.unwrap_or_default();
             return Err(AuthError::TokenExchangeError {
-                error: format!("Token refresh failed: {}", error_body),
+                error: format!("Token refresh failed: {error_body}"),
             });
         }
 
@@ -263,7 +263,7 @@ impl OAuthClient {
         if !response.status().is_success() {
             let error_body = response.text().await.unwrap_or_default();
             return Err(AuthError::TokenValidationError {
-                reason: format!("Token introspection failed: {}", error_body),
+                reason: format!("Token introspection failed: {error_body}"),
             });
         }
 
@@ -304,7 +304,7 @@ mod tests {
             audience: Some("https://api.example.com".to_string()),
         };
         let url = client.build_authorization_url(&params).unwrap();
-        println!("Generated URL: {}", url);
+        println!("Generated URL: {url}");
         assert!(url.contains("response_type=code"));
         assert!(url.contains("client_id=client123"));
         assert!(url.contains("scope=read+write"));

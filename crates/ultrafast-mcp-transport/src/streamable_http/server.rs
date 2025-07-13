@@ -163,7 +163,7 @@ impl HttpTransportServer {
 
         let listener = tokio::net::TcpListener::bind(addr).await.map_err(|e| {
             TransportError::InitializationError {
-                message: format!("Failed to bind to address: {}", e),
+                message: format!("Failed to bind to address: {e}"),
             }
         })?;
 
@@ -173,7 +173,7 @@ impl HttpTransportServer {
                 format!("{}:{}", self.state.config.host, self.state.config.port + 1)
                     .parse()
                     .map_err(|e| TransportError::InitializationError {
-                        message: format!("Failed to parse monitoring address: {}", e),
+                        message: format!("Failed to parse monitoring address: {e}"),
                     })?;
 
             let monitoring_clone = monitoring.clone();
@@ -187,7 +187,7 @@ impl HttpTransportServer {
         axum::serve(listener, app.into_make_service())
             .await
             .map_err(|e| TransportError::InitializationError {
-                message: format!("Server failed: {}", e),
+                message: format!("Server failed: {e}"),
             })?;
 
         Ok(())
@@ -320,7 +320,7 @@ async fn handle_mcp_post_internal(
                 Json(JsonRpcResponse::error(
                     JsonRpcError::new(
                         -32000,
-                        format!("Unsupported protocol version: {}", protocol_version),
+                        format!("Unsupported protocol version: {protocol_version}"),
                     ),
                     None,
                 )),
@@ -421,7 +421,7 @@ async fn handle_mcp_get(
                 Json(JsonRpcResponse::error(
                     JsonRpcError::new(
                         -32000,
-                        format!("Unsupported protocol version: {}", protocol_version),
+                        format!("Unsupported protocol version: {protocol_version}"),
                     ),
                     None,
                 )),
@@ -438,7 +438,7 @@ async fn handle_mcp_get(
         session_id,
         last_event_id
             .as_ref()
-            .map(|id| format!(", resuming from event {}", id))
+            .map(|id| format!(", resuming from event {id}"))
             .unwrap_or_default()
     );
 
@@ -480,7 +480,7 @@ async fn handle_mcp_delete(
                 Json(JsonRpcResponse::error(
                     JsonRpcError::new(
                         -32000,
-                        format!("Unsupported protocol version: {}", protocol_version),
+                        format!("Unsupported protocol version: {protocol_version}"),
                     ),
                     None,
                 )),
@@ -517,7 +517,7 @@ async fn handle_jsonrpc_request(
     {
         error!("Failed to send message to server: {}", e);
         return Json(JsonRpcResponse::error(
-            JsonRpcError::new(-32000, format!("Failed to process message: {}", e)),
+            JsonRpcError::new(-32000, format!("Failed to process message: {e}")),
             request.id,
         ))
         .into_response();
@@ -575,7 +575,7 @@ async fn handle_jsonrpc_request(
         Ok(Err(e)) => {
             error!("Failed to receive response: {}", e);
             Json(JsonRpcResponse::error(
-                JsonRpcError::new(-32000, format!("Failed to receive response: {}", e)),
+                JsonRpcError::new(-32000, format!("Failed to receive response: {e}")),
                 request.id,
             ))
             .into_response()
@@ -603,7 +603,7 @@ async fn handle_notification_or_response(
         return (
             StatusCode::BAD_REQUEST,
             Json(JsonRpcResponse::error(
-                JsonRpcError::new(-32000, format!("Failed to process message: {}", e)),
+                JsonRpcError::new(-32000, format!("Failed to process message: {e}")),
                 None,
             )),
         )

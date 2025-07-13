@@ -74,16 +74,14 @@ impl RequestId {
                 }
                 if s.len() > MAX_REQUEST_ID_LENGTH {
                     return Err(crate::error::ProtocolError::InvalidRequestId(format!(
-                        "Request ID string too long (max {} characters)",
-                        MAX_REQUEST_ID_LENGTH
+                        "Request ID string too long (max {MAX_REQUEST_ID_LENGTH} characters)"
                     )));
                 }
             }
             RequestId::Number(n) => {
                 if *n < MIN_REQUEST_ID_NUMBER || *n > MAX_REQUEST_ID_NUMBER {
                     return Err(crate::error::ProtocolError::InvalidRequestId(format!(
-                        "Request ID number out of range ({} to {})",
-                        MIN_REQUEST_ID_NUMBER, MAX_REQUEST_ID_NUMBER
+                        "Request ID number out of range ({MIN_REQUEST_ID_NUMBER} to {MAX_REQUEST_ID_NUMBER})"
                     )));
                 }
             }
@@ -242,7 +240,7 @@ impl JsonRpcError {
     pub fn method_not_found(method: String) -> Self {
         Self::new(
             error_codes::METHOD_NOT_FOUND,
-            format!("Method not found: {}", method),
+            format!("Method not found: {method}"),
         )
     }
 
@@ -267,35 +265,35 @@ impl JsonRpcError {
     pub fn capability_not_supported(capability: String) -> Self {
         Self::new(
             mcp_error_codes::CAPABILITY_NOT_SUPPORTED,
-            format!("Capability not supported: {}", capability),
+            format!("Capability not supported: {capability}"),
         )
     }
 
     pub fn resource_not_found(uri: String) -> Self {
         Self::new(
             mcp_error_codes::RESOURCE_NOT_FOUND,
-            format!("Resource not found: {}", uri),
+            format!("Resource not found: {uri}"),
         )
     }
 
     pub fn tool_execution_error(tool_name: String, error: String) -> Self {
         Self::new(
             mcp_error_codes::TOOL_EXECUTION_ERROR,
-            format!("Tool execution error for '{}': {}", tool_name, error),
+            format!("Tool execution error for '{tool_name}': {error}"),
         )
     }
 
     pub fn invalid_uri(uri: String) -> Self {
         Self::new(
             mcp_error_codes::INVALID_URI,
-            format!("Invalid URI: {}", uri),
+            format!("Invalid URI: {uri}"),
         )
     }
 
     pub fn access_denied(resource: String) -> Self {
         Self::new(
             mcp_error_codes::ACCESS_DENIED,
-            format!("Access denied to resource: {}", resource),
+            format!("Access denied to resource: {resource}"),
         )
     }
 
@@ -309,7 +307,7 @@ impl JsonRpcError {
     pub fn protocol_version_not_supported(version: String) -> Self {
         Self::new(
             mcp_error_codes::PROTOCOL_VERSION_NOT_SUPPORTED,
-            format!("Protocol version not supported: {}", version),
+            format!("Protocol version not supported: {version}"),
         )
     }
 }

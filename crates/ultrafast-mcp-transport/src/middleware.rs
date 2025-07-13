@@ -339,7 +339,7 @@ impl ValidationMiddleware {
     fn validate_method(&self, method: &str) -> Result<()> {
         if !self.allowed_methods.contains(&method.to_string()) {
             return Err(TransportError::ProtocolError {
-                message: format!("Method '{}' not allowed", method),
+                message: format!("Method '{method}' not allowed"),
             });
         }
         Ok(())
@@ -433,7 +433,7 @@ impl ValidationMiddleware {
                     // Validate key names
                     if key.starts_with('_') && key != "_meta" {
                         return Err(TransportError::ProtocolError {
-                            message: format!("Reserved key name '{}' not allowed", key),
+                            message: format!("Reserved key name '{key}' not allowed"),
                         });
                     }
                     if key.contains('\0') || key.contains('\n') || key.contains('\r') {
@@ -491,8 +491,7 @@ impl ValidationMiddleware {
                                 {
                                     return Err(TransportError::ProtocolError {
                                         message: format!(
-                                            "Unsupported protocol version: {}",
-                                            version_str
+                                            "Unsupported protocol version: {version_str}"
                                         ),
                                     });
                                 }
@@ -553,7 +552,7 @@ impl ValidationMiddleware {
                                 ];
                                 if !valid_levels.contains(&level_str) {
                                     return Err(TransportError::ProtocolError {
-                                        message: format!("Invalid log level: {}", level_str),
+                                        message: format!("Invalid log level: {level_str}"),
                                     });
                                 }
                             }

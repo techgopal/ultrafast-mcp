@@ -158,7 +158,7 @@ mod tests {
         // Test JWT tokens
         let jwt_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c";
         assert_eq!(
-            extract_bearer_token(&format!("Bearer {}", jwt_token)),
+            extract_bearer_token(&format!("Bearer {jwt_token}")),
             Ok(jwt_token)
         );
 
@@ -176,7 +176,7 @@ mod tests {
         // Test token length validation
         let long_token = "a".repeat(4097);
         assert_eq!(
-            extract_bearer_token(&format!("Bearer {}", long_token)),
+            extract_bearer_token(&format!("Bearer {long_token}")),
             Err(AuthError::InvalidToken(
                 "Token too long: 4097 characters (max: 4096)".to_string()
             ))
@@ -188,7 +188,7 @@ mod tests {
         // Test valid JWT tokens
         let jwt_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c";
         assert_eq!(
-            extract_jwt_bearer_token(&format!("Bearer {}", jwt_token)),
+            extract_jwt_bearer_token(&format!("Bearer {jwt_token}")),
             Ok(jwt_token)
         );
 

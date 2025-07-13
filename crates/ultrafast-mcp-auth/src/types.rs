@@ -194,7 +194,7 @@ impl CustomHeaderAuth {
     }
 
     pub fn with_bearer_token(self, token: String) -> Self {
-        self.with_header("Authorization".to_string(), format!("Bearer {}", token))
+        self.with_header("Authorization".to_string(), format!("Bearer {token}"))
     }
 
     pub fn with_basic_auth(self, username: &str, password: &str) -> Self {

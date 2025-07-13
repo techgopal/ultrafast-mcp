@@ -239,7 +239,7 @@ async fn test_connection(client: &UltraFastClient, method_name: &str) -> anyhow:
             }
         }
         Err(e) => {
-            println!("   ❌ {} connection test failed: {}", method_name, e);
+            println!("   ❌ {method_name} connection test failed: {e}");
         }
     }
     Ok(())
@@ -274,10 +274,10 @@ async fn run_full_demo(client: &UltraFastClient) -> anyhow::Result<()> {
         for content in &result.content {
             match content {
                 ToolContent::Text { text } => {
-                    println!("  Text: {}", text);
+                    println!("  Text: {text}");
                 }
                 _ => {
-                    println!("  Other content: {:?}", content);
+                    println!("  Other content: {content:?}");
                 }
             }
         }
@@ -336,16 +336,16 @@ async fn run_full_demo(client: &UltraFastClient) -> anyhow::Result<()> {
             for content in &result.content {
                 match content {
                     ToolContent::Text { text } => {
-                        println!("   Response: {}", text);
+                        println!("   Response: {text}");
                     }
                     _ => {
-                        println!("   Other content: {:?}", content);
+                        println!("   Other content: {content:?}");
                     }
                 }
             }
         }
         Err(e) => {
-            println!("❌ Failed to call elicitation tool: {}", e);
+            println!("❌ Failed to call elicitation tool: {e}");
         }
     }
 

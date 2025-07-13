@@ -804,7 +804,7 @@ mod tests {
     fn test_template_too_many_variables() {
         let mut template_str = "https://api.example.com".to_string();
         for i in 0..15 {
-            template_str.push_str(&format!("/{{var{}}}", i));
+            template_str.push_str(&format!("/{{var{i}}}"));
         }
 
         let template = ResourceTemplate::new(template_str, "too_many_vars".to_string());
@@ -905,8 +905,7 @@ mod tests {
         match result {
             Err(TemplateError::PathTraversal) | Err(TemplateError::BlockedExpandedUri(_)) => {}
             _ => panic!(
-                "Expected PathTraversal or BlockedExpandedUri error, got: {:?}",
-                result
+                "Expected PathTraversal or BlockedExpandedUri error, got: {result:?}"
             ),
         }
     }
@@ -1009,8 +1008,7 @@ mod tests {
         match result {
             Err(TemplateError::NestedTemplatesNotAllowed) => {}
             _ => panic!(
-                "Expected NestedTemplatesNotAllowed error, got: {:?}",
-                result
+                "Expected NestedTemplatesNotAllowed error, got: {result:?}"
             ),
         }
     }
@@ -1038,8 +1036,7 @@ mod tests {
         match result {
             Err(TemplateError::ScriptInjection) | Err(TemplateError::BlockedExpandedUri(_)) => {}
             _ => panic!(
-                "Expected ScriptInjection or BlockedExpandedUri error, got: {:?}",
-                result
+                "Expected ScriptInjection or BlockedExpandedUri error, got: {result:?}"
             ),
         }
     }

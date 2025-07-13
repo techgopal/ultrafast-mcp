@@ -322,7 +322,7 @@ mod tests {
 
         // PingResponse should echo back the data as per MCP 2025-06-18 specification
         assert_eq!(
-            format!("{:?}", response),
+            format!("{response:?}"),
             "PingResponse { data: Some(Object {\"test\": String(\"data\")}) }"
         );
     }
@@ -331,6 +331,6 @@ mod tests {
     fn test_ping_response() {
         let response = PingResponse::new();
         // PingResponse is empty as per MCP 2025-06-18 specification
-        assert_eq!(format!("{:?}", response), "PingResponse { data: None }");
+        assert_eq!(format!("{response:?}"), "PingResponse { data: None }");
     }
 }

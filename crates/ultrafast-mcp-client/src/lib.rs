@@ -1170,8 +1170,7 @@ impl UltraFastClient {
         let state = self.get_state().await;
         if !state.can_operate() {
             return Err(MCPError::Protocol(ProtocolError::InternalError(format!(
-                "Client is not in operating state (current state: {:?})",
-                state
+                "Client is not in operating state (current state: {state:?})"
             ))));
         }
         Ok(())

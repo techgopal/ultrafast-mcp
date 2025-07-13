@@ -205,7 +205,7 @@ mod tests {
         let notification = InitializedNotification {};
 
         let serialized = serde_json::to_string(&notification).unwrap();
-        println!("Serialized notification: {}", serialized);
+        println!("Serialized notification: {serialized}");
         assert_eq!(serialized, "{}");
 
         println!("✅ Notification handling test passed!");

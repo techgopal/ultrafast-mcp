@@ -93,8 +93,8 @@ mod tests {
         assert!(serialization_time < Duration::from_millis(100));
 
         println!("✅ Performance benchmarks passed!");
-        println!("   Server creation: {:?}", creation_time);
-        println!("   1000 message serializations: {:?}", serialization_time);
+        println!("   Server creation: {creation_time:?}");
+        println!("   1000 message serializations: {serialization_time:?}");
 
         Ok(())
     }

@@ -44,7 +44,7 @@ impl fmt::Display for ConnectionState {
             ConnectionState::Connected => write!(f, "connected"),
             ConnectionState::Reconnecting => write!(f, "reconnecting"),
             ConnectionState::ShuttingDown => write!(f, "shutting down"),
-            ConnectionState::Failed(reason) => write!(f, "failed: {}", reason),
+            ConnectionState::Failed(reason) => write!(f, "failed: {reason}"),
         }
     }
 }

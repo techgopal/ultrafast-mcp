@@ -457,7 +457,7 @@ impl Context {
             // Add level
             data_obj.insert(
                 "level".to_string(),
-                Value::String(format!("{:?}", level).to_lowercase()),
+                Value::String(format!("{level:?}").to_lowercase()),
             );
 
             // Add any structured data

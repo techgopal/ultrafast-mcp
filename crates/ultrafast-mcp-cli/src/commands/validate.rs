@@ -109,14 +109,14 @@ async fn validate_project_structure(
         let file_path = path.join(file);
         if file_path.exists() {
             result.passed += 1;
-            println!("   ✅ {}", file);
+            println!("   ✅ {file}");
         } else {
             result.errors += 1;
             result.issues.push(ValidationIssue {
                 level: ValidationLevel::Error,
                 file: Some(file_path.clone()),
-                message: format!("Missing essential file: {}", file),
-                suggestion: Some(format!("Create {}", file)),
+                message: format!("Missing essential file: {file}"),
+                suggestion: Some(format!("Create {file}")),
             });
         }
     }
@@ -320,7 +320,7 @@ async fn validate_examples(
 
         if example_count > 0 {
             result.passed += 1;
-            println!("   ✅ Found {} example(s)", example_count);
+            println!("   ✅ Found {example_count} example(s)");
         }
     } else {
         result.warnings += 1;
@@ -348,18 +348,17 @@ fn check_package_field(
         result.issues.push(ValidationIssue {
             level: ValidationLevel::Error,
             file: None,
-            message: format!("Missing required package field: {}", field),
-            suggestion: Some(format!("Add {} field to [package] section", field)),
+            message: format!("Missing required package field: {field}"),
+            suggestion: Some(format!("Add {field} field to [package] section")),
         });
     } else {
         result.warnings += 1;
         result.issues.push(ValidationIssue {
             level: ValidationLevel::Warning,
             file: None,
-            message: format!("Missing recommended package field: {}", field),
+            message: format!("Missing recommended package field: {field}"),
             suggestion: Some(format!(
-                "Consider adding {} field to [package] section",
-                field
+                "Consider adding {field} field to [package] section"
             )),
         });
     }
@@ -380,8 +379,7 @@ fn validate_dependencies(
                         level: ValidationLevel::Warning,
                         file: None,
                         message: format!(
-                            "Wildcard version for dependency '{}' in {}",
-                            name, section
+                            "Wildcard version for dependency '{name}' in {section}"
                         ),
                         suggestion: Some("Use specific version constraints".to_string()),
                     });
@@ -413,7 +411,7 @@ async fn validate_config_file(config_path: &Path, result: &mut ValidationResult)
                 result.issues.push(ValidationIssue {
                     level: ValidationLevel::Error,
                     file: Some(config_path.to_path_buf()),
-                    message: format!("Invalid TOML: {}", e),
+                    message: format!("Invalid TOML: {e}"),
                     suggestion: Some("Fix TOML syntax errors".to_string()),
                 });
             }
@@ -431,7 +429,7 @@ async fn validate_config_file(config_path: &Path, result: &mut ValidationResult)
                 result.issues.push(ValidationIssue {
                     level: ValidationLevel::Error,
                     file: Some(config_path.to_path_buf()),
-                    message: format!("Invalid JSON: {}", e),
+                    message: format!("Invalid JSON: {e}"),
                     suggestion: Some("Fix JSON syntax errors".to_string()),
                 });
             }

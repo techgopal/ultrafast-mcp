@@ -240,8 +240,8 @@ mod integration_tests {
             let server_clone = Arc::clone(&server);
             let handle = tokio::spawn(async move {
                 // Test concurrent access to server info
-                let name = server_clone.info().name.clone();
-                name
+                
+                server_clone.info().name.clone()
             });
             handles.push(handle);
         }

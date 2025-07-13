@@ -422,7 +422,7 @@ mod tests {
                             .map_err(|e| {
                                 MCPError::Resource(
                                     ultrafast_mcp_core::error::ResourceError::AccessDenied(
-                                        format!("Root validation failed: {}", e),
+                                        format!("Root validation failed: {e}"),
                                     ),
                                 )
                             });

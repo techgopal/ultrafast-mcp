@@ -574,7 +574,7 @@ mod tests {
         for i in 0..1000 {
             let notification = CancelledNotification {
                 request_id: json!(format!("perf-test-{}", i)),
-                reason: Some(format!("Performance test {}", i)),
+                reason: Some(format!("Performance test {i}")),
             };
 
             let _serialized = serde_json::to_string(&notification).unwrap();
@@ -586,8 +586,7 @@ mod tests {
         assert!(elapsed.as_millis() < 100);
 
         println!(
-            "✅ Cancellation performance test passed! ({:?} for 1000 notifications)",
-            elapsed
+            "✅ Cancellation performance test passed! ({elapsed:?} for 1000 notifications)"
         );
     }
 
@@ -770,12 +769,12 @@ mod tests {
             let handle = tokio::spawn(async move {
                 let notification = CancelledNotification {
                     request_id: json!(format!("concurrent-test-{}", i)),
-                    reason: Some(format!("Concurrent cancellation {}", i)),
+                    reason: Some(format!("Concurrent cancellation {i}")),
                 };
 
                 let serialized = serde_json::to_string(&notification).unwrap();
-                assert!(serialized.contains(&format!("concurrent-test-{}", i)));
-                assert!(serialized.contains(&format!("Concurrent cancellation {}", i)));
+                assert!(serialized.contains(&format!("concurrent-test-{i}")));
+                assert!(serialized.contains(&format!("Concurrent cancellation {i}")));
 
                 notification
             });
@@ -790,11 +789,11 @@ mod tests {
             let notification = result.unwrap();
             assert_eq!(
                 notification.request_id,
-                json!(format!("concurrent-test-{}", i))
+                json!(format!("concurrent-test-{i}"))
             );
             assert_eq!(
                 notification.reason,
-                Some(format!("Concurrent cancellation {}", i))
+                Some(format!("Concurrent cancellation {i}"))
             );
         }
 
@@ -814,7 +813,7 @@ mod tests {
         for i in 0..1000 {
             let notification = CancelledNotification {
                 request_id: json!(format!("memory-test-{}", i)),
-                reason: Some(format!("Memory test {}", i)),
+                reason: Some(format!("Memory test {i}")),
             };
 
             let _serialized = serde_json::to_string(&notification).unwrap();
@@ -830,8 +829,7 @@ mod tests {
         assert_eq!(count_diff, 1000);
 
         println!(
-            "✅ Cancellation memory usage test passed! (Processed {} notifications)",
-            count_diff
+            "✅ Cancellation memory usage test passed! (Processed {count_diff} notifications)"
         );
     }
 
@@ -945,7 +943,7 @@ mod tests {
         assert!(duration < Duration::from_secs(1));
         assert_eq!(response.data, Some(json!({"timeout_test": true})));
 
-        println!("✅ Ping timeout test passed! (Duration: {:?})", duration);
+        println!("✅ Ping timeout test passed! (Duration: {duration:?})");
     }
 
     /// Test ping monitoring on client
@@ -1068,8 +1066,7 @@ mod tests {
         assert!(duration < Duration::from_secs(1));
 
         println!(
-            "✅ Ping performance test passed! (100 pings in {:?})",
-            duration
+            "✅ Ping performance test passed! (100 pings in {duration:?})"
         );
     }
 

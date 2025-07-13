@@ -7,16 +7,13 @@ use ultrafast_mcp_core::MCPResult;
 pub fn assert_mcp_error<T: Debug>(result: MCPResult<T>, expected_error_contains: &str) {
     match result {
         Ok(value) => panic!(
-            "Expected error containing '{}', but got Ok({:?})",
-            expected_error_contains, value
+            "Expected error containing '{expected_error_contains}', but got Ok({value:?})"
         ),
         Err(error) => {
             let error_string = error.to_string();
             assert!(
                 error_string.contains(expected_error_contains),
-                "Expected error to contain '{}', but got: {}",
-                expected_error_contains,
-                error_string
+                "Expected error to contain '{expected_error_contains}', but got: {error_string}"
             );
         }
     }
@@ -25,14 +22,12 @@ pub fn assert_mcp_error<T: Debug>(result: MCPResult<T>, expected_error_contains:
 /// Assert that a result is an MCP error of a specific variant
 pub fn assert_mcp_error_variant<T: Debug>(result: MCPResult<T>, variant_name: &str) {
     match result {
-        Ok(value) => panic!("Expected {} error, but got Ok({:?})", variant_name, value),
+        Ok(value) => panic!("Expected {variant_name} error, but got Ok({value:?})"),
         Err(error) => {
-            let error_debug = format!("{:?}", error);
+            let error_debug = format!("{error:?}");
             assert!(
                 error_debug.contains(variant_name),
-                "Expected {} error, but got: {:?}",
-                variant_name,
-                error
+                "Expected {variant_name} error, but got: {error:?}"
             );
         }
     }
@@ -42,7 +37,7 @@ pub fn assert_mcp_error_variant<T: Debug>(result: MCPResult<T>, variant_name: &s
 pub fn assert_mcp_success<T: Debug>(result: MCPResult<T>) -> T {
     match result {
         Ok(value) => value,
-        Err(error) => panic!("Expected success, but got error: {}", error),
+        Err(error) => panic!("Expected success, but got error: {error}"),
     }
 }
 
@@ -51,8 +46,8 @@ pub fn assert_json_eq(left: &serde_json::Value, right: &serde_json::Value) {
     if left != right {
         panic!(
             "JSON values are not equal:\nLeft:  {}\nRight: {}",
-            serde_json::to_string_pretty(left).unwrap_or_else(|_| format!("{:?}", left)),
-            serde_json::to_string_pretty(right).unwrap_or_else(|_| format!("{:?}", right))
+            serde_json::to_string_pretty(left).unwrap_or_else(|_| format!("{left:?}")),
+            serde_json::to_string_pretty(right).unwrap_or_else(|_| format!("{right:?}"))
         );
     }
 }
@@ -61,9 +56,7 @@ pub fn assert_json_eq(left: &serde_json::Value, right: &serde_json::Value) {
 pub fn assert_contains(haystack: &str, needle: &str) {
     assert!(
         haystack.contains(needle),
-        "Expected '{}' to contain '{}', but it doesn't",
-        haystack,
-        needle
+        "Expected '{haystack}' to contain '{needle}', but it doesn't"
     );
 }
 
@@ -71,9 +64,7 @@ pub fn assert_contains(haystack: &str, needle: &str) {
 pub fn assert_not_contains(haystack: &str, needle: &str) {
     assert!(
         !haystack.contains(needle),
-        "Expected '{}' to not contain '{}', but it does",
-        haystack,
-        needle
+        "Expected '{haystack}' to not contain '{needle}', but it does"
     );
 }
 
@@ -84,10 +75,7 @@ where
 {
     assert!(
         value >= min && value <= max,
-        "Expected {:?} to be in range [{:?}, {:?}]",
-        value,
-        min,
-        max
+        "Expected {value:?} to be in range [{min:?}, {max:?}]"
     );
 }
 
@@ -97,18 +85,10 @@ pub fn assert_duration_approx_eq(
     right: std::time::Duration,
     tolerance: std::time::Duration,
 ) {
-    let diff = if left > right {
-        left - right
-    } else {
-        right - left
-    };
+    let diff = left.abs_diff(right);
     assert!(
         diff <= tolerance,
-        "Durations {:?} and {:?} differ by {:?}, which exceeds tolerance {:?}",
-        left,
-        right,
-        diff,
-        tolerance
+        "Durations {left:?} and {right:?} differ by {diff:?}, which exceeds tolerance {tolerance:?}"
     );
 }
 

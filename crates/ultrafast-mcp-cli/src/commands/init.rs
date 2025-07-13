@@ -89,11 +89,11 @@ pub async fn execute(args: InitArgs, config: Option<Config>) -> Result<()> {
         Some(desc) => desc,
         None => {
             if args.yes {
-                format!("An MCP project: {}", project_name)
+                format!("An MCP project: {project_name}")
             } else {
                 prompt_for_input(
                     "Description",
-                    Some(&format!("An MCP project: {}", project_name)),
+                    Some(&format!("An MCP project: {project_name}")),
                 )?
             }
         }
@@ -130,7 +130,7 @@ pub async fn execute(args: InitArgs, config: Option<Config>) -> Result<()> {
     println!("✅ Project initialized successfully!");
     println!();
     println!("Next steps:");
-    println!("  cd {}", project_name);
+    println!("  cd {project_name}");
     println!("  mcp dev");
     println!();
     println!("For more information, run: mcp info");
@@ -142,12 +142,12 @@ fn prompt_for_input(prompt: &str, default: Option<&str>) -> Result<String> {
     use std::io::{self, Write};
 
     let prompt_text = if let Some(default) = default {
-        format!("{} [{}]: ", prompt, default)
+        format!("{prompt} [{default}]: ")
     } else {
-        format!("{}: ", prompt)
+        format!("{prompt}: ")
     };
 
-    print!("{}", prompt_text);
+    print!("{prompt_text}");
     io::stdout().flush()?;
 
     let mut input = String::new();
@@ -168,7 +168,7 @@ fn prompt_for_input(prompt: &str, default: Option<&str>) -> Result<String> {
 fn prompt_for_confirmation(prompt: &str) -> Result<bool> {
     use std::io::{self, Write};
 
-    print!("{} [y/N]: ", prompt);
+    print!("{prompt} [y/N]: ");
     io::stdout().flush()?;
 
     let mut input = String::new();

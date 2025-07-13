@@ -483,7 +483,7 @@ async fn main() -> Result<()> {
     };
 
     tracing_subscriber::fmt()
-        .with_env_filter(format!("ultrafast_mcp_cli={}", log_level))
+        .with_env_filter(format!("ultrafast_mcp_cli={log_level}"))
         .init();
 
     info!("Starting ULTRAFAST MCP CLI v{}", env!("CARGO_PKG_VERSION"));

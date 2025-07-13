@@ -316,7 +316,7 @@ mod validation_middleware_tests {
         let middleware = ValidationMiddleware::new();
         let mut large_object = serde_json::Map::new();
         for i in 0..1001 {
-            large_object.insert(format!("key_{}", i), json!(i));
+            large_object.insert(format!("key_{i}"), json!(i));
         }
         let mut request_with_large_object = JsonRpcMessage::Request(JsonRpcRequest {
             jsonrpc: "2.0".to_string(),
@@ -874,7 +874,7 @@ mod transport_compliance_tests {
                     Json(JsonRpcResponse::error(
                         JsonRpcError::new(
                             -32000,
-                            format!("Unsupported protocol version: {}", protocol_version),
+                            format!("Unsupported protocol version: {protocol_version}"),
                         ),
                         None,
                     )),

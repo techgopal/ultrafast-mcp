@@ -856,7 +856,7 @@ mod tests {
         assert!(result.is_err());
         match result {
             Err(ResourceResolutionError::LocalFilesNotAllowed) => {}
-            _ => panic!("Expected LocalFilesNotAllowed error, got: {:?}", result),
+            _ => panic!("Expected LocalFilesNotAllowed error, got: {result:?}"),
         }
     }
 
@@ -1053,7 +1053,7 @@ mod tests {
             assert!(result.is_err());
             match result {
                 Err(ResourceResolutionError::BlockedPattern(_)) => {}
-                _ => panic!("Expected BlockedPattern error for {}", uri),
+                _ => panic!("Expected BlockedPattern error for {uri}"),
             }
         }
     }
