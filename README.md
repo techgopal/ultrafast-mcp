@@ -35,6 +35,13 @@ UltraFast MCP is designed to be the definitive Rust implementation of the Model 
 - **🔐 Security First**: OAuth 2.1, PKCE, and secure token management
 - **📊 Observability**: Metrics, health checks, and distributed tracing
 
+## 🌐 Servers Built Using UltraFast MCP
+
+The following open-source servers are built on top of the UltraFast MCP framework:
+
+- [**UltraFast MCP Sequential Thinking**](https://github.com/techgopal/ultrafast-mcp-sequential-thinking):
+  A high-performance, Rust-based MCP server and client for dynamic, reflective, and structured problem-solving. Features advanced analytics, session management, and full MCP 2025-06-18 compatibility.
+
 ## 🏗️ Architecture
 
 UltraFast MCP follows a modular architecture with clear separation of concerns:
