@@ -1,0 +1,16 @@
+version: 2
+updates:
+  - package-ecosystem: cargo
+    directories:
+      - /
+      - examples/01-basic-echo
+      - examples/02-file-operations
+      - examples/03-everything-server
+      - examples/04-authentication-example
+      - tests/integration-test-suite
+    schedule:
+      interval: weekly
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

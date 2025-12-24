@@ -15,13 +15,13 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
 
     - name: Install Rust toolchain
       uses: dtolnay/rust-toolchain@stable
 
     - name: Cache dependencies
-      uses: Swatinem/rust-cache@v2
+      uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2.8.2
 
     - name: Install dependencies
       run: |
@@ -88,13 +88,13 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
 
     - name: Install Rust toolchain
       uses: dtolnay/rust-toolchain@stable
 
     - name: Cache dependencies
-      uses: Swatinem/rust-cache@v2
+      uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2.8.2
 
     - name: Install dependencies
       run: |
@@ -102,7 +102,7 @@ jobs:
         sudo apt-get install -y pkg-config libssl-dev
 
     - name: Login to crates.io
-      uses: actions-rs/cargo@v1
+      uses: actions-rs/cargo@ae10961054e4aa8b4aa7dffede299aaf087aa33b # v1.0.1
       with:
         command: login
         args: ${{ secrets.CARGO_REGISTRY_TOKEN }}
@@ -173,13 +173,13 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
 
     - name: Install Rust toolchain
       uses: dtolnay/rust-toolchain@stable
 
     - name: Cache dependencies
-      uses: Swatinem/rust-cache@v2
+      uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2.8.2
 
     - name: Install dependencies
       run: |
@@ -192,7 +192,7 @@ jobs:
         sleep 60
 
     - name: Login to crates.io
-      uses: actions-rs/cargo@v1
+      uses: actions-rs/cargo@ae10961054e4aa8b4aa7dffede299aaf087aa33b # v1.0.1
       with:
         command: login
         args: ${{ secrets.CARGO_REGISTRY_TOKEN }}
@@ -262,13 +262,13 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
 
     - name: Install Rust toolchain
       uses: dtolnay/rust-toolchain@stable
 
     - name: Cache dependencies
-      uses: Swatinem/rust-cache@v2
+      uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2.8.2
 
     - name: Install dependencies
       run: |
@@ -281,7 +281,7 @@ jobs:
         sleep 60
 
     - name: Login to crates.io
-      uses: actions-rs/cargo@v1
+      uses: actions-rs/cargo@ae10961054e4aa8b4aa7dffede299aaf087aa33b # v1.0.1
       with:
         command: login
         args: ${{ secrets.CARGO_REGISTRY_TOKEN }}
@@ -353,13 +353,13 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
 
     - name: Install Rust toolchain
       uses: dtolnay/rust-toolchain@stable
 
     - name: Cache dependencies
-      uses: Swatinem/rust-cache@v2
+      uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2.8.2
 
     - name: Install dependencies
       run: |
@@ -372,7 +372,7 @@ jobs:
         sleep 60
 
     - name: Login to crates.io
-      uses: actions-rs/cargo@v1
+      uses: actions-rs/cargo@ae10961054e4aa8b4aa7dffede299aaf087aa33b # v1.0.1
       with:
         command: login
         args: ${{ secrets.CARGO_REGISTRY_TOKEN }}
@@ -436,13 +436,13 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
 
     - name: Install Rust toolchain
       uses: dtolnay/rust-toolchain@stable
 
     - name: Cache dependencies
-      uses: Swatinem/rust-cache@v2
+      uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2.8.2
 
     - name: Install dependencies
       run: |
@@ -455,7 +455,7 @@ jobs:
         sleep 60
 
     - name: Login to crates.io
-      uses: actions-rs/cargo@v1
+      uses: actions-rs/cargo@ae10961054e4aa8b4aa7dffede299aaf087aa33b # v1.0.1
       with:
         command: login
         args: ${{ secrets.CARGO_REGISTRY_TOKEN }}
@@ -519,13 +519,13 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
 
     - name: Install Rust toolchain
       uses: dtolnay/rust-toolchain@stable
 
     - name: Cache dependencies
-      uses: Swatinem/rust-cache@v2
+      uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2.8.2
 
     - name: Install dependencies
       run: |
@@ -538,7 +538,7 @@ jobs:
         sleep 60
 
     - name: Login to crates.io
-      uses: actions-rs/cargo@v1
+      uses: actions-rs/cargo@ae10961054e4aa8b4aa7dffede299aaf087aa33b # v1.0.1
       with:
         command: login
         args: ${{ secrets.CARGO_REGISTRY_TOKEN }}

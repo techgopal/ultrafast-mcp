@@ -34,7 +34,7 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
 
     - name: Install Rust toolchain
       uses: dtolnay/rust-toolchain@stable
@@ -42,7 +42,7 @@ jobs:
         toolchain: ${{ matrix.rust }}
 
     - name: Cache dependencies
-      uses: Swatinem/rust-cache@v2
+      uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2.8.2
       with:
         key: nightly-${{ matrix.rust }}-${{ matrix.os }}-${{ hashFiles('**/Cargo.lock') }}
         cache-on-failure: true
@@ -93,7 +93,7 @@ jobs:
     # Upload benchmark results (only on Linux nightly)
     - name: Upload benchmark results
       if: matrix.os == 'ubuntu-latest' && matrix.rust == 'nightly'
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
       with:
         name: benchmark-results-${{ matrix.rust }}
         path: target/criterion/
@@ -108,13 +108,13 @@ jobs:
     
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
 
     - name: Install Rust toolchain
       uses: dtolnay/rust-toolchain@nightly
 
     - name: Cache dependencies
-      uses: Swatinem/rust-cache@v2
+      uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2.8.2
       with:
         key: integration-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
         cache-on-failure: true
@@ -140,13 +140,13 @@ jobs:
     
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
 
     - name: Install Rust toolchain
       uses: dtolnay/rust-toolchain@nightly
 
     - name: Cache dependencies
-      uses: Swatinem/rust-cache@v2
+      uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2.8.2
       with:
         key: performance-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
         cache-on-failure: true
@@ -161,7 +161,7 @@ jobs:
         cargo bench --all-features
 
     - name: Upload performance results
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
       with:
         name: performance-results
         path: target/criterion/ 

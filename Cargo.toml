@@ -79,7 +79,7 @@ description = "UltraFast MCP - High-performance Model Context Protocol implement
 
 [workspace.dependencies]
 # Core runtime dependencies
-tokio = { version = "1.46", features = ["macros", "rt-multi-thread", "net", "time", "sync", "io-util", "io-std", "signal", "process"] }
+tokio = { version = "1.48", features = ["macros", "rt-multi-thread", "net", "time", "sync", "io-util", "io-std", "signal", "process"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 anyhow = "1.0"
@@ -95,12 +95,12 @@ tower = { version = "0.5", features = ["util"] }
 tower-http = { version = "0.6", features = ["cors", "trace"] }
 hyper = "1.6"
 hyper-util = { version = "0.1", features = ["tokio"] }
-axum-extra = "0.10"
+axum-extra = "0.12"
 bytes = "1.10"
 
 # Authentication and security
 oauth2 = "5.0"
-jsonwebtoken = "9.3"
+jsonwebtoken = { version = "10", features = ["aws_lc_rs"] }
 base64 = "0.22"
 url = "2.5"
 rand = "0.9"
@@ -119,7 +119,7 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 
 # Testing and benchmarking (dev-dependencies only)
-criterion = { version = "0.6", features = ["html_reports"] }
+criterion = { version = "0.8", features = ["html_reports"] }
 tokio-test = "0.4"
 tempfile = "3.20"
 
@@ -127,15 +127,15 @@ tempfile = "3.20"
 schemars = { version = "1.0", features = ["uuid1"] }
 
 # Monitoring and observability
-opentelemetry = "0.30"
-opentelemetry_sdk = { version = "0.30", features = ["rt-tokio"] }
+opentelemetry = "0.31"
+opentelemetry_sdk = { version = "0.31", features = ["rt-tokio"] }
 opentelemetry-jaeger = { version = "0.22", features = ["rt-tokio"] }
-opentelemetry-prometheus = "0.29"
-opentelemetry-otlp = { version = "0.30", features = ["grpc-tonic", "tokio"] }
-tracing-opentelemetry = "0.31"
+opentelemetry-prometheus = "0.31"
+opentelemetry-otlp = { version = "0.31", features = ["grpc-tonic", "tokio"] }
+tracing-opentelemetry = "0.32"
 metrics = "0.24"
-metrics-exporter-prometheus = "0.17"
-sysinfo = "0.36"
+metrics-exporter-prometheus = "0.18"
+sysinfo = "0.37"
 chrono = { version = "0.4", features = ["serde"] }
 
 # Configuration and serialization
