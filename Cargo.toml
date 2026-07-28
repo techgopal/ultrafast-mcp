@@ -100,7 +100,7 @@ bytes = "1.10"
 
 # Authentication and security
 oauth2 = "5.0"
-jsonwebtoken = { version = "10", features = ["aws_lc_rs"] }
+jsonwebtoken = { version = "11", features = ["aws_lc_rs"] }
 base64 = "0.22"
 url = "2.5"
 rand = "0.9"
