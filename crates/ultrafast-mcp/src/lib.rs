@@ -483,11 +483,6 @@ pub use ultrafast_mcp_transport::{
     TransportConfig,
     create_recovering_transport,
     create_transport,
-    // Middleware (moved to streamable_http module)
-    streamable_http::middleware::{
-        LoggingMiddleware, MiddlewareTransport, ProgressMiddleware, RateLimitMiddleware,
-        TransportMiddleware, ValidationMiddleware,
-    },
     // STDIO
     stdio::StdioTransport,
 };
@@ -503,6 +498,11 @@ pub use ultrafast_mcp_transport::streamable_http::{
     StreamableHttpClientConfig, create_streamable_http_client_default,
     create_streamable_http_client_with_middleware, create_streamable_http_server_default,
     create_streamable_http_server_with_middleware,
+    // Middleware
+    middleware::{
+        LoggingMiddleware, MiddlewareTransport, ProgressMiddleware, RateLimitMiddleware,
+        TransportMiddleware, ValidationMiddleware,
+    },
 };
 
 // =========================
