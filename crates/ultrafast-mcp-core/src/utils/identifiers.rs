@@ -18,7 +18,7 @@ pub fn generate_session_id() -> String {
 ///
 /// Consolidates implementation from ultrafast-mcp-auth/src/pkce.rs
 pub fn generate_state() -> String {
-    use rand::Rng;
+    use rand::RngExt;
     let mut rng = rand::rng();
     (0..32)
         .map(|_| {
@@ -48,7 +48,7 @@ pub fn generate_request_id() -> u64 {
 
 /// Generate a cryptographically secure random string of specified length
 pub fn generate_secure_random(length: usize) -> String {
-    use rand::Rng;
+    use rand::RngExt;
     let charset = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
     let mut rng = rand::rng();
     (0..length)

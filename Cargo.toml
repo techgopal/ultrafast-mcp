@@ -90,9 +90,9 @@ uuid = { version = "1.17", features = ["v4", "serde"] }
 
 # HTTP transport and networking
 axum = "0.8"
-reqwest = { version = "0.12", features = ["json"] }
+reqwest = { version = "0.13", features = ["json", "form"] }
 tower = { version = "0.5", features = ["util"] }
-tower-http = { version = "0.6", features = ["cors", "trace"] }
+tower-http = { version = "0.7", features = ["cors", "trace"] }
 hyper = "1.6"
 hyper-util = { version = "0.1", features = ["tokio"] }
 axum-extra = "0.12"
@@ -100,11 +100,11 @@ bytes = "1.10"
 
 # Authentication and security
 oauth2 = "5.0"
-jsonwebtoken = { version = "10", features = ["aws_lc_rs"] }
-base64 = "0.22"
+jsonwebtoken = { version = "11", features = ["aws_lc_rs"] }
+base64 = "0.23"
 url = "2.5"
-rand = "0.9"
-sha2 = "0.10"
+rand = "0.10"
+sha2 = "0.11"
 
 # CLI and user interface
 clap = { version = "4.5", features = ["derive"] }
@@ -127,23 +127,23 @@ tempfile = "3.20"
 schemars = { version = "1.0", features = ["uuid1"] }
 
 # Monitoring and observability
-opentelemetry = "0.31"
-opentelemetry_sdk = { version = "0.31", features = ["rt-tokio"] }
+opentelemetry = "0.32"
+opentelemetry_sdk = { version = "0.32", features = ["rt-tokio"] }
 opentelemetry-jaeger = { version = "0.22", features = ["rt-tokio"] }
-opentelemetry-prometheus = "0.31"
-opentelemetry-otlp = { version = "0.31", features = ["grpc-tonic", "tokio"] }
-tracing-opentelemetry = "0.32"
+opentelemetry-prometheus = "0.32"
+opentelemetry-otlp = { version = "0.32", features = ["grpc-tonic", "tokio"] }
+tracing-opentelemetry = "0.33"
 metrics = "0.24"
 metrics-exporter-prometheus = "0.18"
-sysinfo = "0.37"
+sysinfo = "0.39"
 chrono = { version = "0.4", features = ["serde"] }
 
 # Configuration and serialization
-toml = "0.9"
+toml = "1.1"
 serde_yaml = "0.9"
 
 # Text processing and utilities
 regex = "1.11"
 lazy_static = "1.5"
 urlencoding = "2.1"
-rand_distr = "0.5.1"
+rand_distr = "0.6.0"
