@@ -24,13 +24,13 @@ jobs:
       examples: ${{ steps.filter.outputs.examples }}
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
       with:
         fetch-depth: 0  # Needed for proper change detection
 
     - name: Check for changes
       id: filter
-      uses: dorny/paths-filter@v2
+      uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3.0.2
       with:
         filters: |
           core:
@@ -56,19 +56,19 @@ jobs:
     
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
 
     - name: Install Rust toolchain
       uses: dtolnay/rust-toolchain@stable
 
     - name: Cache Rust toolchain
-      uses: actions/cache@v4
+      uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
       with:
         path: ~/.cargo/bin
         key: rust-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
 
     - name: Cache dependencies
-      uses: Swatinem/rust-cache@v2
+      uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2.8.2
       with:
         key: pr-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
         cache-on-failure: true
@@ -113,7 +113,7 @@ jobs:
     # Upload documentation artifacts
     - name: Upload documentation artifacts
       if: needs.changes.outputs.docs == 'true'
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
       with:
         name: documentation
         path: target/doc/ 

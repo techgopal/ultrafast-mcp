@@ -47,11 +47,13 @@ struct ReadFileResponse {
     path: String,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
 struct ReadMultipleFilesRequest {
     paths: Vec<String>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
 struct ReadMultipleFilesResponse {
     results: Vec<String>,
@@ -143,17 +145,20 @@ struct ListDirectoryWithSizesResponse {
     sort_by: String,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
 struct DirectoryTreeRequest {
     path: String,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
 struct DirectoryTreeResponse {
     path: String,
     tree: DirectoryTreeNode,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
 struct DirectoryTreeNode {
     name: String,
